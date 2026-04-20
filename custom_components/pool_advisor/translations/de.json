@@ -7,8 +7,7 @@
         "data": {
           "name": "Name",
           "pool_volume_m3": "Wasservolumen (m³)",
-          "chlorination_type": "Chlorierungsart",
-          "automatic_cl_dosing": "Automatische Chlor-Dosierung vorhanden"
+          "chlorination_type": "Chlorierungsart"
         }
       },
       "entities_auto": {
@@ -50,13 +49,18 @@
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
           "redox_max": "Redox max (mV)",
+          "ph_critical_low": "pH kritisch niedrig (eingreifen unterhalb)",
+          "ph_critical_high": "pH kritisch hoch (eingreifen oberhalb)",
+          "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
+          "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
+          "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
           "ph_calibration_threshold": "Kalibrier-Schwelle pH (Abweichung Auto↔Manuell)",
           "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
       },
       "chemicals": {
         "title": "Chemikalien",
-        "description": "Welche Produkte verwendest du? Stärke in % bezieht sich auf den aktiven Wirkstoff. Hinweis: Dichlor-Granulat bringt Cyanursäure mit ins Wasser — für häufiges Schocken lieber Flüssig-Chlor (NaOCl) oder Calciumhypochlorit.",
+        "description": "Routine-Chlor = für kleine Nachdosierungen im Normalbetrieb (oft gleich wie Dosieranlagen-Kanister, z.B. Flüssig-Chlor NaOCl). Shock-Chlor = für Breakpoint/Algen (z.B. Chlorifix Dichlor). Beide optional — leer lassen wenn du nicht manuell dosierst.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− Stärke (%)",
@@ -64,8 +68,10 @@
           "ph_plus_strength": "pH+ Stärke (%)",
           "ta_plus_type": "TA+",
           "ta_plus_strength": "TA+ Stärke (%)",
-          "shock_type": "Chlor / Shock",
-          "shock_strength": "Chlor / Shock Stärke (%)"
+          "routine_cl_type": "Routine-Chlor (optional)",
+          "routine_cl_strength": "Routine-Chlor Stärke (%)",
+          "shock_type": "Shock-Chlor",
+          "shock_strength": "Shock-Chlor Stärke (%)"
         }
       },
       "dosing": {
@@ -97,8 +103,7 @@
         "title": "Pool",
         "data": {
           "pool_volume_m3": "Wasservolumen (m³)",
-          "chlorination_type": "Chlorierungsart",
-          "automatic_cl_dosing": "Automatische Chlor-Dosierung vorhanden"
+          "chlorination_type": "Chlorierungsart"
         }
       },
       "entities_auto": {
@@ -137,6 +142,11 @@
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
           "redox_max": "Redox max (mV)",
+          "ph_critical_low": "pH kritisch niedrig",
+          "ph_critical_high": "pH kritisch hoch",
+          "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
+          "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
+          "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
           "ph_calibration_threshold": "Kalibrier-Schwelle pH",
           "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
@@ -150,8 +160,10 @@
           "ph_plus_strength": "pH+ Stärke (%)",
           "ta_plus_type": "TA+",
           "ta_plus_strength": "TA+ Stärke (%)",
-          "shock_type": "Chlor / Shock",
-          "shock_strength": "Chlor / Shock Stärke (%)"
+          "routine_cl_type": "Routine-Chlor (optional)",
+          "routine_cl_strength": "Routine-Chlor Stärke (%)",
+          "shock_type": "Shock-Chlor",
+          "shock_strength": "Shock-Chlor Stärke (%)"
         }
       },
       "dosing": {

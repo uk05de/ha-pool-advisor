@@ -12,7 +12,6 @@ from homeassistant.helpers import selector
 from .const import (
     CHLORINATION_CHOICES,
     CHLORINATION_SALT,
-    CONF_AUTO_CL_DOSING,
     CONF_CC_MAX,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
@@ -26,6 +25,7 @@ from .const import (
     CONF_ENT_REDOX,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
+    CONF_FC_CRITICAL_LOW,
     CONF_FC_MAX,
     CONF_FC_MIN,
     CONF_FC_TARGET,
@@ -33,6 +33,8 @@ from .const import (
     CONF_MAX_DOSE_FRACTION,
     CONF_NAME,
     CONF_PH_CALIB_THRESHOLD,
+    CONF_PH_CRITICAL_HIGH,
+    CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
     CONF_PH_MINUS_STRENGTH,
@@ -44,8 +46,12 @@ from .const import (
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
     CONF_REDOX_TARGET,
+    CONF_ROUTINE_CL_STRENGTH,
+    CONF_ROUTINE_CL_TYPE,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
+    CONF_TA_CRITICAL_HIGH,
+    CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
     CONF_TA_PLUS_STRENGTH,
@@ -54,6 +60,7 @@ from .const import (
     DEFAULT_CC_MAX,
     DEFAULT_CC_SHOCK_AT,
     DEFAULT_DOSE_INTERVAL_H,
+    DEFAULT_FC_CRITICAL_LOW,
     DEFAULT_FC_MAX_CLASSIC,
     DEFAULT_FC_MAX_SALT,
     DEFAULT_FC_MIN_CLASSIC,
@@ -63,6 +70,8 @@ from .const import (
     DEFAULT_MANUAL_MAX_AGE_H,
     DEFAULT_MAX_DOSE_FRACTION,
     DEFAULT_PH_CALIB_THRESHOLD,
+    DEFAULT_PH_CRITICAL_HIGH,
+    DEFAULT_PH_CRITICAL_LOW,
     DEFAULT_PH_MAX,
     DEFAULT_PH_MIN,
     DEFAULT_PH_TARGET,
@@ -70,6 +79,8 @@ from .const import (
     DEFAULT_REDOX_MIN,
     DEFAULT_REDOX_TARGET,
     DEFAULT_STRENGTH,
+    DEFAULT_TA_CRITICAL_HIGH,
+    DEFAULT_TA_CRITICAL_LOW,
     DEFAULT_TA_MAX,
     DEFAULT_TA_MIN,
     DEFAULT_TA_TARGET,
@@ -186,6 +197,26 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_REDOX_MAX, default=defaults.get(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)
             ): _number(400, 900, 5),
             vol.Required(
+                CONF_PH_CRITICAL_LOW,
+                default=defaults.get(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW),
+            ): _number(5.5, 8.0, 0.05),
+            vol.Required(
+                CONF_PH_CRITICAL_HIGH,
+                default=defaults.get(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH),
+            ): _number(6.5, 9.0, 0.05),
+            vol.Required(
+                CONF_TA_CRITICAL_LOW,
+                default=defaults.get(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW),
+            ): _number(20, 250, 5),
+            vol.Required(
+                CONF_TA_CRITICAL_HIGH,
+                default=defaults.get(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH),
+            ): _number(20, 300, 5),
+            vol.Required(
+                CONF_FC_CRITICAL_LOW,
+                default=defaults.get(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW),
+            ): _number(0.0, 5.0, 0.05),
+            vol.Required(
                 CONF_PH_CALIB_THRESHOLD,
                 default=defaults.get(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD),
             ): _number(0.05, 1.0, 0.05),
@@ -221,12 +252,23 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_TA_PLUS_STRENGTH,
                 default=defaults.get(CONF_TA_PLUS_STRENGTH, DEFAULT_STRENGTH[TA_PLUS_BICARB]),
             ): _pct_number(),
-            vol.Required(
-                CONF_SHOCK_TYPE, default=defaults.get(CONF_SHOCK_TYPE, SHOCK_DICHLOR)
-            ): _select(SHOCK_CHOICES, "shock"),
-            vol.Required(
+            **(
+                {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
+                if defaults.get(CONF_ROUTINE_CL_TYPE)
+                else {vol.Optional(CONF_ROUTINE_CL_TYPE): _select(SHOCK_CHOICES, "shock")}
+            ),
+            vol.Optional(
+                CONF_ROUTINE_CL_STRENGTH,
+                default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
+            ): _pct_number(),
+            **(
+                {vol.Optional(CONF_SHOCK_TYPE, default=defaults[CONF_SHOCK_TYPE]): _select(SHOCK_CHOICES, "shock")}
+                if defaults.get(CONF_SHOCK_TYPE)
+                else {vol.Optional(CONF_SHOCK_TYPE): _select(SHOCK_CHOICES, "shock")}
+            ),
+            vol.Optional(
                 CONF_SHOCK_STRENGTH,
-                default=defaults.get(CONF_SHOCK_STRENGTH, DEFAULT_STRENGTH[SHOCK_DICHLOR]),
+                default=defaults.get(CONF_SHOCK_STRENGTH, 0),
             ): _pct_number(),
         }
     )
@@ -267,7 +309,6 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_CHLORINATION, default=CHLORINATION_SALT): _select(
                     CHLORINATION_CHOICES, "chlorination"
                 ),
-                vol.Required(CONF_AUTO_CL_DOSING, default=True): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
@@ -376,9 +417,6 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_CHLORINATION, default=cur.get(CONF_CHLORINATION, CHLORINATION_SALT)
                 ): _select(CHLORINATION_CHOICES, "chlorination"),
-                vol.Required(
-                    CONF_AUTO_CL_DOSING, default=cur.get(CONF_AUTO_CL_DOSING, True)
-                ): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="pool", data_schema=schema)

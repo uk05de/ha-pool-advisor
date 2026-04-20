@@ -21,7 +21,6 @@ from .calculator import (
 )
 from .const import (
     CHLORINATION_SALT,
-    CONF_AUTO_CL_DOSING,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
     CONF_DOSE_INTERVAL_H,
@@ -34,11 +33,14 @@ from .const import (
     CONF_ENT_REDOX,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
+    CONF_FC_CRITICAL_LOW,
     CONF_FC_MIN,
     CONF_FC_TARGET,
     CONF_MANUAL_MAX_AGE_H,
     CONF_MAX_DOSE_FRACTION,
     CONF_PH_CALIB_THRESHOLD,
+    CONF_PH_CRITICAL_HIGH,
+    CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
     CONF_PH_MINUS_STRENGTH,
@@ -47,15 +49,24 @@ from .const import (
     CONF_PH_PLUS_TYPE,
     CONF_PH_TARGET,
     CONF_POOL_VOLUME_M3,
+    CONF_ROUTINE_CL_STRENGTH,
+    CONF_ROUTINE_CL_TYPE,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
+    CONF_TA_CRITICAL_HIGH,
+    CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
+    DEFAULT_FC_CRITICAL_LOW,
     DEFAULT_MANUAL_MAX_AGE_H,
     DEFAULT_PH_CALIB_THRESHOLD,
+    DEFAULT_PH_CRITICAL_HIGH,
+    DEFAULT_PH_CRITICAL_LOW,
+    DEFAULT_TA_CRITICAL_HIGH,
+    DEFAULT_TA_CRITICAL_LOW,
     DOMAIN,
     SIGNAL_UPDATE,
 )
@@ -209,6 +220,9 @@ class PoolAdvisorData:
         chlorination_is_salt = self._cfg(CONF_CHLORINATION) == CHLORINATION_SALT
         max_frac = float(self._cfg(CONF_MAX_DOSE_FRACTION, 0.5))
         interval_h = int(self._cfg(CONF_DOSE_INTERVAL_H, 6))
+        # Auto-detect dosing system: salt electrolysis OR a configured redox
+        # entity (implies Bayrol-style dosing controller).
+        has_auto_dosing = chlorination_is_salt or bool(self._cfg(CONF_ENT_REDOX))
 
         ph_auto = self._read_live(CONF_ENT_PH_AUTO)
         ph_manual = self._manual_value(CONF_ENT_PH_MANUAL)
@@ -221,6 +235,8 @@ class PoolAdvisorData:
             target=float(self._cfg(CONF_PH_TARGET)),
             ph_min=float(self._cfg(CONF_PH_MIN)),
             ph_max=float(self._cfg(CONF_PH_MAX)),
+            ph_critical_low=float(self._cfg(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)),
+            ph_critical_high=float(self._cfg(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)),
             volume_m3=volume,
             ph_minus_type=self._cfg(CONF_PH_MINUS_TYPE),
             ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH)),
@@ -228,31 +244,40 @@ class PoolAdvisorData:
             ph_plus_strength_pct=float(self._cfg(CONF_PH_PLUS_STRENGTH)),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
+            has_auto_dosing=has_auto_dosing,
         )
         ta_rec = recommend_alkalinity(
             current=self._manual_value(CONF_ENT_ALKALINITY),
             target=float(self._cfg(CONF_TA_TARGET)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
+            ta_critical_low=float(self._cfg(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)),
+            ta_critical_high=float(self._cfg(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)),
             volume_m3=volume,
             ta_plus_type=self._cfg(CONF_TA_PLUS_TYPE),
             ta_plus_strength_pct=float(self._cfg(CONF_TA_PLUS_STRENGTH)),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
         )
+        routine_strength_raw = self._cfg(CONF_ROUTINE_CL_STRENGTH)
         cl_rec = recommend_shock(
             combined_cl=self._manual_value(CONF_ENT_COMBINED_CL),
             free_cl=self._manual_value(CONF_ENT_FREE_CL),
             fc_min=float(self._cfg(CONF_FC_MIN)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
+            fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
             cc_shock_at=float(self._cfg(CONF_CC_SHOCK_AT)),
             volume_m3=volume,
+            routine_type=self._cfg(CONF_ROUTINE_CL_TYPE),
+            routine_strength_pct=(
+                float(routine_strength_raw) if routine_strength_raw is not None else 0.0
+            ),
             shock_type=self._cfg(CONF_SHOCK_TYPE),
             shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH)),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
             chlorination_is_salt=chlorination_is_salt,
-            has_auto_dosing=bool(self._cfg(CONF_AUTO_CL_DOSING, True)),
+            has_auto_dosing=has_auto_dosing,
         )
         calib_rec = recommend_calibration(
             ph_auto=ph_auto,

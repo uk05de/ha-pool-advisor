@@ -7,8 +7,7 @@
         "data": {
           "name": "Name",
           "pool_volume_m3": "Water volume (m³)",
-          "chlorination_type": "Chlorination type",
-          "automatic_cl_dosing": "Has automatic chlorine dosing"
+          "chlorination_type": "Chlorination type"
         }
       },
       "entities_auto": {
@@ -50,13 +49,18 @@
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox target (mV)",
           "redox_max": "Redox max (mV)",
+          "ph_critical_low": "pH critical low (intervene below)",
+          "ph_critical_high": "pH critical high (intervene above)",
+          "ta_critical_low": "TA critical low (mg/l)",
+          "ta_critical_high": "TA critical high (mg/l)",
+          "fc_critical_low": "Free Cl critical low (mg/l)",
           "ph_calibration_threshold": "pH calibration threshold (auto↔manual delta)",
           "manual_max_age_hours": "Max age of manual reading (h)"
         }
       },
       "chemicals": {
         "title": "Chemicals",
-        "description": "Which products do you use? Strength in % refers to the active compound. Note: dichlor granulate adds cyanuric acid to the water — for frequent shocking prefer liquid chlorine (NaOCl) or calcium hypochlorite.",
+        "description": "Routine chlorine = small top-ups during normal operation (often same as dosing canister, e.g. NaOCl liquid). Shock chlorine = breakpoint/algae events (e.g. dichlor granulate). Both optional — leave empty if you never dose manually.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− strength (%)",
@@ -64,8 +68,10 @@
           "ph_plus_strength": "pH+ strength (%)",
           "ta_plus_type": "TA+",
           "ta_plus_strength": "TA+ strength (%)",
-          "shock_type": "Chlorine / shock",
-          "shock_strength": "Chlorine / shock strength (%)"
+          "routine_cl_type": "Routine chlorine (optional)",
+          "routine_cl_strength": "Routine chlorine strength (%)",
+          "shock_type": "Shock chlorine",
+          "shock_strength": "Shock chlorine strength (%)"
         }
       },
       "dosing": {
@@ -97,8 +103,7 @@
         "title": "Pool",
         "data": {
           "pool_volume_m3": "Water volume (m³)",
-          "chlorination_type": "Chlorination type",
-          "automatic_cl_dosing": "Has automatic chlorine dosing"
+          "chlorination_type": "Chlorination type"
         }
       },
       "entities_auto": {
@@ -137,6 +142,11 @@
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox target (mV)",
           "redox_max": "Redox max (mV)",
+          "ph_critical_low": "pH critical low",
+          "ph_critical_high": "pH critical high",
+          "ta_critical_low": "TA critical low (mg/l)",
+          "ta_critical_high": "TA critical high (mg/l)",
+          "fc_critical_low": "Free Cl critical low (mg/l)",
           "ph_calibration_threshold": "pH calibration threshold",
           "manual_max_age_hours": "Max age of manual reading (h)"
         }
@@ -150,8 +160,10 @@
           "ph_plus_strength": "pH+ strength (%)",
           "ta_plus_type": "TA+",
           "ta_plus_strength": "TA+ strength (%)",
-          "shock_type": "Chlorine / shock",
-          "shock_strength": "Chlorine / shock strength (%)"
+          "routine_cl_type": "Routine chlorine (optional)",
+          "routine_cl_strength": "Routine chlorine strength (%)",
+          "shock_type": "Shock chlorine",
+          "shock_strength": "Shock chlorine strength (%)"
         }
       },
       "dosing": {

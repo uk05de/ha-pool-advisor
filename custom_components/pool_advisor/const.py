@@ -9,7 +9,6 @@ DOMAIN: Final = "pool_advisor"
 CONF_NAME: Final = "name"
 CONF_POOL_VOLUME_M3: Final = "pool_volume_m3"
 CONF_CHLORINATION: Final = "chlorination_type"
-CONF_AUTO_CL_DOSING: Final = "automatic_cl_dosing"
 
 # Input entities — automatic (continuous dosing system, e.g. Bayrol)
 CONF_ENT_PH_AUTO: Final = "entity_ph_auto"
@@ -50,6 +49,20 @@ CONF_REDOX_MIN: Final = "redox_min"
 CONF_REDOX_MAX: Final = "redox_max"
 CONF_REDOX_TARGET: Final = "redox_target"
 
+# Critical thresholds (outside which active intervention is recommended;
+# between normal min/max and critical the advisor only says "beobachten")
+CONF_PH_CRITICAL_LOW: Final = "ph_critical_low"
+CONF_PH_CRITICAL_HIGH: Final = "ph_critical_high"
+CONF_TA_CRITICAL_LOW: Final = "ta_critical_low"
+CONF_TA_CRITICAL_HIGH: Final = "ta_critical_high"
+CONF_FC_CRITICAL_LOW: Final = "fc_critical_low"
+
+DEFAULT_PH_CRITICAL_LOW = 6.8
+DEFAULT_PH_CRITICAL_HIGH = 7.7
+DEFAULT_TA_CRITICAL_LOW = 60.0
+DEFAULT_TA_CRITICAL_HIGH = 150.0
+DEFAULT_FC_CRITICAL_LOW = 0.2
+
 # Chemicals
 CONF_PH_MINUS_TYPE: Final = "ph_minus_type"
 CONF_PH_MINUS_STRENGTH: Final = "ph_minus_strength"
@@ -57,6 +70,8 @@ CONF_PH_PLUS_TYPE: Final = "ph_plus_type"
 CONF_PH_PLUS_STRENGTH: Final = "ph_plus_strength"
 CONF_TA_PLUS_TYPE: Final = "ta_plus_type"
 CONF_TA_PLUS_STRENGTH: Final = "ta_plus_strength"
+CONF_ROUTINE_CL_TYPE: Final = "routine_cl_type"
+CONF_ROUTINE_CL_STRENGTH: Final = "routine_cl_strength"
 CONF_SHOCK_TYPE: Final = "shock_type"
 CONF_SHOCK_STRENGTH: Final = "shock_strength"
 

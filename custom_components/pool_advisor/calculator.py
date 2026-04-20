@@ -39,7 +39,7 @@ class DoseStep:
 class Recommendation:
     """Full recommendation for one parameter."""
 
-    action: str                       # "raise" | "lower" | "shock" | "ok" | "no_data" | "calibrate"
+    action: str                       # "raise" | "lower" | "shock" | "watch" | "ok" | "no_data" | "calibrate"
     steps: tuple[DoseStep, ...]       # may be empty
     reason: str                       # short human-readable reason
     delta: float | None = None        # how far off target (same unit as parameter)
@@ -97,6 +97,8 @@ def recommend_ph(
     target: float,
     ph_min: float,
     ph_max: float,
+    ph_critical_low: float,
+    ph_critical_high: float,
     volume_m3: float,
     ph_minus_type: str,
     ph_minus_strength_pct: float,
@@ -104,6 +106,7 @@ def recommend_ph(
     ph_plus_strength_pct: float,
     max_dose_fraction: float,
     interval_h: int,
+    has_auto_dosing: bool,
 ) -> Recommendation:
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Kein pH-Messwert vorhanden")
@@ -111,6 +114,21 @@ def recommend_ph(
         return Recommendation(action="ok", steps=(), reason=f"pH {current:.2f} liegt im Zielbereich")
 
     delta = target - current
+    is_critical = current < ph_critical_low or current > ph_critical_high
+
+    # Slight deviation + auto dosing present → watch-only, let the system regulate.
+    if not is_critical and has_auto_dosing:
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=(
+                f"pH {current:.2f} leicht außerhalb {ph_min:.1f}–{ph_max:.1f} — "
+                "Dosieranlage sollte selbst regeln"
+            ),
+            delta=delta,
+            note="Wenn Abweichung bestehen bleibt: Kanister, Elektrode und Sollwert der Anlage prüfen.",
+        )
+
     steps_units_of_01 = abs(delta) / 0.1
 
     if delta < 0:
@@ -125,12 +143,17 @@ def recommend_ph(
             steps = _split(total, "ml", ph_minus_type, max_dose_fraction, interval_h)
         else:
             return Recommendation(action="lower", steps=(), reason="Unbekanntes pH− Produkt", delta=delta)
-        return Recommendation(
+        rec = Recommendation(
             action="lower",
             steps=steps,
-            reason=f"pH {current:.2f} zu hoch — Ziel {target:.2f}",
+            reason=f"pH {current:.2f} kritisch hoch — Ziel {target:.2f}",
             delta=delta,
         )
+        if has_auto_dosing:
+            rec = _append_note(
+                rec, "Alternative: pH-Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
+            )
+        return rec
 
     # Raise pH
     if ph_plus_type == PH_PLUS_SODA:
@@ -140,12 +163,17 @@ def recommend_ph(
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
 
-    return Recommendation(
+    rec = Recommendation(
         action="raise",
         steps=steps,
-        reason=f"pH {current:.2f} zu niedrig — Ziel {target:.2f}",
+        reason=f"pH {current:.2f} kritisch niedrig — Ziel {target:.2f}",
         delta=delta,
     )
+    if has_auto_dosing:
+        rec = _append_note(
+            rec, "Alternative: pH-Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
+        )
+    return rec
 
 
 def recommend_alkalinity(
@@ -154,6 +182,8 @@ def recommend_alkalinity(
     target: float,
     ta_min: float,
     ta_max: float,
+    ta_critical_low: float,
+    ta_critical_high: float,
     volume_m3: float,
     ta_plus_type: str,
     ta_plus_strength_pct: float,
@@ -166,6 +196,19 @@ def recommend_alkalinity(
         return Recommendation(action="ok", steps=(), reason=f"Alkalität {current:.0f} mg/l im Zielbereich")
 
     delta = target - current
+    is_critical = current < ta_critical_low or current > ta_critical_high
+
+    if not is_critical:
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=(
+                f"Alkalität {current:.0f} mg/l leicht außerhalb {ta_min:.0f}–{ta_max:.0f} — beobachten"
+            ),
+            delta=delta,
+            note="Bei nächster Messung beobachten, noch kein Eingriff nötig.",
+        )
+
     if delta > 0:
         if ta_plus_type != TA_PLUS_BICARB:
             return Recommendation(action="raise", steps=(), reason="Unbekanntes TA+ Produkt", delta=delta)
@@ -175,7 +218,7 @@ def recommend_alkalinity(
         return Recommendation(
             action="raise",
             steps=steps,
-            reason=f"Alkalität {current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
+            reason=f"Alkalität {current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
             delta=delta,
         )
 
@@ -184,7 +227,7 @@ def recommend_alkalinity(
     return Recommendation(
         action="lower",
         steps=(),
-        reason=f"Alkalität {current:.0f} mg/l zu hoch — Ziel {target:.0f}",
+        reason=f"Alkalität {current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
         delta=delta,
         note=(
             "TA senken erfolgt nicht durch einmalige Dosierung: pH gezielt auf ~7.0 senken, "
@@ -200,8 +243,11 @@ def recommend_shock(
     free_cl: float | None,
     fc_min: float,
     fc_target: float,
+    fc_critical_low: float,
     cc_shock_at: float,
     volume_m3: float,
+    routine_type: str | None,
+    routine_strength_pct: float,
     shock_type: str,
     shock_strength_pct: float,
     max_dose_fraction: float,
@@ -211,20 +257,17 @@ def recommend_shock(
 ) -> Recommendation:
     """Shock / chlorine correction.
 
-    Always provides a manual dosing path (steps + grams/ml). If an automatic
-    dosing mechanism is present (salt electrolysis or classic with dosing
-    pump), an *alternative* path is appended to the note so the user can
-    choose.
-
-    Priority:
-    1. If combined Cl above threshold → shock dose (breakpoint).
-    2. Else if free Cl below minimum → raise free Cl to target.
-    3. Else OK.
+    Three-tier behavior:
+      1. Combined Cl above cc_shock_at → Shock (breakpoint) with *shock* product.
+      2. Free Cl below fc_critical_low → active Raise with *routine* product
+         (if configured, else note-only with auto-dosing hint).
+      3. Free Cl between fc_critical_low and fc_min → "watch" (no dose), let
+         the auto-dosing system correct it.
     """
     if combined_cl is None and free_cl is None:
         return Recommendation(action="no_data", steps=(), reason="Keine Chlor-Messwerte vorhanden")
 
-    # Shock case
+    # 1. Shock case — always uses the configured SHOCK product
     if combined_cl is not None and combined_cl >= cc_shock_at:
         need_fc_mg_per_l = combined_cl * SHOCK_FC_MULTIPLIER
         rec = _build_cl_dose(
@@ -237,8 +280,6 @@ def recommend_shock(
             action="shock",
             reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l — Breakpoint-Dosierung",
         )
-        # Shock braucht eine schnelle große Menge — Dosierpumpe ist dafür ungeeignet.
-        # Bei Salz kann zusätzlich der Redox-Sollwert kurz angehoben werden als Stützmaßnahme.
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -248,18 +289,27 @@ def recommend_shock(
             )
         return rec
 
-    # Low free Cl
-    if free_cl is not None and free_cl < fc_min:
-        rec = _build_cl_dose(
-            target_fc_increase=fc_target - free_cl,
-            volume_m3=volume_m3,
-            shock_type=shock_type,
-            shock_strength_pct=shock_strength_pct,
-            max_dose_fraction=max_dose_fraction,
-            interval_h=interval_h,
-            action="raise",
-            reason=f"Freies Chlor {free_cl:.2f} mg/l zu niedrig — Ziel {fc_target:.2f}",
-        )
+    # 2. Free Cl below critical → active raise with ROUTINE product
+    if free_cl is not None and free_cl < fc_critical_low:
+        if routine_type:
+            rec = _build_cl_dose(
+                target_fc_increase=fc_target - free_cl,
+                volume_m3=volume_m3,
+                shock_type=routine_type,
+                shock_strength_pct=routine_strength_pct,
+                max_dose_fraction=max_dose_fraction,
+                interval_h=interval_h,
+                action="raise",
+                reason=f"Freies Chlor {free_cl:.2f} mg/l kritisch niedrig — Ziel {fc_target:.2f}",
+            )
+        else:
+            rec = Recommendation(
+                action="raise",
+                steps=(),
+                reason=f"Freies Chlor {free_cl:.2f} mg/l kritisch niedrig — Ziel {fc_target:.2f}",
+                delta=fc_target - free_cl,
+                note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
+            )
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -269,10 +319,23 @@ def recommend_shock(
         elif has_auto_dosing:
             rec = _append_note(
                 rec,
-                "Alternativer Weg: Chlor-Kanister der Dosieranlage prüfen (voll?) und "
-                "Produktionsrate der Dosierpumpe erhöhen — dann keine manuelle Dosierung nötig.",
+                "Alternativer Weg: Chlor-Kanister der Dosieranlage prüfen (leer?) und "
+                "Produktionsrate der Dosierpumpe erhöhen.",
             )
         return rec
+
+    # 3. Free Cl slightly low → watch
+    if free_cl is not None and free_cl < fc_min:
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=f"Freies Chlor {free_cl:.2f} mg/l leicht unter {fc_min:.2f} — beobachten",
+            delta=fc_target - free_cl,
+            note=(
+                "Dosieranlage sollte selbst nachregeln." if (chlorination_is_salt or has_auto_dosing)
+                else None
+            ),
+        )
 
     return Recommendation(action="ok", steps=(), reason="Chlor-Werte ok")
 

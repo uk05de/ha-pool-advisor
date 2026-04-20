@@ -100,6 +100,8 @@ class RecommendationSensor(_BaseSensor):
             return "OK"
         if rec.action == "no_data":
             return "Keine Daten"
+        if rec.action == "watch":
+            return f"Beobachten — {rec.reason}"
         return _format_steps(rec)
 
     @property
@@ -201,6 +203,8 @@ class OverallStatusSensor(_BaseSensor):
             return "Anpassung nötig"
         if "calibrate" in actions:
             return "Kalibrierung prüfen"
+        if "watch" in actions:
+            return "Beobachten"
         if actions == {"no_data"}:
             return "Keine Daten"
         return "OK"
