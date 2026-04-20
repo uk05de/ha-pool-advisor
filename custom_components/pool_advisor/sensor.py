@@ -249,24 +249,36 @@ def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
     total = len(steps)
     if idx >= total:
         idx = 0
-    step = steps[idx]
     ctx = data.build_workflow_context()
-    header = (
-        f"## {_mode_title(data.mode)} — Schritt {idx + 1}/{total}\n\n"
-        f"**{step.title}**\n"
+
+    lines: list[str] = [f"## {_mode_title(data.mode)}\n"]
+
+    for i, step in enumerate(steps):
+        nr = i + 1
+        if i < idx:
+            lines.append(f"- ✅ **{nr}. {step.title}**")
+        elif i == idx:
+            lines.append(f"- ▶ **{nr}. {step.title}** _(aktueller Schritt)_")
+            # Soft wait warning only on current step
+            age_h = data.step_age_hours()
+            if step.min_wait_hours > 0 and age_h < step.min_wait_hours:
+                lines.append(
+                    f"\n  > ⚠ Empfohlene Wartezeit **{step.min_wait_hours} h** — "
+                    f"du bist bei {age_h:.1f} h. Weiter möglich, aber Messung ist "
+                    "evtl. noch nicht aussagekräftig.\n"
+                )
+            lines.append("")
+            lines.append(step.render(ctx))
+            lines.append("")
+        else:
+            lines.append(f"- ○ {nr}. {step.title}")
+
+    lines.append(
+        "\n---\n➡ **Analyse durchführen** drücken. Wenn das Ziel des aktuellen Schritts "
+        "erreicht ist, wird automatisch weitergeschaltet — sonst bleibt der Schritt aktiv "
+        "und die Empfehlung wird mit dem neuen Messwert aktualisiert."
     )
-    # Soft wait warning
-    age_h = data.step_age_hours()
-    warning = ""
-    if step.min_wait_hours > 0 and age_h < step.min_wait_hours:
-        warning = (
-            f"\n⚠ Empfohlene Wartezeit: **{step.min_wait_hours} h** — "
-            f"du bist bei {age_h:.1f} h. Trotzdem weiter geht, aber Messung "
-            "ist möglicherweise noch nicht aussagekräftig.\n"
-        )
-    body = step.render(ctx)
-    footer = "\n\n---\n➡ **Analyse durchführen** drücken. Wenn das Ziel dieses Schritts erreicht ist, geht's automatisch weiter — sonst bleibt der Schritt aktiv mit aktualisierter Empfehlung."
-    return header + warning + "\n" + body + footer
+    return "\n".join(lines)
 
 
 def _mode_title(mode: str) -> str:

@@ -389,7 +389,25 @@ class PoolAdvisorData:
             return steps[self.step_index]
         return steps[0]
 
+    def _snapshot_measured_at(self, entity_key: str) -> datetime | None:
+        snap = self.manual_snapshot.get(entity_key)
+        if not snap:
+            return None
+        raw = snap.get("measured_at")
+        if isinstance(raw, datetime):
+            return raw
+        if isinstance(raw, str):
+            return dt_util.parse_datetime(raw)
+        return None
+
     def build_workflow_context(self) -> WorkflowContext:
+        measured_at: dict[str, datetime | None] = {
+            "ph_manual": self._snapshot_measured_at(CONF_ENT_PH_MANUAL),
+            "ta": self._snapshot_measured_at(CONF_ENT_ALKALINITY),
+            "fc": self._snapshot_measured_at(CONF_ENT_FREE_CL),
+            "cc": self._snapshot_measured_at(CONF_ENT_COMBINED_CL),
+            "cya": self._snapshot_measured_at(CONF_ENT_CYANURIC),
+        }
         return WorkflowContext(
             volume_m3=float(self._cfg(CONF_POOL_VOLUME_M3, 30.0)),
             ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
@@ -415,6 +433,8 @@ class PoolAdvisorData:
             ph_max=float(self._cfg(CONF_PH_MAX)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
+            step_started_at=self.step_started_at,
+            measured_at=measured_at,
         )
 
     async def async_unload(self) -> None:
