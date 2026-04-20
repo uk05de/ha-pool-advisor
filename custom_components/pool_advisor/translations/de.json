@@ -1,0 +1,176 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pool Chemistry Advisor",
+        "description": "Grundeinstellungen für deinen Pool.",
+        "data": {
+          "name": "Name",
+          "pool_volume_m3": "Wasservolumen (m³)",
+          "chlorination_type": "Chlorierungsart"
+        }
+      },
+      "entities": {
+        "title": "Mess-Entitäten",
+        "description": "Verknüpfe die HA-Sensoren mit den jeweiligen Messwerten. Alles optional — was du nicht angibst, wird bei den Empfehlungen übersprungen.",
+        "data": {
+          "entity_ph": "pH",
+          "entity_alkalinity": "Alkalität (TA)",
+          "entity_free_chlorine": "Freies Chlor",
+          "entity_combined_chlorine": "Gebundenes Chlor",
+          "entity_total_chlorine": "Gesamt-Chlor",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperatur",
+          "entity_cyanuric_acid": "Cyanursäure"
+        }
+      },
+      "targets": {
+        "title": "Zielwerte",
+        "description": "Ranges für deinen Pool. Defaults sind Richtwerte aus der Pool-Chemie-Literatur und funktionieren für die meisten Pools.",
+        "data": {
+          "ph_min": "pH min",
+          "ph_target": "pH Ziel",
+          "ph_max": "pH max",
+          "ta_min": "Alkalität min (mg/l)",
+          "ta_target": "Alkalität Ziel (mg/l)",
+          "ta_max": "Alkalität max (mg/l)",
+          "fc_min": "Freies Chlor min (mg/l)",
+          "fc_target": "Freies Chlor Ziel (mg/l)",
+          "fc_max": "Freies Chlor max (mg/l)",
+          "cc_max": "Gebundenes Chlor max (mg/l)",
+          "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
+          "redox_min": "Redox min (mV)",
+          "redox_target": "Redox Ziel (mV)",
+          "redox_max": "Redox max (mV)"
+        }
+      },
+      "chemicals": {
+        "title": "Chemikalien",
+        "description": "Welche Produkte verwendest du? Die Stärke in % bezieht sich auf den aktiven Wirkstoff im Produkt (z.B. Natron 99 %, Salzsäure 30 %).",
+        "data": {
+          "ph_minus_type": "pH−",
+          "ph_minus_strength": "pH− Stärke (%)",
+          "ph_plus_type": "pH+",
+          "ph_plus_strength": "pH+ Stärke (%)",
+          "ta_plus_type": "TA+",
+          "ta_plus_strength": "TA+ Stärke (%)",
+          "shock_type": "Chlor / Shock",
+          "shock_strength": "Chlor / Shock Stärke (%)"
+        }
+      },
+      "dosing": {
+        "title": "Dosierung",
+        "description": "Max. Einzeldosis als Anteil (0.5 = pro Gabe max. 50 % der Gesamtempfehlung) und Wartezeit zwischen Teildosen.",
+        "data": {
+          "max_dose_fraction": "Max. Einzeldosis (Anteil)",
+          "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "pool": {
+        "title": "Pool",
+        "data": {
+          "pool_volume_m3": "Wasservolumen (m³)",
+          "chlorination_type": "Chlorierungsart"
+        }
+      },
+      "entities": {
+        "title": "Mess-Entitäten",
+        "data": {
+          "entity_ph": "pH",
+          "entity_alkalinity": "Alkalität (TA)",
+          "entity_free_chlorine": "Freies Chlor",
+          "entity_combined_chlorine": "Gebundenes Chlor",
+          "entity_total_chlorine": "Gesamt-Chlor",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperatur",
+          "entity_cyanuric_acid": "Cyanursäure"
+        }
+      },
+      "targets": {
+        "title": "Zielwerte",
+        "data": {
+          "ph_min": "pH min",
+          "ph_target": "pH Ziel",
+          "ph_max": "pH max",
+          "ta_min": "Alkalität min (mg/l)",
+          "ta_target": "Alkalität Ziel (mg/l)",
+          "ta_max": "Alkalität max (mg/l)",
+          "fc_min": "Freies Chlor min (mg/l)",
+          "fc_target": "Freies Chlor Ziel (mg/l)",
+          "fc_max": "Freies Chlor max (mg/l)",
+          "cc_max": "Gebundenes Chlor max (mg/l)",
+          "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
+          "redox_min": "Redox min (mV)",
+          "redox_target": "Redox Ziel (mV)",
+          "redox_max": "Redox max (mV)"
+        }
+      },
+      "chemicals": {
+        "title": "Chemikalien",
+        "data": {
+          "ph_minus_type": "pH−",
+          "ph_minus_strength": "pH− Stärke (%)",
+          "ph_plus_type": "pH+",
+          "ph_plus_strength": "pH+ Stärke (%)",
+          "ta_plus_type": "TA+",
+          "ta_plus_strength": "TA+ Stärke (%)",
+          "shock_type": "Chlor / Shock",
+          "shock_strength": "Chlor / Shock Stärke (%)"
+        }
+      },
+      "dosing": {
+        "title": "Dosierung",
+        "data": {
+          "max_dose_fraction": "Max. Einzeldosis (Anteil)",
+          "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "chlorination": {
+      "options": {
+        "salt_electrolysis": "Salzelektrolyse",
+        "classic": "Klassisch gechlort"
+      }
+    },
+    "ph_minus": {
+      "options": {
+        "dry_acid_nahso4": "Trockensäure (NaHSO₄, Granulat)",
+        "muriatic_acid_hcl": "Salzsäure (HCl, flüssig)"
+      }
+    },
+    "ph_plus": {
+      "options": {
+        "soda_ash_na2co3": "Soda (Na₂CO₃)"
+      }
+    },
+    "ta_plus": {
+      "options": {
+        "sodium_bicarbonate_nahco3": "Natron (NaHCO₃)"
+      }
+    },
+    "shock": {
+      "options": {
+        "dichlor": "Dichlor-Granulat",
+        "calcium_hypochlorite": "Kalziumhypochlorit",
+        "sodium_hypochlorite": "Flüssig-Chlor (NaOCl)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ph_recommendation": {"name": "Empfehlung pH"},
+      "alkalinity_recommendation": {"name": "Empfehlung Alkalität"},
+      "chlorine_recommendation": {"name": "Empfehlung Chlor"},
+      "status": {"name": "Pool Status"}
+    },
+    "binary_sensor": {
+      "attention": {"name": "Aufmerksamkeit nötig"}
+    }
+  }
+}

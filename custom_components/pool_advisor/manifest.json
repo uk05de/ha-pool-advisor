@@ -1,0 +1,13 @@
+{
+  "domain": "pool_advisor",
+  "name": "Pool Chemistry Advisor",
+  "version": "0.1.0",
+  "documentation": "https://github.com/uk05de/ha-pool-advisor",
+  "issue_tracker": "https://github.com/uk05de/ha-pool-advisor/issues",
+  "codeowners": ["@uk05de"],
+  "config_flow": true,
+  "iot_class": "calculated",
+  "integration_type": "service",
+  "dependencies": [],
+  "requirements": []
+}

@@ -1,0 +1,176 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pool Chemistry Advisor",
+        "description": "Basic settings for your pool.",
+        "data": {
+          "name": "Name",
+          "pool_volume_m3": "Water volume (m³)",
+          "chlorination_type": "Chlorination type"
+        }
+      },
+      "entities": {
+        "title": "Measurement entities",
+        "description": "Link HA sensors for each reading. All optional — anything you skip is left out of recommendations.",
+        "data": {
+          "entity_ph": "pH",
+          "entity_alkalinity": "Total alkalinity",
+          "entity_free_chlorine": "Free chlorine",
+          "entity_combined_chlorine": "Combined chlorine",
+          "entity_total_chlorine": "Total chlorine",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperature",
+          "entity_cyanuric_acid": "Cyanuric acid"
+        }
+      },
+      "targets": {
+        "title": "Target ranges",
+        "description": "Ranges for your pool. Defaults are common pool-chemistry guidelines.",
+        "data": {
+          "ph_min": "pH min",
+          "ph_target": "pH target",
+          "ph_max": "pH max",
+          "ta_min": "TA min (mg/l)",
+          "ta_target": "TA target (mg/l)",
+          "ta_max": "TA max (mg/l)",
+          "fc_min": "Free Cl min (mg/l)",
+          "fc_target": "Free Cl target (mg/l)",
+          "fc_max": "Free Cl max (mg/l)",
+          "cc_max": "Combined Cl max (mg/l)",
+          "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
+          "redox_min": "Redox min (mV)",
+          "redox_target": "Redox target (mV)",
+          "redox_max": "Redox max (mV)"
+        }
+      },
+      "chemicals": {
+        "title": "Chemicals",
+        "description": "Which products do you use? Strength in % refers to the active compound (e.g. baking soda 99%, muriatic acid 30%).",
+        "data": {
+          "ph_minus_type": "pH−",
+          "ph_minus_strength": "pH− strength (%)",
+          "ph_plus_type": "pH+",
+          "ph_plus_strength": "pH+ strength (%)",
+          "ta_plus_type": "TA+",
+          "ta_plus_strength": "TA+ strength (%)",
+          "shock_type": "Chlorine / shock",
+          "shock_strength": "Chlorine / shock strength (%)"
+        }
+      },
+      "dosing": {
+        "title": "Dosing",
+        "description": "Maximum single dose as a fraction (0.5 = max 50% per application) and wait time between split doses.",
+        "data": {
+          "max_dose_fraction": "Max single dose (fraction)",
+          "dose_interval_hours": "Wait between doses (hours)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "pool": {
+        "title": "Pool",
+        "data": {
+          "pool_volume_m3": "Water volume (m³)",
+          "chlorination_type": "Chlorination type"
+        }
+      },
+      "entities": {
+        "title": "Measurement entities",
+        "data": {
+          "entity_ph": "pH",
+          "entity_alkalinity": "Total alkalinity",
+          "entity_free_chlorine": "Free chlorine",
+          "entity_combined_chlorine": "Combined chlorine",
+          "entity_total_chlorine": "Total chlorine",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperature",
+          "entity_cyanuric_acid": "Cyanuric acid"
+        }
+      },
+      "targets": {
+        "title": "Target ranges",
+        "data": {
+          "ph_min": "pH min",
+          "ph_target": "pH target",
+          "ph_max": "pH max",
+          "ta_min": "TA min (mg/l)",
+          "ta_target": "TA target (mg/l)",
+          "ta_max": "TA max (mg/l)",
+          "fc_min": "Free Cl min (mg/l)",
+          "fc_target": "Free Cl target (mg/l)",
+          "fc_max": "Free Cl max (mg/l)",
+          "cc_max": "Combined Cl max (mg/l)",
+          "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
+          "redox_min": "Redox min (mV)",
+          "redox_target": "Redox target (mV)",
+          "redox_max": "Redox max (mV)"
+        }
+      },
+      "chemicals": {
+        "title": "Chemicals",
+        "data": {
+          "ph_minus_type": "pH−",
+          "ph_minus_strength": "pH− strength (%)",
+          "ph_plus_type": "pH+",
+          "ph_plus_strength": "pH+ strength (%)",
+          "ta_plus_type": "TA+",
+          "ta_plus_strength": "TA+ strength (%)",
+          "shock_type": "Chlorine / shock",
+          "shock_strength": "Chlorine / shock strength (%)"
+        }
+      },
+      "dosing": {
+        "title": "Dosing",
+        "data": {
+          "max_dose_fraction": "Max single dose (fraction)",
+          "dose_interval_hours": "Wait between doses (hours)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "chlorination": {
+      "options": {
+        "salt_electrolysis": "Salt electrolysis",
+        "classic": "Classic chlorinated"
+      }
+    },
+    "ph_minus": {
+      "options": {
+        "dry_acid_nahso4": "Dry acid (NaHSO₄)",
+        "muriatic_acid_hcl": "Muriatic acid (HCl, liquid)"
+      }
+    },
+    "ph_plus": {
+      "options": {
+        "soda_ash_na2co3": "Soda ash (Na₂CO₃)"
+      }
+    },
+    "ta_plus": {
+      "options": {
+        "sodium_bicarbonate_nahco3": "Baking soda (NaHCO₃)"
+      }
+    },
+    "shock": {
+      "options": {
+        "dichlor": "Dichlor granulate",
+        "calcium_hypochlorite": "Calcium hypochlorite",
+        "sodium_hypochlorite": "Liquid chlorine (NaOCl)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ph_recommendation": {"name": "pH recommendation"},
+      "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
+      "chlorine_recommendation": {"name": "Chlorine recommendation"},
+      "status": {"name": "Pool status"}
+    },
+    "binary_sensor": {
+      "attention": {"name": "Attention needed"}
+    }
+  }
+}
