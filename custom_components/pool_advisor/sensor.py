@@ -24,6 +24,7 @@ async def async_setup_entry(
             RecommendationSensor(data, entry, "ph", "pH"),
             RecommendationSensor(data, entry, "alkalinity", "Alkalität"),
             RecommendationSensor(data, entry, "chlorine", "Chlor / Shock"),
+            RecommendationSensor(data, entry, "cya", "Cyanursäure"),
             CalibrationSensor(data, entry),
             OverallStatusSensor(data, entry),
             MarkdownSummarySensor(data, entry),
@@ -181,6 +182,10 @@ class CalibrationSensor(_BaseSensor):
         return attrs
 
 
+from .const import MODE_NORMAL
+from .workflow import get_workflow
+
+
 ACTION_ICONS = {
     "ok": "✅",
     "watch": "👁",
@@ -195,18 +200,57 @@ PARAM_TITLES = {
     "ph": "pH",
     "alkalinity": "Alkalität",
     "chlorine": "Chlor",
+    "cya": "Cyanursäure",
     "calibration": "Kalibrierung pH",
 }
 
 
+def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
+    steps = get_workflow(data.mode)
+    idx = data.step_index
+    total = len(steps)
+    if idx >= total:
+        idx = 0
+    step = steps[idx]
+    ctx = data.build_workflow_context()
+    header = (
+        f"## {_mode_title(data.mode)} — Schritt {idx + 1}/{total}\n\n"
+        f"**{step.title}**\n"
+    )
+    body = step.render(ctx)
+    footer = "\n\n---\n"
+    if step.advance == "analysis":
+        footer += "➡ Nach Messung **Analyse durchführen** drücken (advance erfolgt automatisch)."
+    else:
+        footer += "➡ Wenn erledigt: **Schritt abgeschlossen** drücken."
+    return header + "\n" + body + footer
+
+
+def _mode_title(mode: str) -> str:
+    return {
+        "normal": "Normalbetrieb",
+        "shock_routine": "Shock Routine",
+        "shock_algen_leicht": "Shock Algen leicht",
+        "shock_algen_stark": "Shock Algen stark",
+        "shock_schwarzalgen": "Shock Schwarzalgen",
+        "shock_breakpoint": "Shock Breakpoint",
+        "frischwasser": "Erstbefüllung Frischwasser",
+        "saisonstart": "Saisonstart nach Winter",
+    }.get(mode, mode)
+
+
 def _build_markdown(data: "PoolAdvisorData") -> str:
+    # When a maintenance workflow is active, that drives the summary.
+    if data.mode != MODE_NORMAL:
+        return _build_workflow_markdown(data)
+
     lines: list[str] = ["## Pool-Empfehlung", ""]
     if data.analysis_at is not None:
         local = data.analysis_at.astimezone()
         lines.append(f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*")
         lines.append("")
 
-    for key in ("ph", "alkalinity", "chlorine", "calibration"):
+    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration"):
         rec = data.recommendations.get(key)
         if rec is None:
             continue

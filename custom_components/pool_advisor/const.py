@@ -80,6 +80,59 @@ CONF_SHOCK_TYPE: Final = "shock_type"
 CONF_SHOCK_STRENGTH: Final = "shock_strength"
 CONF_SHOCK_NAME: Final = "shock_name"
 
+# Pure cyanuric acid product (separate from shock product that may also bring CYA)
+CONF_CYA_TYPE: Final = "cya_type"
+CONF_CYA_STRENGTH: Final = "cya_strength"
+CONF_CYA_NAME: Final = "cya_name"
+
+CYA_PURE: Final = "cyanuric_acid"
+CYA_CHOICES: Final = [CYA_PURE]
+DEFAULT_CYA_STRENGTH: Final = 99.0
+
+# CYA targets & warning thresholds
+CONF_CYA_TARGET: Final = "cya_target"
+CONF_CYA_WATCH_AT: Final = "cya_watch_at"
+CONF_CYA_CRITICAL_AT: Final = "cya_critical_at"
+DEFAULT_CYA_TARGET: Final = 30.0
+DEFAULT_CYA_WATCH_AT: Final = 50.0
+DEFAULT_CYA_CRITICAL_AT: Final = 75.0
+
+# Workflow / maintenance mode
+CONF_WARTUNGSMODUS: Final = "wartungsmodus"
+CONF_WORKFLOW_STEP: Final = "workflow_step"
+
+MODE_NORMAL: Final = "normal"
+MODE_SHOCK_ROUTINE: Final = "shock_routine"
+MODE_SHOCK_ALGEN_LEICHT: Final = "shock_algen_leicht"
+MODE_SHOCK_ALGEN_STARK: Final = "shock_algen_stark"
+MODE_SHOCK_SCHWARZALGEN: Final = "shock_schwarzalgen"
+MODE_SHOCK_BREAKPOINT: Final = "shock_breakpoint"
+MODE_FRISCHWASSER: Final = "frischwasser"
+MODE_SAISONSTART: Final = "saisonstart"
+
+WARTUNGSMODI: Final = [
+    MODE_NORMAL,
+    MODE_SHOCK_ROUTINE,
+    MODE_SHOCK_ALGEN_LEICHT,
+    MODE_SHOCK_ALGEN_STARK,
+    MODE_SHOCK_SCHWARZALGEN,
+    MODE_SHOCK_BREAKPOINT,
+    MODE_FRISCHWASSER,
+    MODE_SAISONSTART,
+]
+
+# Shock FC targets per scenario (mg/l absolute)
+SHOCK_FC_TARGETS: Final = {
+    MODE_SHOCK_ROUTINE: 10.0,
+    MODE_SHOCK_ALGEN_LEICHT: 15.0,
+    MODE_SHOCK_ALGEN_STARK: 20.0,
+    MODE_SHOCK_SCHWARZALGEN: 25.0,
+}
+
+# Storage version for persistent workflow state
+STORAGE_VERSION: Final = 1
+STORAGE_KEY_WORKFLOW: Final = f"{DOMAIN}.workflow"
+
 # Human-friendly fallback labels when user hasn't set a product name.
 PRODUCT_LABELS: Final = {
     "dry_acid_nahso4": "Trockensäure (NaHSO₄)",
@@ -89,6 +142,7 @@ PRODUCT_LABELS: Final = {
     "dichlor": "Dichlor-Granulat",
     "calcium_hypochlorite": "Kalziumhypochlorit",
     "sodium_hypochlorite": "Flüssig-Chlor (NaOCl)",
+    "cyanuric_acid": "Cyanursäure (Stabilisator)",
 }
 
 # Dose splitting

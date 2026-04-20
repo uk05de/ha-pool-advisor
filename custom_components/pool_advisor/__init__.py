@@ -10,15 +10,18 @@ from homeassistant.const import Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .calculator import (
     Recommendation,
     recommend_alkalinity,
     recommend_calibration,
+    recommend_cya,
     recommend_ph,
     recommend_shock,
 )
+from .workflow import WorkflowContext, get_workflow, step_count
 from .const import (
     CHLORINATION_SALT,
     CONF_CC_SHOCK_AT,
@@ -61,6 +64,12 @@ from .const import (
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
+    CONF_CYA_CRITICAL_AT,
+    CONF_CYA_NAME,
+    CONF_CYA_STRENGTH,
+    CONF_CYA_TARGET,
+    CONF_CYA_TYPE,
+    CONF_CYA_WATCH_AT,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
@@ -70,16 +79,29 @@ from .const import (
     DEFAULT_PH_CALIB_THRESHOLD,
     DEFAULT_PH_CRITICAL_HIGH,
     DEFAULT_PH_CRITICAL_LOW,
+    DEFAULT_CYA_CRITICAL_AT,
+    DEFAULT_CYA_STRENGTH,
+    DEFAULT_CYA_TARGET,
+    DEFAULT_CYA_WATCH_AT,
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DOMAIN,
+    MODE_NORMAL,
     PRODUCT_LABELS,
     SIGNAL_UPDATE,
+    STORAGE_KEY_WORKFLOW,
+    STORAGE_VERSION,
+    WARTUNGSMODI,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SELECT,
+]
 
 MANUAL_KEYS: tuple[str, ...] = (
     CONF_ENT_PH_MANUAL,
@@ -146,6 +168,10 @@ class PoolAdvisorData:
         self.manual_snapshot: dict[str, dict[str, Any]] = {}
         self.analysis_at: datetime | None = None
         self._unsub = None
+        # Workflow state
+        self.mode: str = MODE_NORMAL
+        self.step_index: int = 0
+        self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_WORKFLOW}.{entry.entry_id}")
 
     # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
@@ -239,6 +265,13 @@ class PoolAdvisorData:
 
     # --- lifecycle ---
     async def async_setup(self) -> None:
+        # Restore workflow state
+        stored = await self._store.async_load()
+        if stored:
+            mode = stored.get("mode", MODE_NORMAL)
+            self.mode = mode if mode in WARTUNGSMODI else MODE_NORMAL
+            self.step_index = int(stored.get("step_index", 0))
+
         tracked = [self._cfg(k) for k in AUTO_KEYS if self._cfg(k)]
 
         @callback
@@ -248,9 +281,58 @@ class PoolAdvisorData:
         if tracked:
             self._unsub = async_track_state_change_event(self.hass, tracked, _on_change)
 
-        # Initial snapshot on startup so sensors have something without requiring a
-        # button press after every HA restart.
         self.run_analysis()
+
+    async def _persist_workflow(self) -> None:
+        await self._store.async_save({"mode": self.mode, "step_index": self.step_index})
+
+    async def async_set_mode(self, mode: str) -> None:
+        if mode not in WARTUNGSMODI:
+            return
+        self.mode = mode
+        self.step_index = 0
+        await self._persist_workflow()
+        async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
+
+    async def async_advance_step(self) -> None:
+        """Advance workflow by one step. If at the end, go back to normal mode."""
+        steps = get_workflow(self.mode)
+        self.step_index += 1
+        if self.step_index >= len(steps):
+            self.mode = MODE_NORMAL
+            self.step_index = 0
+        await self._persist_workflow()
+        async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
+
+    def current_step(self):
+        steps = get_workflow(self.mode)
+        if 0 <= self.step_index < len(steps):
+            return steps[self.step_index]
+        return steps[0]
+
+    def build_workflow_context(self) -> WorkflowContext:
+        return WorkflowContext(
+            volume_m3=float(self._cfg(CONF_POOL_VOLUME_M3, 30.0)),
+            ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
+            ph_plus_display=self._display(CONF_PH_PLUS_NAME, CONF_PH_PLUS_TYPE),
+            ta_plus_display=self._display(CONF_TA_PLUS_NAME, CONF_TA_PLUS_TYPE),
+            routine_cl_display=self._display(CONF_ROUTINE_CL_NAME, CONF_ROUTINE_CL_TYPE),
+            shock_display=self._display(CONF_SHOCK_NAME, CONF_SHOCK_TYPE),
+            shock_type=self._cfg(CONF_SHOCK_TYPE) or "",
+            shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH, 56)),
+            cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
+            cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
+            ph_auto=self._read_live(CONF_ENT_PH_AUTO),
+            ph_manual=self._manual_value(CONF_ENT_PH_MANUAL),
+            ta=self._manual_value(CONF_ENT_ALKALINITY),
+            fc=self._manual_value(CONF_ENT_FREE_CL),
+            cc=self._manual_value(CONF_ENT_COMBINED_CL),
+            cya=self._manual_value(CONF_ENT_CYANURIC),
+            ph_target=float(self._cfg(CONF_PH_TARGET)),
+            ta_target=float(self._cfg(CONF_TA_TARGET)),
+            fc_target=float(self._cfg(CONF_FC_TARGET)),
+            cya_target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
+        )
 
     async def async_unload(self) -> None:
         if self._unsub is not None:
@@ -339,10 +421,17 @@ class PoolAdvisorData:
             ph_manual=ph_manual,
             threshold=float(self._cfg(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD)),
         )
+        cya_rec = recommend_cya(
+            current=self._manual_value(CONF_ENT_CYANURIC),
+            target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
+            watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
+            critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
+        )
         self.recommendations = {
             "ph": ph_rec,
             "alkalinity": ta_rec,
             "chlorine": cl_rec,
+            "cya": cya_rec,
             "calibration": calib_rec,
         }
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")

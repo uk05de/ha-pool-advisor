@@ -352,6 +352,103 @@ def _append_note(rec: Recommendation, extra: str) -> Recommendation:
     return dataclasses.replace(rec, note=combined)
 
 
+def recommend_cya(
+    *,
+    current: float | None,
+    target: float,
+    watch_at: float,
+    critical_at: float,
+) -> Recommendation:
+    """Evaluate ongoing CYA level. No dosing produced here — CYA only goes up
+    (via dichlor shocks or explicit pre-dose at commissioning), and is lowered
+    only by partial water replacement."""
+    if current is None:
+        return Recommendation(action="no_data", steps=(), reason="Keine CYA-Messung vorhanden")
+    if current < target * 0.6:
+        return Recommendation(
+            action="raise",
+            steps=(),
+            reason=f"Cyanursäure {current:.0f} mg/l unter Ziel {target:.0f}",
+            delta=target - current,
+            note="Vor-Dosierung nur relevant bei Inbetriebnahme — siehe Workflow 'Frischwasser'.",
+        )
+    if current >= critical_at:
+        return Recommendation(
+            action="lower",
+            steps=(),
+            reason=f"Cyanursäure {current:.0f} mg/l kritisch hoch",
+            delta=current - target,
+            note=(
+                "CYA lässt sich chemisch nicht senken. Ca. 30 % Wasser teiltauschen und "
+                "danach neu messen. Häufige Schocks mit Dichlor vermeiden — auf Flüssig-Chlor "
+                "(NaOCl) oder Calciumhypochlorit umstellen."
+            ),
+        )
+    if current >= watch_at:
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=f"Cyanursäure {current:.0f} mg/l erhöht — beobachten",
+            delta=current - target,
+            note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
+        )
+    return Recommendation(action="ok", steps=(), reason=f"Cyanursäure {current:.0f} mg/l im Zielbereich")
+
+
+def cya_pre_dose_grams(
+    *,
+    current_cya: float,
+    target_cya: float,
+    shock_fc_increase: float,
+    shock_type: str,
+    volume_m3: float,
+    cya_strength_pct: float,
+) -> float:
+    """Grams of pure-CYA product to pre-dose before shocking, so that
+    shock-added CYA (if any) rounds out to the target.
+
+    Returns 0 if no pre-dose needed.
+    """
+    from .const import SHOCK_CYA_PER_PPM_CL, SHOCK_STABILIZED
+
+    shock_cya = (
+        shock_fc_increase * SHOCK_CYA_PER_PPM_CL.get(shock_type, 0.0)
+        if shock_type in SHOCK_STABILIZED
+        else 0.0
+    )
+    needed = max(0.0, target_cya - current_cya - shock_cya)
+    if needed <= 0:
+        return 0.0
+    pure_g = needed * volume_m3  # 1 mg/l × 1 m³ = 1 g
+    return pure_g * (100.0 / max(1.0, cya_strength_pct))
+
+
+def shock_dose_grams_or_ml(
+    *,
+    current_fc: float,
+    target_fc: float,
+    volume_m3: float,
+    shock_type: str,
+    shock_strength_pct: float,
+) -> tuple[float, str] | None:
+    """Manual shock dose calculation for workflow steps (not split).
+    Returns (amount, unit) or None for unknown product.
+    """
+    increase = max(0.0, target_fc - current_fc)
+    if increase <= 0:
+        return 0.0, "g"
+    if shock_type == SHOCK_DICHLOR:
+        pure = G_DICHLOR_PURE_PER_M3_PER_1_FC * volume_m3 * increase * 10.0
+        return pure * (100.0 / max(1.0, shock_strength_pct)), "g"
+    if shock_type == SHOCK_CAL_HYPO:
+        pure = G_CAL_HYPO_PURE_PER_M3_PER_1_FC * volume_m3 * increase * 10.0
+        return pure * (100.0 / max(1.0, shock_strength_pct)), "g"
+    if shock_type == SHOCK_NAOCL_LIQUID:
+        pure_ml = ML_NAOCL_PURE_PER_M3_PER_1_FC * volume_m3 * increase
+        return pure_ml * (12.5 / max(1.0, shock_strength_pct)), "ml"
+    return None
+
+
 def recommend_calibration(
     *,
     ph_auto: float | None,

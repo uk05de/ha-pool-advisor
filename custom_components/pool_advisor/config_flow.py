@@ -58,6 +58,12 @@ from .const import (
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
+    CONF_CYA_CRITICAL_AT,
+    CONF_CYA_NAME,
+    CONF_CYA_STRENGTH,
+    CONF_CYA_TARGET,
+    CONF_CYA_TYPE,
+    CONF_CYA_WATCH_AT,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
@@ -84,6 +90,12 @@ from .const import (
     DEFAULT_REDOX_MIN,
     DEFAULT_REDOX_TARGET,
     DEFAULT_STRENGTH,
+    CYA_CHOICES,
+    CYA_PURE,
+    DEFAULT_CYA_CRITICAL_AT,
+    DEFAULT_CYA_STRENGTH,
+    DEFAULT_CYA_TARGET,
+    DEFAULT_CYA_WATCH_AT,
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DEFAULT_TA_MAX,
@@ -222,6 +234,16 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 default=defaults.get(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW),
             ): _number(0.0, 5.0, 0.05),
             vol.Required(
+                CONF_CYA_TARGET, default=defaults.get(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)
+            ): _number(10, 100, 5),
+            vol.Required(
+                CONF_CYA_WATCH_AT, default=defaults.get(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)
+            ): _number(20, 200, 5),
+            vol.Required(
+                CONF_CYA_CRITICAL_AT,
+                default=defaults.get(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT),
+            ): _number(30, 200, 5),
+            vol.Required(
                 CONF_PH_CALIB_THRESHOLD,
                 default=defaults.get(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD),
             ): _number(0.05, 1.0, 0.05),
@@ -285,6 +307,14 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
             vol.Optional(
                 CONF_SHOCK_STRENGTH,
                 default=defaults.get(CONF_SHOCK_STRENGTH, 0),
+            ): _pct_number(),
+            vol.Optional(CONF_CYA_NAME, **_opt_text(CONF_CYA_NAME, defaults)): str,
+            vol.Optional(
+                CONF_CYA_TYPE, default=defaults.get(CONF_CYA_TYPE, CYA_PURE)
+            ): _select(CYA_CHOICES, "cya"),
+            vol.Optional(
+                CONF_CYA_STRENGTH,
+                default=defaults.get(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH),
             ): _pct_number(),
         }
     )

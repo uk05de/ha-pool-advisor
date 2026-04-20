@@ -214,6 +214,23 @@
         "calcium_hypochlorite": "Calcium hypochlorite",
         "sodium_hypochlorite": "Liquid chlorine (NaOCl)"
       }
+    },
+    "cya": {
+      "options": {
+        "cyanuric_acid": "Cyanuric acid (stabilizer)"
+      }
+    },
+    "wartungsmodus": {
+      "options": {
+        "normal": "Normal operation",
+        "shock_routine": "Shock: routine (10 mg/l FC)",
+        "shock_algen_leicht": "Shock: light algae (15 mg/l FC)",
+        "shock_algen_stark": "Shock: heavy algae (20 mg/l FC)",
+        "shock_schwarzalgen": "Shock: black algae (25 mg/l FC)",
+        "shock_breakpoint": "Shock: breakpoint (10× CC)",
+        "frischwasser": "Fresh fill commissioning",
+        "saisonstart": "Season start after winter"
+      }
     }
   },
   "entity": {
@@ -221,6 +238,7 @@
       "ph_recommendation": {"name": "pH recommendation"},
       "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
       "chlorine_recommendation": {"name": "Chlorine recommendation"},
+      "cya_recommendation": {"name": "Cyanuric acid recommendation"},
       "calibration_ph": {"name": "pH calibration"},
       "status": {"name": "Pool status"},
       "markdown": {"name": "Recommendation"}
@@ -229,7 +247,11 @@
       "attention": {"name": "Attention needed"}
     },
     "button": {
-      "analyze": {"name": "Run analysis"}
+      "analyze": {"name": "Run analysis"},
+      "advance_step": {"name": "Mark step done"}
+    },
+    "select": {
+      "wartungsmodus": {"name": "Maintenance mode"}
     }
   }
 }
