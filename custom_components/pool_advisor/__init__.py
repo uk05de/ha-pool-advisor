@@ -27,6 +27,11 @@ from .const import (
     CHLORINATION_SALT,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
+    CONF_PH_DOSING,
+    DEFAULT_PH_DOSING,
+    PH_DOSING_BOTH,
+    PH_DOSING_MINUS,
+    PH_DOSING_PLUS,
     CONF_DOSE_INTERVAL_H,
     CONF_ENT_ALKALINITY,
     CONF_ENT_COMBINED_CL,
@@ -409,6 +414,9 @@ class PoolAdvisorData:
         # Prefer manual (photometer) if the snapshot included it; else auto.
         ph_for_dosing = ph_manual if ph_manual is not None else ph_auto
 
+        ph_dosing = self._cfg(CONF_PH_DOSING, DEFAULT_PH_DOSING)
+        ph_dosing_minus = ph_dosing in (PH_DOSING_MINUS, PH_DOSING_BOTH)
+        ph_dosing_plus = ph_dosing in (PH_DOSING_PLUS, PH_DOSING_BOTH)
         ph_rec = recommend_ph(
             current=ph_for_dosing,
             target=float(self._cfg(CONF_PH_TARGET)),
@@ -425,7 +433,8 @@ class PoolAdvisorData:
             ph_plus_display=self._display(CONF_PH_PLUS_NAME, CONF_PH_PLUS_TYPE),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
-            has_auto_dosing=has_auto_dosing,
+            ph_dosing_minus=ph_dosing_minus,
+            ph_dosing_plus=ph_dosing_plus,
         )
         ta_rec = recommend_alkalinity(
             current=self._manual_value(CONF_ENT_ALKALINITY),
@@ -473,6 +482,9 @@ class PoolAdvisorData:
             target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
             watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
             critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
+            volume_m3=volume,
+            cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
+            cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
         )
         drift_redox_rec = recommend_drift_redox(
             redox_live=self._read_live(CONF_ENT_REDOX),

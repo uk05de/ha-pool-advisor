@@ -108,24 +108,33 @@ def recommend_ph(
     ph_plus_display: str,
     max_dose_fraction: float,
     interval_h: int,
-    has_auto_dosing: bool,
+    ph_dosing_minus: bool,
+    ph_dosing_plus: bool,
 ) -> Recommendation:
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Kein pH-Messwert vorhanden")
     if ph_min <= current <= ph_max:
-        return Recommendation(action="ok", steps=(), reason=f"pH {current:.2f} liegt im Zielbereich")
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=f"pH {current:.2f} (Ziel {target:.2f}, Bereich {ph_min:.1f}–{ph_max:.1f})",
+        )
 
     delta = target - current
     is_critical = current < ph_critical_low or current > ph_critical_high
 
-    # Slight deviation + auto dosing present → watch-only, let the system regulate.
-    if not is_critical and has_auto_dosing:
+    # Can the dosing system self-correct in this direction?
+    needs_lowering = delta < 0  # pH too high
+    can_auto_correct = (needs_lowering and ph_dosing_minus) or (not needs_lowering and ph_dosing_plus)
+
+    if not is_critical and can_auto_correct:
+        direction = "senken" if needs_lowering else "anheben"
         return Recommendation(
             action="watch",
             steps=(),
             reason=(
                 f"pH {current:.2f} leicht außerhalb {ph_min:.1f}–{ph_max:.1f} — "
-                "Dosieranlage sollte selbst regeln"
+                f"Dosieranlage kann pH {direction} und sollte selbst regeln"
             ),
             delta=delta,
             note="Wenn Abweichung bestehen bleibt: Kanister, Elektrode und Sollwert der Anlage prüfen.",
@@ -151,7 +160,7 @@ def recommend_ph(
             reason=f"pH {current:.2f} kritisch hoch — Ziel {target:.2f}",
             delta=delta,
         )
-        if has_auto_dosing:
+        if ph_dosing_minus:
             rec = _append_note(
                 rec, "Alternative: pH-Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
             )
@@ -171,9 +180,16 @@ def recommend_ph(
         reason=f"pH {current:.2f} kritisch niedrig — Ziel {target:.2f}",
         delta=delta,
     )
-    if has_auto_dosing:
+    if ph_dosing_plus:
         rec = _append_note(
             rec, "Alternative: pH-Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
+        )
+    elif ph_dosing_minus:
+        rec = _append_note(
+            rec,
+            "Hinweis: deine Dosieranlage kann nur pH− dosieren, nicht pH+. "
+            "pH steigt über Tage meist natürlich wieder (CO₂-Ausgasung, Chlor-Dosierung). "
+            "Wenn du nicht warten willst: manuell wie oben dosieren.",
         )
     return rec
 
@@ -196,7 +212,14 @@ def recommend_alkalinity(
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Keine Alkalitäts-Messung vorhanden")
     if ta_min <= current <= ta_max:
-        return Recommendation(action="ok", steps=(), reason=f"Alkalität {current:.0f} mg/l im Zielbereich")
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=(
+                f"Alkalität {current:.0f} mg/l "
+                f"(Ziel {target:.0f}, Bereich {ta_min:.0f}–{ta_max:.0f})"
+            ),
+        )
 
     delta = target - current
     is_critical = current < ta_critical_low or current > ta_critical_high
@@ -344,7 +367,16 @@ def recommend_shock(
             ),
         )
 
-    return Recommendation(action="ok", steps=(), reason="Chlor-Werte ok")
+    fc_text = f"FC {free_cl:.2f} mg/l" if free_cl is not None else "FC —"
+    cc_text = f"CC {combined_cl:.2f} mg/l" if combined_cl is not None else "CC —"
+    return Recommendation(
+        action="ok",
+        steps=(),
+        reason=(
+            f"{fc_text} (Ziel {fc_target:.2f}, min {fc_min:.2f}) / "
+            f"{cc_text} (Shock ab {cc_shock_at:.2f})"
+        ),
+    )
 
 
 def _append_note(rec: Recommendation, extra: str) -> Recommendation:
@@ -358,19 +390,37 @@ def recommend_cya(
     target: float,
     watch_at: float,
     critical_at: float,
+    volume_m3: float,
+    cya_display: str,
+    cya_strength_pct: float,
 ) -> Recommendation:
-    """Evaluate ongoing CYA level. No dosing produced here — CYA only goes up
-    (via dichlor shocks or explicit pre-dose at commissioning), and is lowered
-    only by partial water replacement."""
+    """Evaluate CYA level. Provides a concrete dose when under target (with 80%
+    safety buffer), and flags partial-water-exchange when over critical.
+    CYA cannot be lowered chemically."""
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Keine CYA-Messung vorhanden")
     if current < target * 0.6:
+        delta = target - current
+        # 1 mg/l × 1 m³ = 1 g pure CYA; account for product strength, apply 80% buffer
+        pure_g = delta * volume_m3
+        product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
+        step = DoseStep(
+            amount=round(product_g, 0),
+            unit="g",
+            product=cya_display,
+            wait_hours=48,
+        )
         return Recommendation(
             action="raise",
-            steps=(),
+            steps=(step,),
             reason=f"Cyanursäure {current:.0f} mg/l unter Ziel {target:.0f}",
-            delta=target - current,
-            note="Vor-Dosierung nur relevant bei Inbetriebnahme — siehe Workflow 'Frischwasser'.",
+            delta=delta,
+            note=(
+                "Menge = 80 % der Rechnung als Sicherheitspuffer. "
+                "In Skimmer-Sockel (Nylonsocke) oder Einsatzkorb geben — löst sich langsam. "
+                "Filter 24–48 h durchlaufen lassen, erst dann nachmessen und ggf. nachlegen. "
+                "Einmalige Aktion: CYA baut nicht ab."
+            ),
         )
     if current >= critical_at:
         return Recommendation(
@@ -392,7 +442,14 @@ def recommend_cya(
             delta=current - target,
             note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
         )
-    return Recommendation(action="ok", steps=(), reason=f"Cyanursäure {current:.0f} mg/l im Zielbereich")
+    return Recommendation(
+        action="ok",
+        steps=(),
+        reason=(
+            f"Cyanursäure {current:.0f} mg/l "
+            f"(Ziel {target:.0f}, Watch ab {watch_at:.0f}, kritisch ab {critical_at:.0f})"
+        ),
+    )
 
 
 def cya_pre_dose_grams(

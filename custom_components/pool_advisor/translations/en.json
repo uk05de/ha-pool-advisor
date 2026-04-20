@@ -7,7 +7,8 @@
         "data": {
           "name": "Name",
           "pool_volume_m3": "Water volume (m³)",
-          "chlorination_type": "Chlorination type"
+          "chlorination_type": "Chlorination type",
+          "ph_dosing_capability": "pH dosing capability"
         }
       },
       "entities_auto": {
@@ -126,7 +127,8 @@
         "title": "Pool",
         "data": {
           "pool_volume_m3": "Water volume (m³)",
-          "chlorination_type": "Chlorination type"
+          "chlorination_type": "Chlorination type",
+          "ph_dosing_capability": "pH dosing capability"
         }
       },
       "entities_auto": {
@@ -252,6 +254,14 @@
     "cya": {
       "options": {
         "cyanuric_acid": "Cyanuric acid (stabilizer)"
+      }
+    },
+    "ph_dosing": {
+      "options": {
+        "none": "None (manual only)",
+        "minus_only": "pH− only (typical Bayrol)",
+        "plus_only": "pH+ only",
+        "both": "Both pH+ and pH−"
       }
     },
     "wartungsmodus": {

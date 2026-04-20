@@ -13,6 +13,9 @@ from .const import (
     CHLORINATION_CHOICES,
     CHLORINATION_SALT,
     CONF_CC_MAX,
+    CONF_PH_DOSING,
+    DEFAULT_PH_DOSING,
+    PH_DOSING_CHOICES,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
     CONF_DOSE_INTERVAL_H,
@@ -397,6 +400,9 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_CHLORINATION, default=CHLORINATION_SALT): _select(
                     CHLORINATION_CHOICES, "chlorination"
                 ),
+                vol.Required(CONF_PH_DOSING, default=DEFAULT_PH_DOSING): _select(
+                    PH_DOSING_CHOICES, "ph_dosing"
+                ),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
@@ -512,6 +518,9 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_CHLORINATION, default=cur.get(CONF_CHLORINATION, CHLORINATION_SALT)
                 ): _select(CHLORINATION_CHOICES, "chlorination"),
+                vol.Required(
+                    CONF_PH_DOSING, default=cur.get(CONF_PH_DOSING, DEFAULT_PH_DOSING)
+                ): _select(PH_DOSING_CHOICES, "ph_dosing"),
             }
         )
         return self.async_show_form(step_id="pool", data_schema=schema)

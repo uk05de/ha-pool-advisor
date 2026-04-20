@@ -9,6 +9,19 @@ DOMAIN: Final = "pool_advisor"
 CONF_NAME: Final = "name"
 CONF_POOL_VOLUME_M3: Final = "pool_volume_m3"
 CONF_CHLORINATION: Final = "chlorination_type"
+CONF_PH_DOSING: Final = "ph_dosing_capability"
+
+PH_DOSING_NONE: Final = "none"
+PH_DOSING_MINUS: Final = "minus_only"
+PH_DOSING_PLUS: Final = "plus_only"
+PH_DOSING_BOTH: Final = "both"
+PH_DOSING_CHOICES: Final = [
+    PH_DOSING_NONE,
+    PH_DOSING_MINUS,
+    PH_DOSING_PLUS,
+    PH_DOSING_BOTH,
+]
+DEFAULT_PH_DOSING: Final = PH_DOSING_MINUS
 
 # Input entities — automatic (continuous dosing system, e.g. Bayrol)
 CONF_ENT_PH_AUTO: Final = "entity_ph_auto"
