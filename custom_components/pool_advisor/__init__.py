@@ -90,6 +90,36 @@ AUTO_KEYS: tuple[str, ...] = (
     CONF_ENT_TEMPERATURE,
 )
 
+# Plausibility bounds — values outside are treated as "sensor offline / no data"
+# to avoid wild recommendations when a dosing controller reports 0 while idle.
+SANITY_BOUNDS: dict[str, tuple[float, float]] = {
+    CONF_ENT_PH_AUTO: (4.0, 10.0),
+    CONF_ENT_PH_MANUAL: (4.0, 10.0),
+    CONF_ENT_REDOX: (100.0, 1000.0),
+    CONF_ENT_TEMPERATURE: (-10.0, 60.0),
+    CONF_ENT_ALKALINITY: (5.0, 500.0),
+    CONF_ENT_FREE_CL: (0.0, 20.0),
+    CONF_ENT_COMBINED_CL: (0.0, 10.0),
+    CONF_ENT_TOTAL_CL: (0.0, 20.0),
+    CONF_ENT_CYANURIC: (0.0, 300.0),
+}
+
+
+def _within_bounds(key: str, value: float | None) -> float | None:
+    if value is None:
+        return None
+    bounds = SANITY_BOUNDS.get(key)
+    if bounds is None:
+        return value
+    lo, hi = bounds
+    if lo <= value <= hi:
+        return value
+    _LOGGER.debug(
+        "Pool Advisor: implausible reading for %s: %r (allowed %.2f–%.2f) — treating as no data",
+        key, value, lo, hi,
+    )
+    return None
+
 
 class PoolAdvisorData:
     """Runtime state for a single config entry.
@@ -124,10 +154,11 @@ class PoolAdvisorData:
         if state is None or state.state in (None, "", "unknown", "unavailable"):
             return None
         try:
-            return float(state.state)
+            value = float(state.state)
         except (TypeError, ValueError):
             _LOGGER.debug("Non-numeric state for %s: %r", entity_id, state.state)
             return None
+        return _within_bounds(entity_key, value)
 
     # --- snapshot capture (manual) ---
     def _capture_manual(self, entity_key: str, window_h: float) -> dict[str, Any]:
@@ -148,6 +179,9 @@ class PoolAdvisorData:
         try:
             value = float(state.state)
         except (TypeError, ValueError):
+            return out
+        value = _within_bounds(entity_key, value)
+        if value is None:
             return out
 
         # Prefer `measured_at` attribute (PoolLab etc.); fall back to last_updated.
