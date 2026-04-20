@@ -475,7 +475,7 @@ WORKFLOWS: dict[str, list[Step]] = {
     ],
     MODE_SAISONSTART: [
         Step("ss_inspect", "Sichtprüfung & Erstmessung", "analysis", _render_measure),
-        Step("ss_shock_algen", "Bei Biobelastung: Shock", "button", _render_shock(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Shock Saisonstart", brush=True)),
+        Step("ss_shock_algen", "Bei Biobelastung: Shock", "button", _render_shock(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Shock Saisonstart", include_brush=True)),
         Step("ss_wait", "24 h einwirken", "button", _render_wait(24)),
         Step("ss_measure_ph", "pH messen nach Ausgasung", "analysis", _render_measure),
         Step("ss_calibrate_ph", "pH-Sonde kalibrieren", "button", _render_fw_calibrate_ph),
