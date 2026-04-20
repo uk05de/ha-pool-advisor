@@ -37,8 +37,10 @@ from .const import (
     CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
+    CONF_PH_MINUS_NAME,
     CONF_PH_MINUS_STRENGTH,
     CONF_PH_MINUS_TYPE,
+    CONF_PH_PLUS_NAME,
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
     CONF_PH_TARGET,
@@ -46,14 +48,17 @@ from .const import (
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
     CONF_REDOX_TARGET,
+    CONF_ROUTINE_CL_NAME,
     CONF_ROUTINE_CL_STRENGTH,
     CONF_ROUTINE_CL_TYPE,
+    CONF_SHOCK_NAME,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
     CONF_TA_CRITICAL_HIGH,
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
+    CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
@@ -228,9 +233,16 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
     )
 
 
+def _opt_text(key: str, defaults: dict[str, Any]) -> dict[str, Any]:
+    """Optional text field with default if already set."""
+    val = defaults.get(key)
+    return {"default": val} if val else {}
+
+
 def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
+            vol.Optional(CONF_PH_MINUS_NAME, **_opt_text(CONF_PH_MINUS_NAME, defaults)): str,
             vol.Required(
                 CONF_PH_MINUS_TYPE, default=defaults.get(CONF_PH_MINUS_TYPE, PH_MINUS_DRY_ACID)
             ): _select(PH_MINUS_CHOICES, "ph_minus"),
@@ -238,6 +250,7 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_PH_MINUS_STRENGTH,
                 default=defaults.get(CONF_PH_MINUS_STRENGTH, DEFAULT_STRENGTH[PH_MINUS_DRY_ACID]),
             ): _pct_number(),
+            vol.Optional(CONF_PH_PLUS_NAME, **_opt_text(CONF_PH_PLUS_NAME, defaults)): str,
             vol.Required(
                 CONF_PH_PLUS_TYPE, default=defaults.get(CONF_PH_PLUS_TYPE, PH_PLUS_SODA)
             ): _select(PH_PLUS_CHOICES, "ph_plus"),
@@ -245,6 +258,7 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_PH_PLUS_STRENGTH,
                 default=defaults.get(CONF_PH_PLUS_STRENGTH, DEFAULT_STRENGTH[PH_PLUS_SODA]),
             ): _pct_number(),
+            vol.Optional(CONF_TA_PLUS_NAME, **_opt_text(CONF_TA_PLUS_NAME, defaults)): str,
             vol.Required(
                 CONF_TA_PLUS_TYPE, default=defaults.get(CONF_TA_PLUS_TYPE, TA_PLUS_BICARB)
             ): _select(TA_PLUS_CHOICES, "ta_plus"),
@@ -252,6 +266,7 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_TA_PLUS_STRENGTH,
                 default=defaults.get(CONF_TA_PLUS_STRENGTH, DEFAULT_STRENGTH[TA_PLUS_BICARB]),
             ): _pct_number(),
+            vol.Optional(CONF_ROUTINE_CL_NAME, **_opt_text(CONF_ROUTINE_CL_NAME, defaults)): str,
             **(
                 {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
                 if defaults.get(CONF_ROUTINE_CL_TYPE)
@@ -261,6 +276,7 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_ROUTINE_CL_STRENGTH,
                 default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
             ): _pct_number(),
+            vol.Optional(CONF_SHOCK_NAME, **_opt_text(CONF_SHOCK_NAME, defaults)): str,
             **(
                 {vol.Optional(CONF_SHOCK_TYPE, default=defaults[CONF_SHOCK_TYPE]): _select(SHOCK_CHOICES, "shock")}
                 if defaults.get(CONF_SHOCK_TYPE)

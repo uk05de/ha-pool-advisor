@@ -102,8 +102,10 @@ def recommend_ph(
     volume_m3: float,
     ph_minus_type: str,
     ph_minus_strength_pct: float,
+    ph_minus_display: str,
     ph_plus_type: str,
     ph_plus_strength_pct: float,
+    ph_plus_display: str,
     max_dose_fraction: float,
     interval_h: int,
     has_auto_dosing: bool,
@@ -136,11 +138,11 @@ def recommend_ph(
         if ph_minus_type == PH_MINUS_DRY_ACID:
             pure = G_DRY_ACID_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure * (100.0 / max(1.0, ph_minus_strength_pct))
-            steps = _split(total, "g", ph_minus_type, max_dose_fraction, interval_h)
+            steps = _split(total, "g", ph_minus_display, max_dose_fraction, interval_h)
         elif ph_minus_type == PH_MINUS_HCL:
             pure_ml = ML_HCL_33_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure_ml * (33.0 / max(1.0, ph_minus_strength_pct))
-            steps = _split(total, "ml", ph_minus_type, max_dose_fraction, interval_h)
+            steps = _split(total, "ml", ph_minus_display, max_dose_fraction, interval_h)
         else:
             return Recommendation(action="lower", steps=(), reason="Unbekanntes pH− Produkt", delta=delta)
         rec = Recommendation(
@@ -159,7 +161,7 @@ def recommend_ph(
     if ph_plus_type == PH_PLUS_SODA:
         pure = G_SODA_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
         total = pure * (100.0 / max(1.0, ph_plus_strength_pct))
-        steps = _split(total, "g", ph_plus_type, max_dose_fraction, interval_h)
+        steps = _split(total, "g", ph_plus_display, max_dose_fraction, interval_h)
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
 
@@ -187,6 +189,7 @@ def recommend_alkalinity(
     volume_m3: float,
     ta_plus_type: str,
     ta_plus_strength_pct: float,
+    ta_plus_display: str,
     max_dose_fraction: float,
     interval_h: int,
 ) -> Recommendation:
@@ -214,7 +217,7 @@ def recommend_alkalinity(
             return Recommendation(action="raise", steps=(), reason="Unbekanntes TA+ Produkt", delta=delta)
         pure = G_BICARB_PURE_PER_M3_PER_10_TA * volume_m3 * (abs(delta) / 10.0)
         total = pure * (100.0 / max(1.0, ta_plus_strength_pct))
-        steps = _split(total, "g", ta_plus_type, max_dose_fraction, interval_h)
+        steps = _split(total, "g", ta_plus_display, max_dose_fraction, interval_h)
         return Recommendation(
             action="raise",
             steps=steps,
@@ -248,8 +251,10 @@ def recommend_shock(
     volume_m3: float,
     routine_type: str | None,
     routine_strength_pct: float,
+    routine_display: str,
     shock_type: str,
     shock_strength_pct: float,
+    shock_display: str,
     max_dose_fraction: float,
     interval_h: int,
     chlorination_is_salt: bool,
@@ -275,6 +280,7 @@ def recommend_shock(
             volume_m3=volume_m3,
             shock_type=shock_type,
             shock_strength_pct=shock_strength_pct,
+            shock_display=shock_display,
             max_dose_fraction=max_dose_fraction,
             interval_h=interval_h,
             action="shock",
@@ -297,6 +303,7 @@ def recommend_shock(
                 volume_m3=volume_m3,
                 shock_type=routine_type,
                 shock_strength_pct=routine_strength_pct,
+                shock_display=routine_display,
                 max_dose_fraction=max_dose_fraction,
                 interval_h=interval_h,
                 action="raise",
@@ -391,6 +398,7 @@ def _build_cl_dose(
     volume_m3: float,
     shock_type: str,
     shock_strength_pct: float,
+    shock_display: str,
     max_dose_fraction: float,
     interval_h: int,
     action: str,
@@ -399,15 +407,15 @@ def _build_cl_dose(
     if shock_type == SHOCK_DICHLOR:
         pure = G_DICHLOR_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase * 10.0
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        steps = _split(total, "g", shock_type, max_dose_fraction, interval_h)
+        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
     elif shock_type == SHOCK_CAL_HYPO:
         pure = G_CAL_HYPO_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase * 10.0
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        steps = _split(total, "g", shock_type, max_dose_fraction, interval_h)
+        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
     elif shock_type == SHOCK_NAOCL_LIQUID:
         pure_ml = ML_NAOCL_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure_ml * (12.5 / max(1.0, shock_strength_pct))
-        steps = _split(total, "ml", shock_type, max_dose_fraction, interval_h)
+        steps = _split(total, "ml", shock_display, max_dose_fraction, interval_h)
     else:
         return Recommendation(action=action, steps=(), reason="Unbekanntes Shock-Produkt", delta=target_fc_increase)
 
@@ -416,7 +424,7 @@ def _build_cl_dose(
         cya_factor = SHOCK_CYA_PER_PPM_CL.get(shock_type, 0.9)
         added_cya = target_fc_increase * cya_factor
         note = (
-            f"⚠ {shock_type.replace('_', ' ').title()} bringt Cyanursäure mit ins Wasser "
+            f"⚠ {shock_display} bringt Cyanursäure mit ins Wasser "
             f"(~{added_cya:.1f} mg/l pro dieser Dosis). "
             "Cyanursäure messen und bei >50–75 mg/l Wasser teilverdünnen. "
             "CYA-frei schocken: Flüssig-Chlor (NaOCl) oder Monopersulfat/Oxi."

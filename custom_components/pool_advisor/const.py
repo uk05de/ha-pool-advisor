@@ -66,14 +66,30 @@ DEFAULT_FC_CRITICAL_LOW = 0.2
 # Chemicals
 CONF_PH_MINUS_TYPE: Final = "ph_minus_type"
 CONF_PH_MINUS_STRENGTH: Final = "ph_minus_strength"
+CONF_PH_MINUS_NAME: Final = "ph_minus_name"
 CONF_PH_PLUS_TYPE: Final = "ph_plus_type"
 CONF_PH_PLUS_STRENGTH: Final = "ph_plus_strength"
+CONF_PH_PLUS_NAME: Final = "ph_plus_name"
 CONF_TA_PLUS_TYPE: Final = "ta_plus_type"
 CONF_TA_PLUS_STRENGTH: Final = "ta_plus_strength"
+CONF_TA_PLUS_NAME: Final = "ta_plus_name"
 CONF_ROUTINE_CL_TYPE: Final = "routine_cl_type"
 CONF_ROUTINE_CL_STRENGTH: Final = "routine_cl_strength"
+CONF_ROUTINE_CL_NAME: Final = "routine_cl_name"
 CONF_SHOCK_TYPE: Final = "shock_type"
 CONF_SHOCK_STRENGTH: Final = "shock_strength"
+CONF_SHOCK_NAME: Final = "shock_name"
+
+# Human-friendly fallback labels when user hasn't set a product name.
+PRODUCT_LABELS: Final = {
+    "dry_acid_nahso4": "Trockensäure (NaHSO₄)",
+    "muriatic_acid_hcl": "Salzsäure (HCl)",
+    "soda_ash_na2co3": "Soda (Na₂CO₃)",
+    "sodium_bicarbonate_nahco3": "Natron (NaHCO₃)",
+    "dichlor": "Dichlor-Granulat",
+    "calcium_hypochlorite": "Kalziumhypochlorit",
+    "sodium_hypochlorite": "Flüssig-Chlor (NaOCl)",
+}
 
 # Dose splitting
 CONF_MAX_DOSE_FRACTION: Final = "max_dose_fraction"

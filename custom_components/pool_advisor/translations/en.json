@@ -62,15 +62,20 @@
         "title": "Chemicals",
         "description": "Routine chlorine = small top-ups during normal operation (often same as dosing canister, e.g. NaOCl liquid). Shock chlorine = breakpoint/algae events (e.g. dichlor granulate). Both optional — leave empty if you never dose manually.",
         "data": {
-          "ph_minus_type": "pH−",
+          "ph_minus_name": "pH− product name",
+          "ph_minus_type": "pH− active compound",
           "ph_minus_strength": "pH− strength (%)",
-          "ph_plus_type": "pH+",
+          "ph_plus_name": "pH+ product name",
+          "ph_plus_type": "pH+ active compound",
           "ph_plus_strength": "pH+ strength (%)",
-          "ta_plus_type": "TA+",
+          "ta_plus_name": "TA+ product name",
+          "ta_plus_type": "TA+ active compound",
           "ta_plus_strength": "TA+ strength (%)",
-          "routine_cl_type": "Routine chlorine (optional)",
+          "routine_cl_name": "Routine chlorine product name",
+          "routine_cl_type": "Routine chlorine active compound (optional)",
           "routine_cl_strength": "Routine chlorine strength (%)",
-          "shock_type": "Shock chlorine",
+          "shock_name": "Shock chlorine product name",
+          "shock_type": "Shock chlorine active compound",
           "shock_strength": "Shock chlorine strength (%)"
         }
       },
@@ -154,15 +159,20 @@
       "chemicals": {
         "title": "Chemicals",
         "data": {
-          "ph_minus_type": "pH−",
+          "ph_minus_name": "pH− product name",
+          "ph_minus_type": "pH− active compound",
           "ph_minus_strength": "pH− strength (%)",
-          "ph_plus_type": "pH+",
+          "ph_plus_name": "pH+ product name",
+          "ph_plus_type": "pH+ active compound",
           "ph_plus_strength": "pH+ strength (%)",
-          "ta_plus_type": "TA+",
+          "ta_plus_name": "TA+ product name",
+          "ta_plus_type": "TA+ active compound",
           "ta_plus_strength": "TA+ strength (%)",
-          "routine_cl_type": "Routine chlorine (optional)",
+          "routine_cl_name": "Routine chlorine product name",
+          "routine_cl_type": "Routine chlorine active compound (optional)",
           "routine_cl_strength": "Routine chlorine strength (%)",
-          "shock_type": "Shock chlorine",
+          "shock_name": "Shock chlorine product name",
+          "shock_type": "Shock chlorine active compound",
           "shock_strength": "Shock chlorine strength (%)"
         }
       },
@@ -212,7 +222,8 @@
       "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
       "chlorine_recommendation": {"name": "Chlorine recommendation"},
       "calibration_ph": {"name": "pH calibration"},
-      "status": {"name": "Pool status"}
+      "status": {"name": "Pool status"},
+      "markdown": {"name": "Recommendation"}
     },
     "binary_sensor": {
       "attention": {"name": "Attention needed"}

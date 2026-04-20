@@ -62,15 +62,20 @@
         "title": "Chemikalien",
         "description": "Routine-Chlor = für kleine Nachdosierungen im Normalbetrieb (oft gleich wie Dosieranlagen-Kanister, z.B. Flüssig-Chlor NaOCl). Shock-Chlor = für Breakpoint/Algen (z.B. Chlorifix Dichlor). Beide optional — leer lassen wenn du nicht manuell dosierst.",
         "data": {
-          "ph_minus_type": "pH−",
+          "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
+          "ph_minus_type": "pH− Wirkstoff",
           "ph_minus_strength": "pH− Stärke (%)",
-          "ph_plus_type": "pH+",
+          "ph_plus_name": "pH+ Produktname",
+          "ph_plus_type": "pH+ Wirkstoff",
           "ph_plus_strength": "pH+ Stärke (%)",
-          "ta_plus_type": "TA+",
+          "ta_plus_name": "TA+ Produktname",
+          "ta_plus_type": "TA+ Wirkstoff",
           "ta_plus_strength": "TA+ Stärke (%)",
-          "routine_cl_type": "Routine-Chlor (optional)",
+          "routine_cl_name": "Routine-Chlor Produktname",
+          "routine_cl_type": "Routine-Chlor Wirkstoff (optional)",
           "routine_cl_strength": "Routine-Chlor Stärke (%)",
-          "shock_type": "Shock-Chlor",
+          "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
+          "shock_type": "Shock-Chlor Wirkstoff",
           "shock_strength": "Shock-Chlor Stärke (%)"
         }
       },
@@ -154,15 +159,20 @@
       "chemicals": {
         "title": "Chemikalien",
         "data": {
-          "ph_minus_type": "pH−",
+          "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
+          "ph_minus_type": "pH− Wirkstoff",
           "ph_minus_strength": "pH− Stärke (%)",
-          "ph_plus_type": "pH+",
+          "ph_plus_name": "pH+ Produktname",
+          "ph_plus_type": "pH+ Wirkstoff",
           "ph_plus_strength": "pH+ Stärke (%)",
-          "ta_plus_type": "TA+",
+          "ta_plus_name": "TA+ Produktname",
+          "ta_plus_type": "TA+ Wirkstoff",
           "ta_plus_strength": "TA+ Stärke (%)",
-          "routine_cl_type": "Routine-Chlor (optional)",
+          "routine_cl_name": "Routine-Chlor Produktname",
+          "routine_cl_type": "Routine-Chlor Wirkstoff (optional)",
           "routine_cl_strength": "Routine-Chlor Stärke (%)",
-          "shock_type": "Shock-Chlor",
+          "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
+          "shock_type": "Shock-Chlor Wirkstoff",
           "shock_strength": "Shock-Chlor Stärke (%)"
         }
       },
@@ -212,7 +222,8 @@
       "alkalinity_recommendation": {"name": "Empfehlung Alkalität"},
       "chlorine_recommendation": {"name": "Empfehlung Chlor"},
       "calibration_ph": {"name": "Kalibrierung pH"},
-      "status": {"name": "Pool Status"}
+      "status": {"name": "Pool Status"},
+      "markdown": {"name": "Empfehlung"}
     },
     "binary_sensor": {
       "attention": {"name": "Aufmerksamkeit nötig"}

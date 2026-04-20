@@ -26,6 +26,7 @@ async def async_setup_entry(
             RecommendationSensor(data, entry, "chlorine", "Chlor / Shock"),
             CalibrationSensor(data, entry),
             OverallStatusSensor(data, entry),
+            MarkdownSummarySensor(data, entry),
         ]
     )
 
@@ -178,6 +179,114 @@ class CalibrationSensor(_BaseSensor):
                 }
             )
         return attrs
+
+
+ACTION_ICONS = {
+    "ok": "✅",
+    "watch": "👁",
+    "raise": "⬆",
+    "lower": "⬇",
+    "shock": "🚨",
+    "calibrate": "🎯",
+    "no_data": "❔",
+}
+
+PARAM_TITLES = {
+    "ph": "pH",
+    "alkalinity": "Alkalität",
+    "chlorine": "Chlor",
+    "calibration": "Kalibrierung pH",
+}
+
+
+def _build_markdown(data: "PoolAdvisorData") -> str:
+    lines: list[str] = ["## Pool-Empfehlung", ""]
+    if data.analysis_at is not None:
+        local = data.analysis_at.astimezone()
+        lines.append(f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*")
+        lines.append("")
+
+    for key in ("ph", "alkalinity", "chlorine", "calibration"):
+        rec = data.recommendations.get(key)
+        if rec is None:
+            continue
+        icon = ACTION_ICONS.get(rec.action, "")
+        title = PARAM_TITLES[key]
+
+        if rec.action == "ok":
+            lines.append(f"### {icon} {title}: OK")
+            lines.append(rec.reason)
+        elif rec.action == "no_data":
+            lines.append(f"### {icon} {title}: Keine Daten")
+            lines.append(rec.reason)
+        elif rec.action == "watch":
+            lines.append(f"### {icon} {title}: Beobachten")
+            lines.append(rec.reason)
+            if rec.note:
+                lines.append("")
+                lines.append(f"> {rec.note}")
+        elif rec.action == "calibrate":
+            lines.append(f"### {icon} {title}: Kalibrierung prüfen")
+            lines.append(rec.reason)
+            if rec.note:
+                lines.append("")
+                lines.append(f"> {rec.note}")
+        else:
+            # raise / lower / shock
+            label = {"raise": "Erhöhen", "lower": "Senken", "shock": "Shock"}[rec.action]
+            lines.append(f"### {icon} {title}: {label}")
+            lines.append(rec.reason)
+            if rec.steps:
+                lines.append("")
+                step_no = 1
+                for s in rec.steps:
+                    lines.append(f"{step_no}. **{s.amount:g} {s.unit}** {s.product}")
+                    step_no += 1
+                    if s.wait_hours > 0:
+                        lines.append(f"{step_no}. ⏳ **{s.wait_hours} h warten**, Filter laufen lassen, durchmischen")
+                        step_no += 1
+                lines.append(f"{step_no}. 📏 Neu messen vor weiterer Aktion")
+            if rec.note:
+                lines.append("")
+                lines.append(f"> {rec.note}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+class MarkdownSummarySensor(_BaseSensor):
+    """Single sensor whose `markdown` attribute holds the whole recommendation
+    nicely formatted for the HA Markdown Card."""
+
+    _attr_icon = "mdi:format-list-checks"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        super().__init__(data, entry)
+        self._attr_unique_id = f"{entry.entry_id}_markdown"
+        self._attr_translation_key = "markdown"
+        self._attr_name = "Empfehlung"
+
+    @property
+    def native_value(self) -> str:
+        recs = self._data.recommendations
+        if not recs:
+            return "—"
+        actions = {r.action for r in recs.values()}
+        if "shock" in actions:
+            return "Shock empfohlen"
+        if actions & {"raise", "lower"}:
+            return "Anpassung nötig"
+        if "calibrate" in actions:
+            return "Kalibrierung prüfen"
+        if "watch" in actions:
+            return "Beobachten"
+        if actions == {"no_data"}:
+            return "Keine Daten"
+        return "OK"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"markdown": _build_markdown(self._data)}
 
 
 class OverallStatusSensor(_BaseSensor):

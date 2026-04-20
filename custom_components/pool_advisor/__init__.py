@@ -43,20 +43,25 @@ from .const import (
     CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
+    CONF_PH_MINUS_NAME,
     CONF_PH_MINUS_STRENGTH,
     CONF_PH_MINUS_TYPE,
+    CONF_PH_PLUS_NAME,
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
     CONF_PH_TARGET,
     CONF_POOL_VOLUME_M3,
+    CONF_ROUTINE_CL_NAME,
     CONF_ROUTINE_CL_STRENGTH,
     CONF_ROUTINE_CL_TYPE,
+    CONF_SHOCK_NAME,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
     CONF_TA_CRITICAL_HIGH,
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
+    CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
@@ -68,6 +73,7 @@ from .const import (
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DOMAIN,
+    PRODUCT_LABELS,
     SIGNAL_UPDATE,
 )
 
@@ -144,6 +150,16 @@ class PoolAdvisorData:
     # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
         return self.entry.options.get(key, self.entry.data.get(key, default))
+
+    def _display(self, name_key: str, type_key: str) -> str:
+        """Product display name: user-given if set, else chemical fallback."""
+        name = self._cfg(name_key)
+        if name:
+            return str(name)
+        chemical = self._cfg(type_key)
+        if chemical:
+            return PRODUCT_LABELS.get(chemical, chemical)
+        return "Produkt"
 
     # --- live read (auto) ---
     def _read_live(self, entity_key: str) -> float | None:
@@ -274,8 +290,10 @@ class PoolAdvisorData:
             volume_m3=volume,
             ph_minus_type=self._cfg(CONF_PH_MINUS_TYPE),
             ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH)),
+            ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
             ph_plus_type=self._cfg(CONF_PH_PLUS_TYPE),
             ph_plus_strength_pct=float(self._cfg(CONF_PH_PLUS_STRENGTH)),
+            ph_plus_display=self._display(CONF_PH_PLUS_NAME, CONF_PH_PLUS_TYPE),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
             has_auto_dosing=has_auto_dosing,
@@ -290,6 +308,7 @@ class PoolAdvisorData:
             volume_m3=volume,
             ta_plus_type=self._cfg(CONF_TA_PLUS_TYPE),
             ta_plus_strength_pct=float(self._cfg(CONF_TA_PLUS_STRENGTH)),
+            ta_plus_display=self._display(CONF_TA_PLUS_NAME, CONF_TA_PLUS_TYPE),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
         )
@@ -306,8 +325,10 @@ class PoolAdvisorData:
             routine_strength_pct=(
                 float(routine_strength_raw) if routine_strength_raw is not None else 0.0
             ),
+            routine_display=self._display(CONF_ROUTINE_CL_NAME, CONF_ROUTINE_CL_TYPE),
             shock_type=self._cfg(CONF_SHOCK_TYPE),
             shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH)),
+            shock_display=self._display(CONF_SHOCK_NAME, CONF_SHOCK_TYPE),
             max_dose_fraction=max_frac,
             interval_h=interval_h,
             chlorination_is_salt=chlorination_is_salt,
