@@ -181,6 +181,7 @@ class PoolAdvisorData:
         # Workflow state
         self.mode: str = MODE_NORMAL
         self.step_index: int = 0
+        self.step_started_at: datetime | None = None
         self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_WORKFLOW}.{entry.entry_id}")
 
     # --- config helpers ---
@@ -323,6 +324,9 @@ class PoolAdvisorData:
             mode = stored.get("mode", MODE_NORMAL)
             self.mode = mode if mode in WARTUNGSMODI else MODE_NORMAL
             self.step_index = int(stored.get("step_index", 0))
+            started_at_raw = stored.get("step_started_at")
+            if started_at_raw:
+                self.step_started_at = dt_util.parse_datetime(started_at_raw)
 
         tracked = [self._cfg(k) for k in AUTO_KEYS if self._cfg(k)]
 
@@ -336,25 +340,48 @@ class PoolAdvisorData:
         self.run_analysis()
 
     async def _persist_workflow(self) -> None:
-        await self._store.async_save({"mode": self.mode, "step_index": self.step_index})
+        await self._store.async_save(
+            {
+                "mode": self.mode,
+                "step_index": self.step_index,
+                "step_started_at": self.step_started_at.isoformat()
+                if self.step_started_at
+                else None,
+            }
+        )
 
     async def async_set_mode(self, mode: str) -> None:
         if mode not in WARTUNGSMODI:
             return
         self.mode = mode
         self.step_index = 0
+        self.step_started_at = dt_util.utcnow()
         await self._persist_workflow()
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
 
-    async def async_advance_step(self) -> None:
-        """Advance workflow by one step. If at the end, go back to normal mode."""
+    async def async_try_advance_step(self) -> bool:
+        """Called after run_analysis: advance if current step is satisfied.
+        Returns True if advanced."""
+        if self.mode == MODE_NORMAL:
+            return False
+        ctx = self.build_workflow_context()
+        step = self.current_step()
+        if not step.satisfied(ctx):
+            return False
         steps = get_workflow(self.mode)
         self.step_index += 1
+        self.step_started_at = dt_util.utcnow()
         if self.step_index >= len(steps):
             self.mode = MODE_NORMAL
             self.step_index = 0
         await self._persist_workflow()
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
+        return True
+
+    def step_age_hours(self) -> float:
+        if self.step_started_at is None:
+            return 0.0
+        return (dt_util.utcnow() - self.step_started_at).total_seconds() / 3600.0
 
     def current_step(self):
         steps = get_workflow(self.mode)
@@ -384,6 +411,10 @@ class PoolAdvisorData:
             ta_target=float(self._cfg(CONF_TA_TARGET)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
             cya_target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
+            ph_min=float(self._cfg(CONF_PH_MIN)),
+            ph_max=float(self._cfg(CONF_PH_MAX)),
+            ta_min=float(self._cfg(CONF_TA_MIN)),
+            ta_max=float(self._cfg(CONF_TA_MAX)),
         )
 
     async def async_unload(self) -> None:

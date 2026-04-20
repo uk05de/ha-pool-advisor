@@ -255,13 +255,18 @@ def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
         f"## {_mode_title(data.mode)} — Schritt {idx + 1}/{total}\n\n"
         f"**{step.title}**\n"
     )
+    # Soft wait warning
+    age_h = data.step_age_hours()
+    warning = ""
+    if step.min_wait_hours > 0 and age_h < step.min_wait_hours:
+        warning = (
+            f"\n⚠ Empfohlene Wartezeit: **{step.min_wait_hours} h** — "
+            f"du bist bei {age_h:.1f} h. Trotzdem weiter geht, aber Messung "
+            "ist möglicherweise noch nicht aussagekräftig.\n"
+        )
     body = step.render(ctx)
-    footer = "\n\n---\n"
-    if step.advance == "analysis":
-        footer += "➡ Nach Messung **Analyse durchführen** drücken (advance erfolgt automatisch)."
-    else:
-        footer += "➡ Wenn erledigt: **Schritt abgeschlossen** drücken."
-    return header + "\n" + body + footer
+    footer = "\n\n---\n➡ **Analyse durchführen** drücken. Wenn das Ziel dieses Schritts erreicht ist, geht's automatisch weiter — sonst bleibt der Schritt aktiv mit aktualisierter Empfehlung."
+    return header + warning + "\n" + body + footer
 
 
 def _mode_title(mode: str) -> str:

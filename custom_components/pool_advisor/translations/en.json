@@ -292,8 +292,7 @@
       "attention": {"name": "Attention needed"}
     },
     "button": {
-      "analyze": {"name": "Run analysis"},
-      "advance_step": {"name": "Mark step done"}
+      "analyze": {"name": "Run analysis"}
     },
     "select": {
       "wartungsmodus": {"name": "Maintenance mode"}
