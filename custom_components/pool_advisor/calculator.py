@@ -449,6 +449,67 @@ def shock_dose_grams_or_ml(
     return None
 
 
+def expected_redox_mv(
+    *, free_cl: float, ph: float, cya: float
+) -> float:
+    """Rule-of-thumb estimate of expected ORP in mV.
+
+    ORP ≈ 700 + 50·log10(FC) − 20·(pH − 7.2) − 1·(CYA − 30)
+
+    Calibrated for CYA ~30, pH ~7.2, FC 1.0 mg/l → 700 mV.
+    Precision: ±30 mV. Use only for plausibility warnings, not exact
+    calibration.
+    """
+    import math
+
+    fc_clamped = max(free_cl, 0.05)
+    return 700.0 + 50.0 * math.log10(fc_clamped) - 20.0 * (ph - 7.2) - 1.0 * (cya - 30.0)
+
+
+def recommend_drift_redox(
+    *,
+    redox_live: float | None,
+    free_cl: float | None,
+    ph: float | None,
+    cya: float | None,
+    threshold_mv: float,
+) -> Recommendation:
+    """Compare Bayrol redox electrode reading against expected ORP derived
+    from current FC + pH + CYA. Rough plausibility check, not precise
+    calibration."""
+    if redox_live is None or free_cl is None or ph is None:
+        return Recommendation(
+            action="no_data",
+            steps=(),
+            reason="Kein Vergleich möglich — Redox, FC oder pH fehlen",
+        )
+    effective_cya = cya if cya is not None else 30.0
+    expected = expected_redox_mv(free_cl=free_cl, ph=ph, cya=effective_cya)
+    delta = redox_live - expected
+    reason_core = (
+        f"Anlage {redox_live:.0f} mV vs Erwartung {expected:.0f} mV "
+        f"(FC {free_cl:.2f}, pH {ph:.2f}, CYA {effective_cya:.0f})"
+    )
+    if abs(delta) <= threshold_mv:
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=f"{reason_core} — Abweichung {delta:+.0f} mV im Toleranzbereich",
+            delta=delta,
+        )
+    return Recommendation(
+        action="calibrate",
+        steps=(),
+        reason=f"{reason_core} — Abweichung {delta:+.0f} mV > Schwelle {threshold_mv:.0f} mV",
+        delta=delta,
+        note=(
+            "Redox-Elektrode prüfen: mit Prüflösung 468 mV kalibrieren, "
+            "ggf. reinigen (Alkohol) oder tauschen. Präzision dieser Schätzung "
+            "ist ±30 mV — bei einmaliger Abweichung einfach 1–2 Tage beobachten."
+        ),
+    )
+
+
 def recommend_calibration(
     *,
     ph_auto: float | None,

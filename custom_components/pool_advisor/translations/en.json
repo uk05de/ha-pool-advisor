@@ -54,7 +54,8 @@
           "ta_critical_low": "TA critical low (mg/l)",
           "ta_critical_high": "TA critical high (mg/l)",
           "fc_critical_low": "Free Cl critical low (mg/l)",
-          "ph_calibration_threshold": "pH calibration threshold (auto↔manual delta)",
+          "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
+          "redox_drift_threshold": "Redox drift threshold (mV)",
           "manual_max_age_hours": "Max age of manual reading (h)"
         }
       },
@@ -86,6 +87,22 @@
           "max_dose_fraction": "Max single dose (fraction)",
           "dose_interval_hours": "Wait between doses (hours)"
         }
+      },
+      "testmodus": {
+        "title": "Test mode",
+        "description": "When active, the advisor uses these static values instead of real entity readings. Perfect for walking through workflows and verifying recommendations. All values optional — empty = not measured.",
+        "data": {
+          "test_mode": "Enable test mode",
+          "test_ph_auto": "pH (controller)",
+          "test_ph_manual": "pH (manual)",
+          "test_redox": "Redox (mV)",
+          "test_temperature": "Temperature (°C)",
+          "test_alkalinity": "Total alkalinity (mg/l)",
+          "test_free_chlorine": "Free chlorine (mg/l)",
+          "test_combined_chlorine": "Combined chlorine (mg/l)",
+          "test_total_chlorine": "Total chlorine (mg/l)",
+          "test_cyanuric_acid": "Cyanuric acid (mg/l)"
+        }
       }
     }
   },
@@ -101,6 +118,7 @@
           "targets": "Targets & tolerances",
           "chemicals": "Chemicals",
           "dosing": "Dosing",
+          "testmodus": "Test mode (static values)",
           "edit_all": "Edit everything in order"
         }
       },
@@ -152,7 +170,8 @@
           "ta_critical_low": "TA critical low (mg/l)",
           "ta_critical_high": "TA critical high (mg/l)",
           "fc_critical_low": "Free Cl critical low (mg/l)",
-          "ph_calibration_threshold": "pH calibration threshold",
+          "ph_calibration_threshold": "pH drift threshold",
+          "redox_drift_threshold": "Redox drift threshold (mV)",
           "manual_max_age_hours": "Max age of manual reading (h)"
         }
       },
@@ -181,6 +200,21 @@
         "data": {
           "max_dose_fraction": "Max single dose (fraction)",
           "dose_interval_hours": "Wait between doses (hours)"
+        }
+      },
+      "testmodus": {
+        "title": "Test mode",
+        "data": {
+          "test_mode": "Enable test mode",
+          "test_ph_auto": "pH (controller)",
+          "test_ph_manual": "pH (manual)",
+          "test_redox": "Redox (mV)",
+          "test_temperature": "Temperature (°C)",
+          "test_alkalinity": "Total alkalinity (mg/l)",
+          "test_free_chlorine": "Free chlorine (mg/l)",
+          "test_combined_chlorine": "Combined chlorine (mg/l)",
+          "test_total_chlorine": "Total chlorine (mg/l)",
+          "test_cyanuric_acid": "Cyanuric acid (mg/l)"
         }
       }
     }
@@ -239,7 +273,8 @@
       "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
       "chlorine_recommendation": {"name": "Chlorine recommendation"},
       "cya_recommendation": {"name": "Cyanuric acid recommendation"},
-      "calibration_ph": {"name": "pH calibration"},
+      "drift_ph": {"name": "pH electrode drift"},
+      "drift_redox": {"name": "Redox electrode drift"},
       "status": {"name": "Pool status"},
       "markdown": {"name": "Recommendation"}
     },

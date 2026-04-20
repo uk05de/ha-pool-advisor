@@ -18,6 +18,7 @@ from .calculator import (
     recommend_alkalinity,
     recommend_calibration,
     recommend_cya,
+    recommend_drift_redox,
     recommend_ph,
     recommend_shock,
 )
@@ -70,6 +71,10 @@ from .const import (
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
     CONF_CYA_WATCH_AT,
+    CONF_REDOX_DRIFT_THRESHOLD,
+    CONF_TEST_MODE,
+    DEFAULT_REDOX_DRIFT_THRESHOLD,
+    TEST_VALUE_MAP,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
@@ -189,6 +194,20 @@ class PoolAdvisorData:
 
     # --- live read (auto) ---
     def _read_live(self, entity_key: str) -> float | None:
+        # Test mode short-circuit: use configured static value instead of
+        # reading a real entity. Bounds still applied for consistency.
+        if self._cfg(CONF_TEST_MODE, False):
+            test_key = TEST_VALUE_MAP.get(entity_key)
+            if test_key is not None:
+                raw = self._cfg(test_key)
+                if raw is None or raw == "":
+                    return None
+                try:
+                    return _within_bounds(entity_key, float(raw))
+                except (TypeError, ValueError):
+                    return None
+            return None
+
         entity_id = self._cfg(entity_key)
         if not entity_id:
             return None
@@ -204,15 +223,43 @@ class PoolAdvisorData:
 
     # --- snapshot capture (manual) ---
     def _capture_manual(self, entity_key: str, window_h: float) -> dict[str, Any]:
-        entity_id = self._cfg(entity_key)
         out: dict[str, Any] = {
-            "entity_id": entity_id,
+            "entity_id": None,
             "value": None,
             "measured_at": None,
             "measured_at_source": None,
             "age_hours": None,
             "included": False,
         }
+        # Test mode: use static config value, always fresh
+        if self._cfg(CONF_TEST_MODE, False):
+            test_key = TEST_VALUE_MAP.get(entity_key)
+            if test_key is None:
+                return out
+            raw = self._cfg(test_key)
+            if raw is None or raw == "":
+                return out
+            try:
+                value = _within_bounds(entity_key, float(raw))
+            except (TypeError, ValueError):
+                return out
+            if value is None:
+                return out
+            now = dt_util.utcnow()
+            out.update(
+                {
+                    "entity_id": f"test:{test_key}",
+                    "value": value,
+                    "measured_at": now.isoformat(),
+                    "measured_at_source": "test_mode",
+                    "age_hours": 0.0,
+                    "included": True,
+                }
+            )
+            return out
+
+        entity_id = self._cfg(entity_key)
+        out["entity_id"] = entity_id
         if not entity_id:
             return out
         state = self.hass.states.get(entity_id)
@@ -427,12 +474,22 @@ class PoolAdvisorData:
             watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
             critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
         )
+        drift_redox_rec = recommend_drift_redox(
+            redox_live=self._read_live(CONF_ENT_REDOX),
+            free_cl=self._manual_value(CONF_ENT_FREE_CL),
+            ph=ph_manual if ph_manual is not None else ph_auto,
+            cya=self._manual_value(CONF_ENT_CYANURIC),
+            threshold_mv=float(
+                self._cfg(CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD)
+            ),
+        )
         self.recommendations = {
             "ph": ph_rec,
             "alkalinity": ta_rec,
             "chlorine": cl_rec,
             "cya": cya_rec,
             "calibration": calib_rec,
+            "drift_redox": drift_redox_rec,
         }
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
 

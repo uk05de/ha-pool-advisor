@@ -133,6 +133,34 @@ SHOCK_FC_TARGETS: Final = {
 STORAGE_VERSION: Final = 1
 STORAGE_KEY_WORKFLOW: Final = f"{DOMAIN}.workflow"
 
+# Redox drift — plausibility check based on FC + pH + CYA
+CONF_REDOX_DRIFT_THRESHOLD: Final = "redox_drift_threshold"
+DEFAULT_REDOX_DRIFT_THRESHOLD: Final = 70.0  # mV
+
+# --- Test mode ---
+CONF_TEST_MODE: Final = "test_mode"
+CONF_TEST_PH_AUTO: Final = "test_ph_auto"
+CONF_TEST_PH_MANUAL: Final = "test_ph_manual"
+CONF_TEST_REDOX: Final = "test_redox"
+CONF_TEST_TEMPERATURE: Final = "test_temperature"
+CONF_TEST_ALKALINITY: Final = "test_alkalinity"
+CONF_TEST_FREE_CL: Final = "test_free_chlorine"
+CONF_TEST_COMBINED_CL: Final = "test_combined_chlorine"
+CONF_TEST_TOTAL_CL: Final = "test_total_chlorine"
+CONF_TEST_CYANURIC: Final = "test_cyanuric_acid"
+
+TEST_VALUE_MAP: Final = {
+    CONF_ENT_PH_AUTO: CONF_TEST_PH_AUTO,
+    CONF_ENT_PH_MANUAL: CONF_TEST_PH_MANUAL,
+    CONF_ENT_REDOX: CONF_TEST_REDOX,
+    CONF_ENT_TEMPERATURE: CONF_TEST_TEMPERATURE,
+    CONF_ENT_ALKALINITY: CONF_TEST_ALKALINITY,
+    CONF_ENT_FREE_CL: CONF_TEST_FREE_CL,
+    CONF_ENT_COMBINED_CL: CONF_TEST_COMBINED_CL,
+    CONF_ENT_TOTAL_CL: CONF_TEST_TOTAL_CL,
+    CONF_ENT_CYANURIC: CONF_TEST_CYANURIC,
+}
+
 # Human-friendly fallback labels when user hasn't set a product name.
 PRODUCT_LABELS: Final = {
     "dry_acid_nahso4": "Trockensäure (NaHSO₄)",

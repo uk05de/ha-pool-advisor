@@ -54,7 +54,8 @@
           "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
           "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
-          "ph_calibration_threshold": "Kalibrier-Schwelle pH (Abweichung Auto↔Manuell)",
+          "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
+          "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
           "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
       },
@@ -86,6 +87,22 @@
           "max_dose_fraction": "Max. Einzeldosis (Anteil)",
           "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
         }
+      },
+      "testmodus": {
+        "title": "Testmodus",
+        "description": "Bei aktivem Testmodus nutzt der Advisor die hier eingetragenen statischen Werte statt der echten Entity-Messwerte. Ideal zum Durchspielen von Workflows und Empfehlungen. Alle Werte optional — leere Felder werden wie 'nicht gemessen' behandelt.",
+        "data": {
+          "test_mode": "Testmodus aktiv",
+          "test_ph_auto": "pH (Dosieranlage)",
+          "test_ph_manual": "pH (Manuell)",
+          "test_redox": "Redox (mV)",
+          "test_temperature": "Temperatur (°C)",
+          "test_alkalinity": "Alkalität (mg/l)",
+          "test_free_chlorine": "Freies Chlor (mg/l)",
+          "test_combined_chlorine": "Gebundenes Chlor (mg/l)",
+          "test_total_chlorine": "Gesamt-Chlor (mg/l)",
+          "test_cyanuric_acid": "Cyanursäure (mg/l)"
+        }
       }
     }
   },
@@ -101,6 +118,7 @@
           "targets": "Zielwerte & Toleranzen",
           "chemicals": "Chemikalien",
           "dosing": "Dosierung",
+          "testmodus": "Testmodus (statische Werte)",
           "edit_all": "Alles der Reihe nach"
         }
       },
@@ -152,7 +170,8 @@
           "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
           "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
-          "ph_calibration_threshold": "Kalibrier-Schwelle pH",
+          "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
+          "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
           "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
       },
@@ -181,6 +200,21 @@
         "data": {
           "max_dose_fraction": "Max. Einzeldosis (Anteil)",
           "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
+        }
+      },
+      "testmodus": {
+        "title": "Testmodus",
+        "data": {
+          "test_mode": "Testmodus aktiv",
+          "test_ph_auto": "pH (Dosieranlage)",
+          "test_ph_manual": "pH (Manuell)",
+          "test_redox": "Redox (mV)",
+          "test_temperature": "Temperatur (°C)",
+          "test_alkalinity": "Alkalität (mg/l)",
+          "test_free_chlorine": "Freies Chlor (mg/l)",
+          "test_combined_chlorine": "Gebundenes Chlor (mg/l)",
+          "test_total_chlorine": "Gesamt-Chlor (mg/l)",
+          "test_cyanuric_acid": "Cyanursäure (mg/l)"
         }
       }
     }
@@ -239,7 +273,8 @@
       "alkalinity_recommendation": {"name": "Empfehlung Alkalität"},
       "chlorine_recommendation": {"name": "Empfehlung Chlor"},
       "cya_recommendation": {"name": "Empfehlung Cyanursäure"},
-      "calibration_ph": {"name": "Kalibrierung pH"},
+      "drift_ph": {"name": "Drift pH Sonde"},
+      "drift_redox": {"name": "Drift Redox Sonde"},
       "status": {"name": "Pool Status"},
       "markdown": {"name": "Empfehlung"}
     },

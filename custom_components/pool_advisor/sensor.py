@@ -25,7 +25,8 @@ async def async_setup_entry(
             RecommendationSensor(data, entry, "alkalinity", "Alkalität"),
             RecommendationSensor(data, entry, "chlorine", "Chlor / Shock"),
             RecommendationSensor(data, entry, "cya", "Cyanursäure"),
-            CalibrationSensor(data, entry),
+            DriftPhSensor(data, entry),
+            DriftRedoxSensor(data, entry),
             OverallStatusSensor(data, entry),
             MarkdownSummarySensor(data, entry),
         ]
@@ -128,16 +129,17 @@ class RecommendationSensor(_BaseSensor):
         }
 
 
-class CalibrationSensor(_BaseSensor):
-    """Compares auto vs manual pH reading."""
+class DriftPhSensor(_BaseSensor):
+    """Drift check: Bayrol-Elektrode vs PoolLab-Photometer pH."""
 
     _attr_icon = "mdi:tune-variant"
 
     def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
         super().__init__(data, entry)
+        # unique_id stays stable across the rename so HA keeps history
         self._attr_unique_id = f"{entry.entry_id}_calibration_ph"
-        self._attr_translation_key = "calibration_ph"
-        self._attr_name = "Kalibrierung pH"
+        self._attr_translation_key = "drift_ph"
+        self._attr_name = "Drift pH Sonde"
 
     @property
     def native_value(self) -> str:
@@ -145,7 +147,7 @@ class CalibrationSensor(_BaseSensor):
         if rec is None:
             return "—"
         if rec.action == "calibrate":
-            return "Kalibrierung prüfen"
+            return "Drift erkannt"
         if rec.action == "no_data":
             return "Keine Daten"
         return "OK"
@@ -186,6 +188,41 @@ from .const import MODE_NORMAL
 from .workflow import get_workflow
 
 
+class DriftRedoxSensor(_BaseSensor):
+    """Drift check: Bayrol redox electrode vs expected ORP from FC+pH+CYA."""
+
+    _attr_icon = "mdi:tune-variant"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        super().__init__(data, entry)
+        self._attr_unique_id = f"{entry.entry_id}_drift_redox"
+        self._attr_translation_key = "drift_redox"
+        self._attr_name = "Drift Redox Sonde"
+
+    @property
+    def native_value(self) -> str:
+        rec = self._data.recommendations.get("drift_redox")
+        if rec is None:
+            return "—"
+        if rec.action == "calibrate":
+            return "Drift erkannt"
+        if rec.action == "no_data":
+            return "Keine Daten"
+        return "OK"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        rec = self._data.recommendations.get("drift_redox")
+        if rec is None:
+            return {}
+        return {
+            "reason": rec.reason,
+            "delta_mv": rec.delta,
+            "note": rec.note,
+            "action": rec.action,
+        }
+
+
 ACTION_ICONS = {
     "ok": "✅",
     "watch": "👁",
@@ -201,7 +238,8 @@ PARAM_TITLES = {
     "alkalinity": "Alkalität",
     "chlorine": "Chlor",
     "cya": "Cyanursäure",
-    "calibration": "Kalibrierung pH",
+    "calibration": "Drift pH Sonde",
+    "drift_redox": "Drift Redox Sonde",
 }
 
 
@@ -250,7 +288,7 @@ def _build_markdown(data: "PoolAdvisorData") -> str:
         lines.append(f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*")
         lines.append("")
 
-    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration"):
+    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
         rec = data.recommendations.get(key)
         if rec is None:
             continue

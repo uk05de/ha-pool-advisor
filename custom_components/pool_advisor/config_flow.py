@@ -64,6 +64,17 @@ from .const import (
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
     CONF_CYA_WATCH_AT,
+    CONF_REDOX_DRIFT_THRESHOLD,
+    CONF_TEST_ALKALINITY,
+    CONF_TEST_COMBINED_CL,
+    CONF_TEST_CYANURIC,
+    CONF_TEST_FREE_CL,
+    CONF_TEST_MODE,
+    CONF_TEST_PH_AUTO,
+    CONF_TEST_PH_MANUAL,
+    CONF_TEST_REDOX,
+    CONF_TEST_TEMPERATURE,
+    CONF_TEST_TOTAL_CL,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
@@ -92,6 +103,7 @@ from .const import (
     DEFAULT_STRENGTH,
     CYA_CHOICES,
     CYA_PURE,
+    DEFAULT_REDOX_DRIFT_THRESHOLD,
     DEFAULT_CYA_CRITICAL_AT,
     DEFAULT_CYA_STRENGTH,
     DEFAULT_CYA_TARGET,
@@ -248,6 +260,12 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 default=defaults.get(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD),
             ): _number(0.05, 1.0, 0.05),
             vol.Required(
+                CONF_REDOX_DRIFT_THRESHOLD,
+                default=defaults.get(
+                    CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD
+                ),
+            ): _number(20, 200, 5),
+            vol.Required(
                 CONF_MANUAL_MAX_AGE_H,
                 default=defaults.get(CONF_MANUAL_MAX_AGE_H, DEFAULT_MANUAL_MAX_AGE_H),
             ): _number(1, 168, 1),
@@ -335,6 +353,30 @@ def _schema_dosing(defaults: dict[str, Any]) -> vol.Schema:
     )
 
 
+def _schema_testmodus(defaults: dict[str, Any]) -> vol.Schema:
+    def _opt_num(key: str, min_v: float, max_v: float, step: float = 0.1) -> dict[str, Any]:
+        current = defaults.get(key)
+        kwargs = {"default": current} if current not in (None, "") else {}
+        return {vol.Optional(key, **kwargs): _number(min_v, max_v, step)}
+
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_TEST_MODE, default=defaults.get(CONF_TEST_MODE, False)
+            ): selector.BooleanSelector(),
+            **_opt_num(CONF_TEST_PH_AUTO, 4.0, 10.0, 0.05),
+            **_opt_num(CONF_TEST_PH_MANUAL, 4.0, 10.0, 0.05),
+            **_opt_num(CONF_TEST_REDOX, 100, 1000, 5),
+            **_opt_num(CONF_TEST_TEMPERATURE, -10, 60, 0.5),
+            **_opt_num(CONF_TEST_ALKALINITY, 5, 500, 5),
+            **_opt_num(CONF_TEST_FREE_CL, 0, 20, 0.1),
+            **_opt_num(CONF_TEST_COMBINED_CL, 0, 10, 0.1),
+            **_opt_num(CONF_TEST_TOTAL_CL, 0, 20, 0.1),
+            **_opt_num(CONF_TEST_CYANURIC, 0, 300, 1),
+        }
+    )
+
+
 class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Initial config flow."""
 
@@ -393,8 +435,14 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_dosing(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(user_input)
-            return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+            return await self.async_step_testmodus()
         return self.async_show_form(step_id="dosing", data_schema=_schema_dosing({}))
+
+    async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            self._data.update(user_input)
+            return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+        return self.async_show_form(step_id="testmodus", data_schema=_schema_testmodus({}))
 
     @staticmethod
     @callback
@@ -438,6 +486,7 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 "targets",
                 "chemicals",
                 "dosing",
+                "testmodus",
                 "edit_all",
             ],
         )
@@ -508,5 +557,15 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
     async def async_step_dosing(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(user_input)
+            if self._chain:
+                return await self.async_step_testmodus()
             return self._save()
         return self.async_show_form(step_id="dosing", data_schema=_schema_dosing(self._current_all()))
+
+    async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            self._data.update(user_input)
+            return self._save()
+        return self.async_show_form(
+            step_id="testmodus", data_schema=_schema_testmodus(self._current_all())
+        )
