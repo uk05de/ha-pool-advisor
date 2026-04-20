@@ -24,6 +24,7 @@ async def async_setup_entry(
             RecommendationSensor(data, entry, "ph", "pH"),
             RecommendationSensor(data, entry, "alkalinity", "Alkalität"),
             RecommendationSensor(data, entry, "chlorine", "Chlor / Shock"),
+            CalibrationSensor(data, entry),
             OverallStatusSensor(data, entry),
         ]
     )
@@ -123,6 +124,50 @@ class RecommendationSensor(_BaseSensor):
         }
 
 
+class CalibrationSensor(_BaseSensor):
+    """Compares auto vs manual pH reading."""
+
+    _attr_icon = "mdi:tune-variant"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        super().__init__(data, entry)
+        self._attr_unique_id = f"{entry.entry_id}_calibration_ph"
+        self._attr_translation_key = "calibration_ph"
+        self._attr_name = "Kalibrierung pH"
+
+    @property
+    def native_value(self) -> str:
+        rec = self._data.recommendations.get("calibration")
+        if rec is None:
+            return "—"
+        if rec.action == "calibrate":
+            return "Kalibrierung prüfen"
+        if rec.action == "no_data":
+            return "Keine Daten"
+        return "OK"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        rec = self._data.recommendations.get("calibration")
+        inputs = self._data.inputs
+        attrs: dict[str, Any] = {
+            "ph_auto": inputs.get("ph_auto"),
+            "ph_manual": inputs.get("ph_manual"),
+            "ph_used_for_dosing": inputs.get("ph_for_dosing"),
+            "manual_age_hours": inputs.get("ph_manual_age_h"),
+        }
+        if rec is not None:
+            attrs.update(
+                {
+                    "action": rec.action,
+                    "reason": rec.reason,
+                    "delta": rec.delta,
+                    "note": rec.note,
+                }
+            )
+        return attrs
+
+
 class OverallStatusSensor(_BaseSensor):
     """Aggregated pool status across all parameters."""
 
@@ -144,6 +189,8 @@ class OverallStatusSensor(_BaseSensor):
             return "Shock empfohlen"
         if actions & {"raise", "lower"}:
             return "Anpassung nötig"
+        if "calibrate" in actions:
+            return "Kalibrierung prüfen"
         if actions == {"no_data"}:
             return "Keine Daten"
         return "OK"

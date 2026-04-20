@@ -36,11 +36,11 @@ class DoseStep:
 class Recommendation:
     """Full recommendation for one parameter."""
 
-    action: str                       # "raise" | "lower" | "shock" | "ok" | "no_data" | "manual_only"
+    action: str                       # "raise" | "lower" | "shock" | "ok" | "no_data" | "calibrate"
     steps: tuple[DoseStep, ...]       # may be empty
     reason: str                       # short human-readable reason
     delta: float | None = None        # how far off target (same unit as parameter)
-    note: str | None = None           # optional hint (e.g. "TA lowering needs manual process")
+    note: str | None = None           # optional hint
 
 
 # ---- base rules (per m³ water, per 0.1 pH / per 10 mg/l TA / per 1 mg/l Cl) ----
@@ -265,6 +265,58 @@ def recommend_shock(
         )
 
     return Recommendation(action="ok", steps=(), reason="Chlor-Werte ok")
+
+
+def recommend_calibration(
+    *,
+    ph_auto: float | None,
+    ph_manual: float | None,
+    threshold: float,
+    manual_age_h: float | None,
+    manual_max_age_h: float,
+) -> Recommendation:
+    """Compare automatic (electrode) vs manual (photometer) pH.
+
+    Only produces a calibrate action if the manual reading is fresh enough.
+    """
+    if ph_auto is None or ph_manual is None:
+        return Recommendation(
+            action="no_data",
+            steps=(),
+            reason="Kein Vergleich möglich — Auto- oder Manuell-pH fehlt",
+        )
+    delta = ph_auto - ph_manual
+    if manual_age_h is not None and manual_age_h > manual_max_age_h:
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=(
+                f"Manuell-Messung zu alt ({manual_age_h:.1f} h > {manual_max_age_h:.0f} h) — "
+                "kein aktueller Vergleich"
+            ),
+            delta=delta,
+            note="Frisch nachmessen, wenn du die Kalibrierung prüfen willst.",
+        )
+    if abs(delta) <= threshold:
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=f"Auto {ph_auto:.2f} vs Manuell {ph_manual:.2f} — Abweichung {delta:+.2f} im Toleranzbereich",
+            delta=delta,
+        )
+    return Recommendation(
+        action="calibrate",
+        steps=(),
+        reason=(
+            f"Auto {ph_auto:.2f} vs Manuell {ph_manual:.2f} — Abweichung {delta:+.2f} "
+            f"> Schwelle {threshold:.2f}"
+        ),
+        delta=delta,
+        note=(
+            "Elektrode der Dosieranlage gegen Referenz kalibrieren (Pufferlösung pH 7 / pH 4). "
+            "Bis dahin den Manuellwert als Wahrheit nehmen."
+        ),
+    )
 
 
 def _build_cl_dose(

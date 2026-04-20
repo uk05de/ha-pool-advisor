@@ -10,23 +10,30 @@
           "chlorination_type": "Chlorination type"
         }
       },
-      "entities": {
-        "title": "Measurement entities",
-        "description": "Link HA sensors for each reading. All optional — anything you skip is left out of recommendations.",
+      "entities_auto": {
+        "title": "Automatic measurements",
+        "description": "Continuous readings (e.g. Bayrol dosing controller). All optional.",
         "data": {
-          "entity_ph": "pH",
+          "entity_ph_auto": "pH (controller)",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperature"
+        }
+      },
+      "entities_manual": {
+        "title": "Manual measurements",
+        "description": "Spot checks from a photometer or test strips (e.g. PoolLab). All optional. The manual pH is used to cross-check the controller's electrode.",
+        "data": {
+          "entity_ph_manual": "pH (manual)",
           "entity_alkalinity": "Total alkalinity",
           "entity_free_chlorine": "Free chlorine",
           "entity_combined_chlorine": "Combined chlorine",
           "entity_total_chlorine": "Total chlorine",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperature",
           "entity_cyanuric_acid": "Cyanuric acid"
         }
       },
       "targets": {
-        "title": "Target ranges",
-        "description": "Ranges for your pool. Defaults are common pool-chemistry guidelines.",
+        "title": "Targets & tolerances",
+        "description": "Defaults are common pool-chemistry guidelines.",
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH target",
@@ -41,12 +48,14 @@
           "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox target (mV)",
-          "redox_max": "Redox max (mV)"
+          "redox_max": "Redox max (mV)",
+          "ph_calibration_threshold": "pH calibration threshold (auto↔manual delta)",
+          "manual_max_age_hours": "Max age of manual reading (h)"
         }
       },
       "chemicals": {
         "title": "Chemicals",
-        "description": "Which products do you use? Strength in % refers to the active compound (e.g. baking soda 99%, muriatic acid 30%).",
+        "description": "Which products do you use? Strength in % refers to the active compound.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− strength (%)",
@@ -60,7 +69,7 @@
       },
       "dosing": {
         "title": "Dosing",
-        "description": "Maximum single dose as a fraction (0.5 = max 50% per application) and wait time between split doses.",
+        "description": "Max single dose as fraction and wait time between split doses.",
         "data": {
           "max_dose_fraction": "Max single dose (fraction)",
           "dose_interval_hours": "Wait between doses (hours)"
@@ -70,6 +79,19 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Pool Advisor — Edit settings",
+        "description": "Which section do you want to edit?",
+        "menu_options": {
+          "pool": "Pool (volume, chlorination)",
+          "entities_auto": "Automatic measurements",
+          "entities_manual": "Manual measurements",
+          "targets": "Targets & tolerances",
+          "chemicals": "Chemicals",
+          "dosing": "Dosing",
+          "edit_all": "Edit everything in order"
+        }
+      },
       "pool": {
         "title": "Pool",
         "data": {
@@ -77,21 +99,27 @@
           "chlorination_type": "Chlorination type"
         }
       },
-      "entities": {
-        "title": "Measurement entities",
+      "entities_auto": {
+        "title": "Automatic measurements",
         "data": {
-          "entity_ph": "pH",
+          "entity_ph_auto": "pH (controller)",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperature"
+        }
+      },
+      "entities_manual": {
+        "title": "Manual measurements",
+        "data": {
+          "entity_ph_manual": "pH (manual)",
           "entity_alkalinity": "Total alkalinity",
           "entity_free_chlorine": "Free chlorine",
           "entity_combined_chlorine": "Combined chlorine",
           "entity_total_chlorine": "Total chlorine",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperature",
           "entity_cyanuric_acid": "Cyanuric acid"
         }
       },
       "targets": {
-        "title": "Target ranges",
+        "title": "Targets & tolerances",
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH target",
@@ -106,7 +134,9 @@
           "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox target (mV)",
-          "redox_max": "Redox max (mV)"
+          "redox_max": "Redox max (mV)",
+          "ph_calibration_threshold": "pH calibration threshold",
+          "manual_max_age_hours": "Max age of manual reading (h)"
         }
       },
       "chemicals": {
@@ -167,6 +197,7 @@
       "ph_recommendation": {"name": "pH recommendation"},
       "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
       "chlorine_recommendation": {"name": "Chlorine recommendation"},
+      "calibration_ph": {"name": "pH calibration"},
       "status": {"name": "Pool status"}
     },
     "binary_sensor": {

@@ -10,23 +10,30 @@
           "chlorination_type": "Chlorierungsart"
         }
       },
-      "entities": {
-        "title": "Mess-Entitäten",
-        "description": "Verknüpfe die HA-Sensoren mit den jeweiligen Messwerten. Alles optional — was du nicht angibst, wird bei den Empfehlungen übersprungen.",
+      "entities_auto": {
+        "title": "Automatische Messung",
+        "description": "Kontinuierlich gemessene Werte (z.B. Bayrol Dosieranlage). Alles optional.",
         "data": {
-          "entity_ph": "pH",
+          "entity_ph_auto": "pH (Dosieranlage)",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperatur"
+        }
+      },
+      "entities_manual": {
+        "title": "Manuelle Messung",
+        "description": "Spot-Messungen aus Photometer/Teststreifen (z.B. PoolLab). Alles optional. Der Manuell-pH wird zur Plausibilitätsprüfung gegen die Dosieranlage verwendet.",
+        "data": {
+          "entity_ph_manual": "pH (Manuell)",
           "entity_alkalinity": "Alkalität (TA)",
           "entity_free_chlorine": "Freies Chlor",
           "entity_combined_chlorine": "Gebundenes Chlor",
           "entity_total_chlorine": "Gesamt-Chlor",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperatur",
           "entity_cyanuric_acid": "Cyanursäure"
         }
       },
       "targets": {
-        "title": "Zielwerte",
-        "description": "Ranges für deinen Pool. Defaults sind Richtwerte aus der Pool-Chemie-Literatur und funktionieren für die meisten Pools.",
+        "title": "Zielwerte & Toleranzen",
+        "description": "Defaults sind Richtwerte aus der Pool-Chemie-Literatur.",
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH Ziel",
@@ -41,12 +48,14 @@
           "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
-          "redox_max": "Redox max (mV)"
+          "redox_max": "Redox max (mV)",
+          "ph_calibration_threshold": "Kalibrier-Schwelle pH (Abweichung Auto↔Manuell)",
+          "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
       },
       "chemicals": {
         "title": "Chemikalien",
-        "description": "Welche Produkte verwendest du? Die Stärke in % bezieht sich auf den aktiven Wirkstoff im Produkt (z.B. Natron 99 %, Salzsäure 30 %).",
+        "description": "Welche Produkte verwendest du? Stärke in % bezieht sich auf den aktiven Wirkstoff.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− Stärke (%)",
@@ -60,7 +69,7 @@
       },
       "dosing": {
         "title": "Dosierung",
-        "description": "Max. Einzeldosis als Anteil (0.5 = pro Gabe max. 50 % der Gesamtempfehlung) und Wartezeit zwischen Teildosen.",
+        "description": "Max. Einzeldosis als Anteil und Wartezeit zwischen Teildosen.",
         "data": {
           "max_dose_fraction": "Max. Einzeldosis (Anteil)",
           "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
@@ -70,6 +79,19 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Pool Advisor — Einstellung ändern",
+        "description": "Welchen Bereich möchtest du bearbeiten?",
+        "menu_options": {
+          "pool": "Pool (Volumen, Chlorierung)",
+          "entities_auto": "Automatische Messung",
+          "entities_manual": "Manuelle Messung",
+          "targets": "Zielwerte & Toleranzen",
+          "chemicals": "Chemikalien",
+          "dosing": "Dosierung",
+          "edit_all": "Alles der Reihe nach"
+        }
+      },
       "pool": {
         "title": "Pool",
         "data": {
@@ -77,21 +99,27 @@
           "chlorination_type": "Chlorierungsart"
         }
       },
-      "entities": {
-        "title": "Mess-Entitäten",
+      "entities_auto": {
+        "title": "Automatische Messung",
         "data": {
-          "entity_ph": "pH",
+          "entity_ph_auto": "pH (Dosieranlage)",
+          "entity_redox": "Redox",
+          "entity_temperature": "Temperatur"
+        }
+      },
+      "entities_manual": {
+        "title": "Manuelle Messung",
+        "data": {
+          "entity_ph_manual": "pH (Manuell)",
           "entity_alkalinity": "Alkalität (TA)",
           "entity_free_chlorine": "Freies Chlor",
           "entity_combined_chlorine": "Gebundenes Chlor",
           "entity_total_chlorine": "Gesamt-Chlor",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperatur",
           "entity_cyanuric_acid": "Cyanursäure"
         }
       },
       "targets": {
-        "title": "Zielwerte",
+        "title": "Zielwerte & Toleranzen",
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH Ziel",
@@ -106,7 +134,9 @@
           "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
-          "redox_max": "Redox max (mV)"
+          "redox_max": "Redox max (mV)",
+          "ph_calibration_threshold": "Kalibrier-Schwelle pH",
+          "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
         }
       },
       "chemicals": {
@@ -167,6 +197,7 @@
       "ph_recommendation": {"name": "Empfehlung pH"},
       "alkalinity_recommendation": {"name": "Empfehlung Alkalität"},
       "chlorine_recommendation": {"name": "Empfehlung Chlor"},
+      "calibration_ph": {"name": "Kalibrierung pH"},
       "status": {"name": "Pool Status"}
     },
     "binary_sensor": {

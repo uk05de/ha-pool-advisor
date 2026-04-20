@@ -51,4 +51,4 @@ class AttentionSensor(BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         actions = {r.action for r in self._data.recommendations.values()}
-        return bool(actions & {"raise", "lower", "shock"})
+        return bool(actions & {"raise", "lower", "shock", "calibrate"})

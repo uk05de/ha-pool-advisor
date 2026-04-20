@@ -10,15 +10,24 @@ CONF_NAME: Final = "name"
 CONF_POOL_VOLUME_M3: Final = "pool_volume_m3"
 CONF_CHLORINATION: Final = "chlorination_type"
 
-# Input entities
-CONF_ENT_PH: Final = "entity_ph"
+# Input entities — automatic (continuous dosing system, e.g. Bayrol)
+CONF_ENT_PH_AUTO: Final = "entity_ph_auto"
+CONF_ENT_REDOX: Final = "entity_redox"
+CONF_ENT_TEMPERATURE: Final = "entity_temperature"
+
+# Input entities — manual (spot checks, e.g. PoolLab)
+CONF_ENT_PH_MANUAL: Final = "entity_ph_manual"
 CONF_ENT_ALKALINITY: Final = "entity_alkalinity"
 CONF_ENT_FREE_CL: Final = "entity_free_chlorine"
 CONF_ENT_COMBINED_CL: Final = "entity_combined_chlorine"
 CONF_ENT_TOTAL_CL: Final = "entity_total_chlorine"
-CONF_ENT_REDOX: Final = "entity_redox"
-CONF_ENT_TEMPERATURE: Final = "entity_temperature"
 CONF_ENT_CYANURIC: Final = "entity_cyanuric_acid"
+
+# Calibration
+CONF_PH_CALIB_THRESHOLD: Final = "ph_calibration_threshold"
+CONF_MANUAL_MAX_AGE_H: Final = "manual_max_age_hours"
+DEFAULT_PH_CALIB_THRESHOLD = 0.2
+DEFAULT_MANUAL_MAX_AGE_H = 24
 
 # Targets
 CONF_PH_MIN: Final = "ph_min"
