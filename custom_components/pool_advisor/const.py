@@ -78,10 +78,15 @@ PH_PLUS_CHOICES: Final = [PH_PLUS_SODA]
 TA_PLUS_BICARB: Final = "sodium_bicarbonate_nahco3"
 TA_PLUS_CHOICES: Final = [TA_PLUS_BICARB]
 
-SHOCK_DICHLOR: Final = "dichlor"                  # ~56% active Cl
-SHOCK_CAL_HYPO: Final = "calcium_hypochlorite"    # ~65% active Cl
-SHOCK_NAOCL_LIQUID: Final = "sodium_hypochlorite" # ~13% active Cl (liquid)
+SHOCK_DICHLOR: Final = "dichlor"                  # ~56% active Cl, brings CYA
+SHOCK_CAL_HYPO: Final = "calcium_hypochlorite"    # ~65% active Cl, brings calcium
+SHOCK_NAOCL_LIQUID: Final = "sodium_hypochlorite" # ~13% active Cl (liquid), neutral
 SHOCK_CHOICES: Final = [SHOCK_DICHLOR, SHOCK_CAL_HYPO, SHOCK_NAOCL_LIQUID]
+
+# Shock products that add cyanuric acid (stabilizer) as a side-effect.
+SHOCK_STABILIZED: Final = frozenset({SHOCK_DICHLOR})
+# Approx. CYA added per 1 mg/l free Cl dosed, for each stabilized type.
+SHOCK_CYA_PER_PPM_CL: Final = {SHOCK_DICHLOR: 0.9}
 
 # --- Defaults (percent active for the product itself) ---
 DEFAULT_STRENGTH = {

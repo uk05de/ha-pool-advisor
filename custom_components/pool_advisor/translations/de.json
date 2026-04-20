@@ -55,7 +55,7 @@
       },
       "chemicals": {
         "title": "Chemikalien",
-        "description": "Welche Produkte verwendest du? Stärke in % bezieht sich auf den aktiven Wirkstoff.",
+        "description": "Welche Produkte verwendest du? Stärke in % bezieht sich auf den aktiven Wirkstoff. Hinweis: Dichlor-Granulat bringt Cyanursäure mit ins Wasser — für häufiges Schocken lieber Flüssig-Chlor (NaOCl) oder Calciumhypochlorit.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− Stärke (%)",

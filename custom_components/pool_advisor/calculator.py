@@ -16,8 +16,10 @@ from .const import (
     PH_MINUS_HCL,
     PH_PLUS_SODA,
     SHOCK_CAL_HYPO,
+    SHOCK_CYA_PER_PPM_CL,
     SHOCK_DICHLOR,
     SHOCK_NAOCL_LIQUID,
+    SHOCK_STABILIZED,
     TA_PLUS_BICARB,
 )
 
@@ -333,4 +335,17 @@ def _build_cl_dose(
     else:
         return Recommendation(action=action, steps=(), reason="Unbekanntes Shock-Produkt", delta=target_fc_increase)
 
-    return Recommendation(action=action, steps=steps, reason=reason, delta=target_fc_increase)
+    note: str | None = None
+    if shock_type in SHOCK_STABILIZED:
+        cya_factor = SHOCK_CYA_PER_PPM_CL.get(shock_type, 0.9)
+        added_cya = target_fc_increase * cya_factor
+        note = (
+            f"⚠ {shock_type.replace('_', ' ').title()} bringt Cyanursäure mit ins Wasser "
+            f"(~{added_cya:.1f} mg/l pro dieser Dosis). "
+            "Cyanursäure messen und bei >50–75 mg/l Wasser teilverdünnen. "
+            "CYA-frei schocken: Flüssig-Chlor (NaOCl) oder Monopersulfat/Oxi."
+        )
+
+    return Recommendation(
+        action=action, steps=steps, reason=reason, delta=target_fc_increase, note=note
+    )

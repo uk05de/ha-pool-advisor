@@ -55,7 +55,7 @@
       },
       "chemicals": {
         "title": "Chemicals",
-        "description": "Which products do you use? Strength in % refers to the active compound.",
+        "description": "Which products do you use? Strength in % refers to the active compound. Note: dichlor granulate adds cyanuric acid to the water — for frequent shocking prefer liquid chlorine (NaOCl) or calcium hypochlorite.",
         "data": {
           "ph_minus_type": "pH−",
           "ph_minus_strength": "pH− strength (%)",
