@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -10,6 +10,7 @@ from homeassistant.const import Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .calculator import (
     Recommendation,
@@ -25,9 +26,13 @@ from .const import (
     CONF_DOSE_INTERVAL_H,
     CONF_ENT_ALKALINITY,
     CONF_ENT_COMBINED_CL,
+    CONF_ENT_CYANURIC,
     CONF_ENT_FREE_CL,
     CONF_ENT_PH_AUTO,
     CONF_ENT_PH_MANUAL,
+    CONF_ENT_REDOX,
+    CONF_ENT_TEMPERATURE,
+    CONF_ENT_TOTAL_CL,
     CONF_FC_MIN,
     CONF_FC_TARGET,
     CONF_MANUAL_MAX_AGE_H,
@@ -56,23 +61,50 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
+
+MANUAL_KEYS: tuple[str, ...] = (
+    CONF_ENT_PH_MANUAL,
+    CONF_ENT_ALKALINITY,
+    CONF_ENT_FREE_CL,
+    CONF_ENT_COMBINED_CL,
+    CONF_ENT_TOTAL_CL,
+    CONF_ENT_CYANURIC,
+)
+
+AUTO_KEYS: tuple[str, ...] = (
+    CONF_ENT_PH_AUTO,
+    CONF_ENT_REDOX,
+    CONF_ENT_TEMPERATURE,
+)
 
 
 class PoolAdvisorData:
-    """Runtime state for a single config entry."""
+    """Runtime state for a single config entry.
+
+    Analysis model:
+      - AUTO entities (pH-Auto, Redox, Temperatur) update live.
+      - MANUAL entities are captured into a *snapshot* when the user presses
+        the "Analyse durchführen" button (or on setup). Each snapshot entry
+        respects `measured_at` attribute of the source entity; if it's older
+        than the configured window, the value is marked `included: False` and
+        treated as missing in the recommendations.
+    """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
         self.recommendations: dict[str, Recommendation] = {}
-        self.inputs: dict[str, float | None] = {}
+        self.manual_snapshot: dict[str, dict[str, Any]] = {}
+        self.analysis_at: datetime | None = None
         self._unsub = None
 
+    # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
         return self.entry.options.get(key, self.entry.data.get(key, default))
 
-    def _read(self, entity_key: str) -> float | None:
+    # --- live read (auto) ---
+    def _read_live(self, entity_key: str) -> float | None:
         entity_id = self._cfg(entity_key)
         if not entity_id:
             return None
@@ -85,28 +117,67 @@ class PoolAdvisorData:
             _LOGGER.debug("Non-numeric state for %s: %r", entity_id, state.state)
             return None
 
-    def _age_hours(self, entity_key: str) -> float | None:
+    # --- snapshot capture (manual) ---
+    def _capture_manual(self, entity_key: str, window_h: float) -> dict[str, Any]:
         entity_id = self._cfg(entity_key)
+        out: dict[str, Any] = {
+            "entity_id": entity_id,
+            "value": None,
+            "measured_at": None,
+            "measured_at_source": None,
+            "age_hours": None,
+            "included": False,
+        }
         if not entity_id:
-            return None
+            return out
         state = self.hass.states.get(entity_id)
-        if state is None:
-            return None
-        now = datetime.now(timezone.utc)
-        return (now - state.last_updated).total_seconds() / 3600.0
+        if state is None or state.state in (None, "", "unknown", "unavailable"):
+            return out
+        try:
+            value = float(state.state)
+        except (TypeError, ValueError):
+            return out
 
-    async def async_setup(self) -> None:
-        tracked = [
-            self._cfg(k)
-            for k in (
-                CONF_ENT_PH_AUTO,
-                CONF_ENT_PH_MANUAL,
-                CONF_ENT_ALKALINITY,
-                CONF_ENT_FREE_CL,
-                CONF_ENT_COMBINED_CL,
+        # Prefer `measured_at` attribute (PoolLab etc.); fall back to last_updated.
+        measured_at: datetime | None = None
+        source = "measured_at"
+        raw = state.attributes.get("measured_at")
+        if isinstance(raw, datetime):
+            measured_at = raw
+        elif isinstance(raw, str):
+            measured_at = dt_util.parse_datetime(raw)
+        if measured_at is None:
+            measured_at = state.last_updated
+            source = "last_updated"
+        if measured_at.tzinfo is None:
+            # Treat naive timestamps as local time (HA convention).
+            measured_at = dt_util.as_utc(
+                measured_at.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
             )
-            if self._cfg(k)
-        ]
+        else:
+            measured_at = dt_util.as_utc(measured_at)
+
+        age_h = (dt_util.utcnow() - measured_at).total_seconds() / 3600.0
+        out.update(
+            {
+                "value": value,
+                "measured_at": measured_at.isoformat(),
+                "measured_at_source": source,
+                "age_hours": round(age_h, 2),
+                "included": age_h <= window_h,
+            }
+        )
+        return out
+
+    def _manual_value(self, key: str) -> float | None:
+        snap = self.manual_snapshot.get(key)
+        if not snap or not snap.get("included"):
+            return None
+        return snap.get("value")
+
+    # --- lifecycle ---
+    async def async_setup(self) -> None:
+        tracked = [self._cfg(k) for k in AUTO_KEYS if self._cfg(k)]
 
         @callback
         def _on_change(event: Event[EventStateChangedData]) -> None:
@@ -114,6 +185,22 @@ class PoolAdvisorData:
 
         if tracked:
             self._unsub = async_track_state_change_event(self.hass, tracked, _on_change)
+
+        # Initial snapshot on startup so sensors have something without requiring a
+        # button press after every HA restart.
+        self.run_analysis()
+
+    async def async_unload(self) -> None:
+        if self._unsub is not None:
+            self._unsub()
+            self._unsub = None
+
+    # --- the actual work ---
+    def run_analysis(self) -> None:
+        """Capture a fresh manual snapshot, then recompute recommendations."""
+        window_h = float(self._cfg(CONF_MANUAL_MAX_AGE_H, DEFAULT_MANUAL_MAX_AGE_H))
+        self.manual_snapshot = {k: self._capture_manual(k, window_h) for k in MANUAL_KEYS}
+        self.analysis_at = dt_util.utcnow()
         self.recalculate()
 
     def recalculate(self) -> None:
@@ -122,23 +209,11 @@ class PoolAdvisorData:
         max_frac = float(self._cfg(CONF_MAX_DOSE_FRACTION, 0.5))
         interval_h = int(self._cfg(CONF_DOSE_INTERVAL_H, 6))
 
-        ph_auto = self._read(CONF_ENT_PH_AUTO)
-        ph_manual = self._read(CONF_ENT_PH_MANUAL)
-        manual_age_h = self._age_hours(CONF_ENT_PH_MANUAL)
+        ph_auto = self._read_live(CONF_ENT_PH_AUTO)
+        ph_manual = self._manual_value(CONF_ENT_PH_MANUAL)
 
-        # Prefer manual (photometer) if present AND fresh enough; else auto.
-        max_age_h = float(self._cfg(CONF_MANUAL_MAX_AGE_H, DEFAULT_MANUAL_MAX_AGE_H))
-        if ph_manual is not None and (manual_age_h is None or manual_age_h <= max_age_h):
-            ph_for_dosing = ph_manual
-        else:
-            ph_for_dosing = ph_auto
-
-        self.inputs = {
-            "ph_auto": ph_auto,
-            "ph_manual": ph_manual,
-            "ph_manual_age_h": manual_age_h,
-            "ph_for_dosing": ph_for_dosing,
-        }
+        # Prefer manual (photometer) if the snapshot included it; else auto.
+        ph_for_dosing = ph_manual if ph_manual is not None else ph_auto
 
         ph_rec = recommend_ph(
             current=ph_for_dosing,
@@ -154,7 +229,7 @@ class PoolAdvisorData:
             interval_h=interval_h,
         )
         ta_rec = recommend_alkalinity(
-            current=self._read(CONF_ENT_ALKALINITY),
+            current=self._manual_value(CONF_ENT_ALKALINITY),
             target=float(self._cfg(CONF_TA_TARGET)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
@@ -165,8 +240,8 @@ class PoolAdvisorData:
             interval_h=interval_h,
         )
         cl_rec = recommend_shock(
-            combined_cl=self._read(CONF_ENT_COMBINED_CL),
-            free_cl=self._read(CONF_ENT_FREE_CL),
+            combined_cl=self._manual_value(CONF_ENT_COMBINED_CL),
+            free_cl=self._manual_value(CONF_ENT_FREE_CL),
             fc_min=float(self._cfg(CONF_FC_MIN)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
             cc_shock_at=float(self._cfg(CONF_CC_SHOCK_AT)),
@@ -181,8 +256,6 @@ class PoolAdvisorData:
             ph_auto=ph_auto,
             ph_manual=ph_manual,
             threshold=float(self._cfg(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD)),
-            manual_age_h=manual_age_h,
-            manual_max_age_h=max_age_h,
         )
         self.recommendations = {
             "ph": ph_rec,
@@ -192,14 +265,8 @@ class PoolAdvisorData:
         }
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
 
-    async def async_unload(self) -> None:
-        if self._unsub is not None:
-            self._unsub()
-            self._unsub = None
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Pool Advisor from a config entry."""
     data = PoolAdvisorData(hass, entry)
     await data.async_setup()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = data
@@ -214,7 +281,6 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     data: PoolAdvisorData | None = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if data is not None:

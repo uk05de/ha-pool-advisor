@@ -202,6 +202,9 @@
     },
     "binary_sensor": {
       "attention": {"name": "Aufmerksamkeit nötig"}
+    },
+    "button": {
+      "analyze": {"name": "Analyse durchführen"}
     }
   }
 }

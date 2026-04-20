@@ -149,12 +149,22 @@ class CalibrationSensor(_BaseSensor):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         rec = self._data.recommendations.get("calibration")
-        inputs = self._data.inputs
+        ph_auto_state = None
+        ph_auto_entity = self._data._cfg("entity_ph_auto")
+        if ph_auto_entity:
+            st = self._data.hass.states.get(ph_auto_entity)
+            if st is not None:
+                try:
+                    ph_auto_state = float(st.state)
+                except (TypeError, ValueError):
+                    ph_auto_state = None
+        snap = self._data.manual_snapshot.get("entity_ph_manual") or {}
         attrs: dict[str, Any] = {
-            "ph_auto": inputs.get("ph_auto"),
-            "ph_manual": inputs.get("ph_manual"),
-            "ph_used_for_dosing": inputs.get("ph_for_dosing"),
-            "manual_age_hours": inputs.get("ph_manual_age_h"),
+            "ph_auto": ph_auto_state,
+            "ph_manual": snap.get("value") if snap.get("included") else None,
+            "ph_manual_measured_at": snap.get("measured_at"),
+            "ph_manual_age_hours": snap.get("age_hours"),
+            "ph_manual_included": snap.get("included"),
         }
         if rec is not None:
             attrs.update(
@@ -197,8 +207,27 @@ class OverallStatusSensor(_BaseSensor):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
+        out: dict[str, Any] = {
+            "analysis_at": (
+                self._data.analysis_at.isoformat() if self._data.analysis_at else None
+            ),
+        }
         for key, rec in self._data.recommendations.items():
             out[f"{key}_action"] = rec.action
             out[f"{key}_reason"] = rec.reason
+        # Per-parameter snapshot status (was it included in the last analysis?)
+        for conf_key, label in (
+            ("entity_ph_manual", "ph_manual"),
+            ("entity_alkalinity", "alkalinity"),
+            ("entity_free_chlorine", "free_cl"),
+            ("entity_combined_chlorine", "combined_cl"),
+            ("entity_total_chlorine", "total_cl"),
+            ("entity_cyanuric_acid", "cyanuric"),
+        ):
+            snap = self._data.manual_snapshot.get(conf_key)
+            if snap and snap.get("entity_id"):
+                out[f"{label}_value"] = snap.get("value") if snap.get("included") else None
+                out[f"{label}_measured_at"] = snap.get("measured_at")
+                out[f"{label}_age_hours"] = snap.get("age_hours")
+                out[f"{label}_included"] = snap.get("included")
         return out

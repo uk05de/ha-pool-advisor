@@ -272,12 +272,11 @@ def recommend_calibration(
     ph_auto: float | None,
     ph_manual: float | None,
     threshold: float,
-    manual_age_h: float | None,
-    manual_max_age_h: float,
 ) -> Recommendation:
     """Compare automatic (electrode) vs manual (photometer) pH.
 
-    Only produces a calibrate action if the manual reading is fresh enough.
+    Caller is responsible for filtering stale manual readings — any value
+    passed in here is considered fresh enough for comparison.
     """
     if ph_auto is None or ph_manual is None:
         return Recommendation(
@@ -286,17 +285,6 @@ def recommend_calibration(
             reason="Kein Vergleich möglich — Auto- oder Manuell-pH fehlt",
         )
     delta = ph_auto - ph_manual
-    if manual_age_h is not None and manual_age_h > manual_max_age_h:
-        return Recommendation(
-            action="ok",
-            steps=(),
-            reason=(
-                f"Manuell-Messung zu alt ({manual_age_h:.1f} h > {manual_max_age_h:.0f} h) — "
-                "kein aktueller Vergleich"
-            ),
-            delta=delta,
-            note="Frisch nachmessen, wenn du die Kalibrierung prüfen willst.",
-        )
     if abs(delta) <= threshold:
         return Recommendation(
             action="ok",
