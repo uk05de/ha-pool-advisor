@@ -12,6 +12,7 @@ from homeassistant.helpers import selector
 from .const import (
     CHLORINATION_CHOICES,
     CHLORINATION_SALT,
+    CONF_AUTO_CL_DOSING,
     CONF_CC_MAX,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
@@ -266,6 +267,7 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_CHLORINATION, default=CHLORINATION_SALT): _select(
                     CHLORINATION_CHOICES, "chlorination"
                 ),
+                vol.Required(CONF_AUTO_CL_DOSING, default=True): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
@@ -374,6 +376,9 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_CHLORINATION, default=cur.get(CONF_CHLORINATION, CHLORINATION_SALT)
                 ): _select(CHLORINATION_CHOICES, "chlorination"),
+                vol.Required(
+                    CONF_AUTO_CL_DOSING, default=cur.get(CONF_AUTO_CL_DOSING, True)
+                ): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="pool", data_schema=schema)

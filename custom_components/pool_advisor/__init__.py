@@ -21,6 +21,7 @@ from .calculator import (
 )
 from .const import (
     CHLORINATION_SALT,
+    CONF_AUTO_CL_DOSING,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
     CONF_DOSE_INTERVAL_H,
@@ -251,6 +252,7 @@ class PoolAdvisorData:
             max_dose_fraction=max_frac,
             interval_h=interval_h,
             chlorination_is_salt=chlorination_is_salt,
+            has_auto_dosing=bool(self._cfg(CONF_AUTO_CL_DOSING, True)),
         )
         calib_rec = recommend_calibration(
             ph_auto=ph_auto,

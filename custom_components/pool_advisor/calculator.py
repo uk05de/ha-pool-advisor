@@ -9,6 +9,7 @@ Volume unit: m³. Dosages returned in grams (dry chemicals) or milliliters
 """
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 from .const import (
@@ -206,8 +207,14 @@ def recommend_shock(
     max_dose_fraction: float,
     interval_h: int,
     chlorination_is_salt: bool,
+    has_auto_dosing: bool,
 ) -> Recommendation:
     """Shock / chlorine correction.
+
+    Always provides a manual dosing path (steps + grams/ml). If an automatic
+    dosing mechanism is present (salt electrolysis or classic with dosing
+    pump), an *alternative* path is appended to the note so the user can
+    choose.
 
     Priority:
     1. If combined Cl above threshold → shock dose (breakpoint).
@@ -219,19 +226,8 @@ def recommend_shock(
 
     # Shock case
     if combined_cl is not None and combined_cl >= cc_shock_at:
-        if chlorination_is_salt:
-            return Recommendation(
-                action="shock",
-                steps=(),
-                reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l — Shock nötig",
-                delta=combined_cl,
-                note=(
-                    "Salzelektrolyse: Redox-Sollwert temporär anheben ODER manuell mit "
-                    "Chlor-Granulat/Flüssig-Chlor schocken. Produktwahl siehe Konfiguration."
-                ),
-            )
         need_fc_mg_per_l = combined_cl * SHOCK_FC_MULTIPLIER
-        return _build_cl_dose(
+        rec = _build_cl_dose(
             target_fc_increase=need_fc_mg_per_l,
             volume_m3=volume_m3,
             shock_type=shock_type,
@@ -241,21 +237,20 @@ def recommend_shock(
             action="shock",
             reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l — Breakpoint-Dosierung",
         )
+        # Shock braucht eine schnelle große Menge — Dosierpumpe ist dafür ungeeignet.
+        # Bei Salz kann zusätzlich der Redox-Sollwert kurz angehoben werden als Stützmaßnahme.
+        if chlorination_is_salt:
+            rec = _append_note(
+                rec,
+                "Alternativ unterstützend: Redox-Sollwert temporär anheben. "
+                "Für die eigentliche Breakpoint-Menge ist die manuelle Dosis empfohlen "
+                "(Dosierpumpen liefern nicht schnell genug).",
+            )
+        return rec
 
     # Low free Cl
     if free_cl is not None and free_cl < fc_min:
-        if chlorination_is_salt:
-            return Recommendation(
-                action="raise",
-                steps=(),
-                reason=f"Freies Chlor {free_cl:.2f} mg/l zu niedrig",
-                delta=fc_target - free_cl,
-                note=(
-                    "Salzelektrolyse: Produktionsrate erhöhen oder Redox-Sollwert anheben. "
-                    "Manuelle Chlor-Dosierung nur als Notfallmaßnahme."
-                ),
-            )
-        return _build_cl_dose(
+        rec = _build_cl_dose(
             target_fc_increase=fc_target - free_cl,
             volume_m3=volume_m3,
             shock_type=shock_type,
@@ -263,10 +258,28 @@ def recommend_shock(
             max_dose_fraction=max_dose_fraction,
             interval_h=interval_h,
             action="raise",
-            reason=f"Freies Chlor {free_cl:.2f} zu niedrig — Ziel {fc_target:.2f}",
+            reason=f"Freies Chlor {free_cl:.2f} mg/l zu niedrig — Ziel {fc_target:.2f}",
         )
+        if chlorination_is_salt:
+            rec = _append_note(
+                rec,
+                "Alternativer Weg: Redox-Sollwert erhöhen oder Produktionsrate der "
+                "Elektrolyse anheben — dann keine manuelle Dosierung nötig.",
+            )
+        elif has_auto_dosing:
+            rec = _append_note(
+                rec,
+                "Alternativer Weg: Chlor-Kanister der Dosieranlage prüfen (voll?) und "
+                "Produktionsrate der Dosierpumpe erhöhen — dann keine manuelle Dosierung nötig.",
+            )
+        return rec
 
     return Recommendation(action="ok", steps=(), reason="Chlor-Werte ok")
+
+
+def _append_note(rec: Recommendation, extra: str) -> Recommendation:
+    combined = f"{rec.note} {extra}".strip() if rec.note else extra
+    return dataclasses.replace(rec, note=combined)
 
 
 def recommend_calibration(

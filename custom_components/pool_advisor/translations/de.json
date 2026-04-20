@@ -7,7 +7,8 @@
         "data": {
           "name": "Name",
           "pool_volume_m3": "Wasservolumen (m³)",
-          "chlorination_type": "Chlorierungsart"
+          "chlorination_type": "Chlorierungsart",
+          "automatic_cl_dosing": "Automatische Chlor-Dosierung vorhanden"
         }
       },
       "entities_auto": {
@@ -96,7 +97,8 @@
         "title": "Pool",
         "data": {
           "pool_volume_m3": "Wasservolumen (m³)",
-          "chlorination_type": "Chlorierungsart"
+          "chlorination_type": "Chlorierungsart",
+          "automatic_cl_dosing": "Automatische Chlor-Dosierung vorhanden"
         }
       },
       "entities_auto": {
