@@ -59,7 +59,6 @@ class WorkflowContext:
     fc: float | None
     cc: float | None
     cya: float | None
-    water_temp: float | None = None
 
     ph_target: float
     ta_target: float
@@ -70,6 +69,7 @@ class WorkflowContext:
     ph_max: float = 7.4
     ta_min: float = 80.0
     ta_max: float = 120.0
+    water_temp: float | None = None
 
     step_started_at: datetime | None = None
     analysis_at: datetime | None = None
