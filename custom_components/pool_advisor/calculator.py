@@ -567,6 +567,56 @@ def recommend_drift_redox(
     )
 
 
+def estimate_fc_decay_hours(
+    *,
+    fc_current: float,
+    fc_target: float,
+    cya: float | None,
+    water_temp_c: float | None,
+) -> float | None:
+    """Rough empirical estimate of hours until FC decays from `fc_current` to
+    `fc_target`.
+
+    Model: exponential decay with CYA- and temperature-dependent half-life.
+
+    Half-life baseline (outdoor pool, cover open, moderate sun, 25 °C water):
+      - CYA < 20:    12 h   (very fast, chlorine unprotected from UV)
+      - CYA 20–39:   36 h
+      - CYA 40–59:   60 h
+      - CYA 60–99:   96 h
+      - CYA ≥ 100:  120 h
+
+    Temperature adjustment: doubles per +10 °C (biological demand).
+
+    Returns hours until target reached, or None if inputs insufficient or
+    already at/below target.
+    """
+    import math
+
+    if fc_current <= fc_target:
+        return 0.0
+    if fc_current <= 0:
+        return None
+
+    effective_cya = cya if cya is not None else 30.0
+    if effective_cya < 20:
+        base_half_life = 12.0
+    elif effective_cya < 40:
+        base_half_life = 36.0
+    elif effective_cya < 60:
+        base_half_life = 60.0
+    elif effective_cya < 100:
+        base_half_life = 96.0
+    else:
+        base_half_life = 120.0
+
+    temp = water_temp_c if water_temp_c is not None else 25.0
+    temp_factor = 2.0 ** ((temp - 25.0) / 10.0)
+    half_life = base_half_life / max(0.25, temp_factor)
+
+    return half_life * math.log2(fc_current / fc_target)
+
+
 def recommend_calibration(
     *,
     ph_auto: float | None,

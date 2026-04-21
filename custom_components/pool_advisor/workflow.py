@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
-from .calculator import cya_pre_dose_grams, shock_dose_grams_or_ml
+from .calculator import cya_pre_dose_grams, estimate_fc_decay_hours, shock_dose_grams_or_ml
 from .const import (
     MODE_FRISCHWASSER,
     MODE_NORMAL,
@@ -59,6 +59,7 @@ class WorkflowContext:
     fc: float | None
     cc: float | None
     cya: float | None
+    water_temp: float | None = None
 
     ph_target: float
     ta_target: float
@@ -239,6 +240,95 @@ def _breakpoint_summary(ctx: WorkflowContext) -> str:
     fc = _fmt_val(ctx.fc, "mg/l")
     cc = _fmt_val(ctx.cc, "mg/l")
     return f"FC {fc} / CC {cc} — Ziel CC ≤ 0.2"
+
+
+# ---------- Swim-ready check (Badebetrieb-Freigabe) ----------
+
+SWIM_FC_MAX: float = 3.0
+SWIM_CC_MAX: float = 0.2
+SWIM_PH_MIN: float = 7.0
+SWIM_PH_MAX: float = 7.6
+
+
+def _swim_ready_render(ctx: WorkflowContext) -> str:
+    ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
+    if ctx.fc is None or not ctx.any_fresh():
+        return (
+            "Warte bis FC abgebaut ist. Filter durchgehend laufen lassen, Abdeckung weg "
+            "(UV beschleunigt den FC-Abbau). Regelmäßig messen und **Analyse** drücken."
+        )
+    reasons: list[str] = []
+    if ctx.fc > SWIM_FC_MAX:
+        reasons.append(f"FC **{ctx.fc:.2f} mg/l** noch zu hoch (Ziel ≤ {SWIM_FC_MAX:.1f})")
+    if ctx.cc is not None and ctx.cc > SWIM_CC_MAX:
+        reasons.append(f"CC **{ctx.cc:.2f} mg/l** noch zu hoch (Ziel ≤ {SWIM_CC_MAX:.1f})")
+    if ph is not None and (ph < SWIM_PH_MIN or ph > SWIM_PH_MAX):
+        reasons.append(
+            f"pH **{ph:.2f}** außerhalb Badebetrieb {SWIM_PH_MIN:.1f}–{SWIM_PH_MAX:.1f}"
+        )
+    if not reasons:
+        cc_str = f"{ctx.cc:.2f}" if ctx.cc is not None else "—"
+        ph_str = f"{ph:.2f}" if ph is not None else "—"
+        return (
+            "### ✅ Badebetrieb freigegeben\n\n"
+            f"FC {ctx.fc:.2f} mg/l, CC {cc_str} mg/l, pH {ph_str}.\n\n"
+            "Pool ist sicher benutzbar. Analyse drücken → zurück auf Normalbetrieb."
+        )
+    body = "**Noch nicht badetauglich:**\n\n"
+    for r in reasons:
+        body += f"- {r}\n"
+
+    # Näherungsweise Abklingzeit-Schätzung (nur wenn FC das Hauptproblem ist)
+    if ctx.fc is not None and ctx.fc > SWIM_FC_MAX:
+        hours = estimate_fc_decay_hours(
+            fc_current=ctx.fc,
+            fc_target=SWIM_FC_MAX,
+            cya=ctx.cya,
+            water_temp_c=ctx.water_temp,
+        )
+        if hours is not None and hours > 0:
+            # Range ±25 % wegen Unsicherheit (UV, Bio-Last, Deckelstatus)
+            lo_d = hours * 0.75 / 24
+            hi_d = hours * 1.25 / 24
+            if hi_d < 1.5:
+                range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
+            else:
+                range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
+            cya_str = f"CYA {ctx.cya:.0f}" if ctx.cya is not None else "CYA ~30"
+            temp_str = f"{ctx.water_temp:.0f} °C" if ctx.water_temp is not None else "25 °C"
+            body += (
+                f"\n**⏳ Geschätzte Zeit bis FC ≤ {SWIM_FC_MAX:.1f}: ~{range_str}** "
+                f"(bei {cya_str}, {temp_str} Wassertemp, Abdeckung ab + Sonne).\n"
+                "→ Abdeckung zu verdoppelt die Zeit ungefähr."
+            )
+
+    body += (
+        "\n\n**Aktives Senken nicht nötig — Zeit + Filter + UV reichen:**\n"
+        "- Filterpumpe dauerhaft an\n"
+        "- Abdeckung weg solange FC hoch (UV-Abbau)\n"
+        "- Täglich messen\n"
+        "- Notfall bei extremer Überdosierung: Natriumthiosulfat (\"Chlor-Neutralisator\") — "
+        "für Privatpools selten nötig"
+    )
+    return body
+
+
+def _swim_ready_satisfied(ctx: WorkflowContext) -> bool:
+    if ctx.fc is None or not ctx.is_fresh("fc"):
+        return False
+    if ctx.fc > SWIM_FC_MAX:
+        return False
+    if ctx.cc is not None and ctx.cc > SWIM_CC_MAX:
+        return False
+    ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
+    if ph is not None and (ph < SWIM_PH_MIN or ph > SWIM_PH_MAX):
+        return False
+    return True
+
+
+def _swim_ready_summary(ctx: WorkflowContext) -> str:
+    fc = _fmt_val(ctx.fc, "mg/l")
+    return f"FC {fc} → Ziel ≤ {SWIM_FC_MAX:.1f} mg/l für Badebetrieb"
 
 
 # ---------- Frischwasser steps ----------
@@ -432,6 +522,13 @@ def _shock_single_step(target_fc: float, scenario_label: str, include_brush: boo
             summary=_shock_summary(target_fc),
             min_wait_hours=24,
         ),
+        Step(
+            "swim_ready",
+            "Badebetrieb-Freigabe",
+            _swim_ready_render,
+            satisfied=_swim_ready_satisfied,
+            summary=_swim_ready_summary,
+        ),
     ]
 
 
@@ -481,6 +578,13 @@ WORKFLOWS: dict[str, list[Step]] = {
             satisfied=_breakpoint_satisfied,
             summary=_breakpoint_summary,
             min_wait_hours=24,
+        ),
+        Step(
+            "swim_ready",
+            "Badebetrieb-Freigabe",
+            _swim_ready_render,
+            satisfied=_swim_ready_satisfied,
+            summary=_swim_ready_summary,
         ),
     ],
     MODE_FRISCHWASSER: _inbetriebnahme_steps(

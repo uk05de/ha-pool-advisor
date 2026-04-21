@@ -425,6 +425,7 @@ class PoolAdvisorData:
             fc=self._manual_value(CONF_ENT_FREE_CL),
             cc=self._manual_value(CONF_ENT_COMBINED_CL),
             cya=self._manual_value(CONF_ENT_CYANURIC),
+            water_temp=self._read_live(CONF_ENT_TEMPERATURE),
             ph_target=float(self._cfg(CONF_PH_TARGET)),
             ta_target=float(self._cfg(CONF_TA_TARGET)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
