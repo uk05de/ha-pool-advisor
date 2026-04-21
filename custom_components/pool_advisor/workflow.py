@@ -553,6 +553,13 @@ def _inbetriebnahme_steps(shock_target_fc: float, shock_label: str, include_brus
             summary=_shock_summary(shock_target_fc),
             min_wait_hours=24,
         ),
+        Step(
+            "swim_ready",
+            "Badebetrieb-Freigabe",
+            _swim_ready_render,
+            satisfied=_swim_ready_satisfied,
+            summary=_swim_ready_summary,
+        ),
     ]
 
 
