@@ -164,15 +164,8 @@ def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = F
         cc_text = f"{ctx.cc:.2f}" if ctx.cc is not None else "—"
         body = (
             f"**Ziel-FC:** {target_fc:.0f} mg/l — aktuell {ctx.fc:.2f}, CC {cc_text} mg/l.\n\n"
+            + _shock_dose_block(ctx, target_fc, scenario_label)
         )
-        # Hinweis wenn CC erhöht, aber nicht als Blocker
-        if ctx.cc is not None and ctx.cc > 0.5:
-            body += (
-                f"ℹ **CC {ctx.cc:.2f} mg/l noch erhöht** — der eigentliche Shock hat funktioniert "
-                f"(FC im Ziel), aber falls CC nicht in den nächsten 24 h unter 0.2 fällt, "
-                "erwäge den **Breakpoint**-Modus für eine gezielte zweite Dosis.\n\n"
-            )
-        body += _shock_dose_block(ctx, target_fc, scenario_label)
         # Pre-shock pH warning: at high pH, HOCl drops sharply → shock is wasted
         ph_eff = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
         if ph_eff is not None and ph_eff > 7.4:
@@ -206,15 +199,12 @@ def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = F
 
 
 def _shock_satisfied(target_fc: float):
-    """Routine / Algen / Schwarzalgen shock: primary success metric is FC
-    reaching ≥ 80 % of target. CC is *informational* — combined chlorine
-    usually keeps dropping in the hours after the shock as the chemistry
-    settles. Strict CC-handling happens in the dedicated Breakpoint workflow.
-    """
     def check(ctx: WorkflowContext) -> bool:
         if ctx.fc is None or not ctx.is_fresh("fc"):
             return False
-        return ctx.fc >= target_fc * 0.8
+        fc_ok = ctx.fc >= target_fc * 0.8
+        cc_ok = ctx.cc is None or ctx.cc <= 0.2
+        return fc_ok and cc_ok
 
     return check
 
