@@ -463,9 +463,16 @@ WORKFLOWS: dict[str, list[Step]] = {
         Step("shock", "Routine-Shock", _fw_shock_render, satisfied=_fw_shock_satisfied, summary=_fw_shock_summary, min_wait_hours=24),
     ],
     MODE_SAISONSTART: [
-        # pH zuerst! Bei pH > 7.5 sinkt HOCl-Anteil drastisch; Shock mit hohem
-        # pH ist Chemie-Verschwendung. Deshalb erst auf 7.0–7.2 bringen.
+        # Reihenfolge bewusst gewählt:
+        # 1. pH grob mit PoolLab einstellen (FC=0 nach Winter → Phenolrot-Reagenz
+        #    ist nicht gebleicht, Messung verlässlich).
+        # 2. pH-Elektrode kalibrieren + Dosierung aktiv — damit steht während der
+        #    FC-Hochphase nach dem Shock eine verlässliche pH-Quelle bereit.
+        # 3. Erst JETZT schocken — mit optimaler pH-Chemie und funktionierender
+        #    Dosierung.
+        # 4. Chlor-System zuletzt — Redox-Elektrode kalibrieren + Dosierung an.
         Step("ph", "pH grob (vor Shock)", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
+        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
         Step(
             "shock",
             "Shock gegen Bio-Last",
@@ -474,7 +481,6 @@ WORKFLOWS: dict[str, list[Step]] = {
             summary=_shock_summary(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
             min_wait_hours=24,
         ),
-        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
         Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
     ],
 }
