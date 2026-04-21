@@ -165,6 +165,15 @@ def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = F
             f"**Ziel-FC:** {target_fc:.0f} mg/l — aktuell {ctx.fc:.2f}, CC {cc_text} mg/l.\n\n"
             + _shock_dose_block(ctx, target_fc, scenario_label)
         )
+        # Pre-shock pH warning: at high pH, HOCl drops sharply → shock is wasted
+        ph_eff = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
+        if ph_eff is not None and ph_eff > 7.4:
+            body += (
+                f"\n\n⚠ **pH aktuell {ph_eff:.2f}** — bei pH > 7.4 sinkt der HOCl-Anteil "
+                "deutlich (bei pH 8.0 nur noch ~22 %). Erwäge, pH zuerst auf 7.0–7.2 "
+                "zu senken — sonst verschwendest du einen großen Teil der Shock-Dosis."
+            )
+
         if include_brush:
             body += "\n\n**Zusätzlich:** Wände und Boden gründlich bürsten (2–3×)."
         from .const import SHOCK_CYA_PER_PPM_CL, SHOCK_STABILIZED
@@ -178,6 +187,11 @@ def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = F
                     f"\n\n⚠ {ctx.shock_display} bringt ~{cya_add:.0f} mg/l CYA mit. "
                     f"CYA danach ≈ **{cya_after:.0f} mg/l**."
                 )
+        body += (
+            "\n\n_Hinweis: während hoher FC-Werte (>5 mg/l) ist die PoolLab pH-Messung "
+            "unzuverlässig (Phenolrot-Reagenz wird gebleicht). Für pH-Kontrolle in den "
+            "nächsten 1–2 Tagen auf die Bayrol-Elektrode verlassen._"
+        )
         return body
 
     return render
@@ -449,6 +463,9 @@ WORKFLOWS: dict[str, list[Step]] = {
         Step("shock", "Routine-Shock", _fw_shock_render, satisfied=_fw_shock_satisfied, summary=_fw_shock_summary, min_wait_hours=24),
     ],
     MODE_SAISONSTART: [
+        # pH zuerst! Bei pH > 7.5 sinkt HOCl-Anteil drastisch; Shock mit hohem
+        # pH ist Chemie-Verschwendung. Deshalb erst auf 7.0–7.2 bringen.
+        Step("ph", "pH grob (vor Shock)", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
         Step(
             "shock",
             "Shock gegen Bio-Last",
@@ -457,7 +474,6 @@ WORKFLOWS: dict[str, list[Step]] = {
             summary=_shock_summary(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
             min_wait_hours=24,
         ),
-        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
         Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
         Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
     ],
