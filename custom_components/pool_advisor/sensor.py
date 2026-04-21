@@ -251,32 +251,52 @@ def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
         idx = 0
     ctx = data.build_workflow_context()
 
-    lines: list[str] = [f"## {_mode_title(data.mode)}\n"]
+    lines: list[str] = [f"## {_mode_title(data.mode)}", ""]
 
     for i, step in enumerate(steps):
         nr = i + 1
         if i < idx:
-            lines.append(f"- ✅ **{nr}. {step.title}**")
+            icon = "✅"
+            suffix = ""
         elif i == idx:
-            lines.append(f"- ▶ **{nr}. {step.title}** _(aktueller Schritt)_")
-            # Soft wait warning only on current step
-            age_h = data.step_age_hours()
-            if step.min_wait_hours > 0 and age_h < step.min_wait_hours:
-                lines.append(
-                    f"\n  > ⚠ Empfohlene Wartezeit **{step.min_wait_hours} h** — "
-                    f"du bist bei {age_h:.1f} h. Weiter möglich, aber Messung ist "
-                    "evtl. noch nicht aussagekräftig.\n"
-                )
-            lines.append("")
-            lines.append(step.render(ctx))
-            lines.append("")
+            icon = "▶"
+            suffix = " _(aktueller Schritt)_"
         else:
-            lines.append(f"- ○ {nr}. {step.title}")
+            icon = "○"
+            suffix = ""
 
+        lines.append(f"{icon} **{nr}. {step.title}**{suffix}")
+
+        # Short one-line summary, shown on ALL steps regardless of state
+        if step.summary is not None:
+            lines.append(f"_{step.summary(ctx)}_")
+
+        if i == idx:
+            # Active step: full body as blockquote for visual grouping
+            body = step.render(ctx)
+            # Soft wait warning — only when user has actually pressed Analyse
+            # during this step (otherwise the warning just nags on entry).
+            age_h = data.step_age_hours()
+            if (
+                step.min_wait_hours > 0
+                and age_h < step.min_wait_hours
+                and ctx.analyzed_during_step()
+            ):
+                body = (
+                    f"⚠ Empfohlene Wartezeit **{step.min_wait_hours} h** — "
+                    f"du bist bei {age_h:.1f} h. Weiter möglich, aber Messung "
+                    "evtl. noch nicht aussagekräftig.\n\n" + body
+                )
+            # Indent every line as blockquote
+            lines.append("")
+            for blk_line in body.split("\n"):
+                lines.append(f"> {blk_line}" if blk_line else ">")
+        lines.append("")
+
+    lines.append("---")
     lines.append(
-        "\n---\n➡ **Analyse durchführen** drücken. Wenn das Ziel des aktuellen Schritts "
-        "erreicht ist, wird automatisch weitergeschaltet — sonst bleibt der Schritt aktiv "
-        "und die Empfehlung wird mit dem neuen Messwert aktualisiert."
+        "➡ **Analyse durchführen** drücken. Ziel erreicht → automatisch weiter, "
+        "sonst wird die Empfehlung aktualisiert."
     )
     return "\n".join(lines)
 

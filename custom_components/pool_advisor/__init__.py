@@ -434,6 +434,7 @@ class PoolAdvisorData:
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
             step_started_at=self.step_started_at,
+            analysis_at=self.analysis_at,
             measured_at=measured_at,
         )
 

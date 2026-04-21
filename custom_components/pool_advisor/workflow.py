@@ -1,20 +1,23 @@
 """Maintenance workflow engine for Pool Chemistry Advisor.
 
-A workflow is a linear sequence of Steps. Advancement happens when the user
-presses the Analyse button:
+Each workflow is a linear sequence of Steps. The user drives progress
+exclusively via the Analyse button:
 
 - `run_analysis()` captures a fresh manual snapshot
 - The current step's `satisfied(ctx)` function is evaluated
-  - True  → advance to next step
+  - True  → advance one step
   - False → stay; the step's `render()` produces an updated instruction
-            (e.g. remaining dose based on the new measurement)
+            (e.g. a remaining dose based on the new measurement)
 
-Acknowledge-only steps (calibration, activate-system, etc.) have
-`satisfied = lambda _: True` — they move on as soon as the user confirms
-with the Analyse button.
+Each Step may also expose a `summary(ctx)` — a one-line overview of the
+step's key values (current vs target). Summaries are shown on ALL steps
+(completed + pending + active), so the user sees the whole chemistry
+state at a glance.
 
-`min_wait_hours` is a *soft* hint: the render shows a warning when the user
-advances too fast, but never blocks progress.
+`min_wait_hours` is a soft hint: a warning is rendered on the active step
+only when the user has actually pressed Analyse during the step (i.e.
+`analysis_at > step_started_at`) AND the elapsed time is below the
+recommendation. Never hard-blocks.
 """
 from __future__ import annotations
 
@@ -38,8 +41,6 @@ from .const import (
 
 @dataclass
 class WorkflowContext:
-    """Everything a step needs to render content and evaluate satisfaction."""
-
     volume_m3: float
 
     ph_minus_display: str
@@ -69,20 +70,25 @@ class WorkflowContext:
     ta_min: float = 80.0
     ta_max: float = 120.0
 
-    # Freshness tracking
     step_started_at: datetime | None = None
+    analysis_at: datetime | None = None
     measured_at: dict[str, datetime | None] = field(default_factory=dict)
 
     def is_fresh(self, key: str) -> bool:
-        """True if the named measurement was taken AFTER the current step began."""
         if self.step_started_at is None:
             return False
         at = self.measured_at.get(key)
         return at is not None and at > self.step_started_at
 
     def any_fresh(self) -> bool:
-        """True if any configured measurement was taken after the current step began."""
         return any(self.is_fresh(k) for k in self.measured_at)
+
+    def analyzed_during_step(self) -> bool:
+        return (
+            self.analysis_at is not None
+            and self.step_started_at is not None
+            and self.analysis_at > self.step_started_at
+        )
 
 
 def _always(_ctx: WorkflowContext) -> bool:
@@ -94,21 +100,20 @@ class Step:
     id: str
     title: str
     render: Callable[[WorkflowContext], str]
-    # Returns True when the step's goal is met and workflow may advance.
-    # Default: always True (acknowledge-only steps).
     satisfied: Callable[[WorkflowContext], bool] = _always
-    # Soft warning: if advancing earlier than this many hours since step started,
-    # render prepends a hint. Never hard-blocks.
+    # Short one-line value summary (e.g. "TA 95 mg/l — Ziel 100, Bereich 80–120")
+    # Shown on every step regardless of its completion state.
+    summary: Callable[[WorkflowContext], str] | None = None
     min_wait_hours: int = 0
 
 
-# ---------- render helpers ----------
+# ---------- helpers ----------
 
 
-def _measured(label: str, value: float | None, unit: str, fmt: str = "{:.2f}") -> str:
-    if value is None:
-        return f"- {label}: *—* (nicht gemessen)"
-    return f"- {label}: **{fmt.format(value)} {unit}**"
+def _fmt_val(val: float | None, unit: str, decimals: int = 2) -> str:
+    if val is None:
+        return "—"
+    return f"{val:.{decimals}f} {unit}".rstrip()
 
 
 def _shock_dose_block(ctx: WorkflowContext, target_fc: float, scenario_label: str) -> str:
@@ -122,93 +127,57 @@ def _shock_dose_block(ctx: WorkflowContext, target_fc: float, scenario_label: st
     )
     if dose is None:
         return (
-            "⚠ Shock-Produkt unbekannt oder nicht konfiguriert. "
-            "Bitte in Einstellungen → Chemikalien eintragen."
+            "⚠ Shock-Produkt nicht konfiguriert. "
+            "Einstellungen → Chemikalien öffnen."
         )
     amount, unit = dose
     if amount <= 0:
-        return (
-            f"FC bereits bei **{current_fc:.2f} mg/l** — Ziel {target_fc:.0f} "
-            "erreicht. Nichts mehr zu dosieren."
-        )
-    fc_info = (
-        f"FC aktuell **{current_fc:.2f} mg/l** → Ziel **{target_fc:.0f} mg/l** "
-        f"→ Anhebung um {target_fc - current_fc:.1f} mg/l"
-    )
+        return f"FC bereits bei **{current_fc:.2f} mg/l** — Ziel {target_fc:.0f} erreicht."
     return (
-        f"**{scenario_label}** — Dosiere **{amount:.0f} {unit} {ctx.shock_display}**\n\n"
-        f"_{fc_info}_\n\n"
-        "Vorgehen:\n"
-        "- In Eimer mit Poolwasser vollständig auflösen\n"
-        "- Über größere Fläche im Becken verteilen (nicht auf einem Punkt!)\n"
-        "- Filter dauerhaft an"
+        f"Dosiere **{amount:.0f} {unit} {ctx.shock_display}**.\n\n"
+        f"- In Eimer Poolwasser auflösen, breit verteilen\n"
+        f"- Filter **24 h** dauerhaft durchlaufen lassen\n"
+        f"- Dann neu messen + **Analyse**"
     )
 
 
-# ---------- render functions ----------
+# ---------- normal ----------
 
 
 def _normal_body(_ctx: WorkflowContext) -> str:
     return (
-        "Normalbetrieb — kein Workflow aktiv.\n\n"
-        "Nach einer PoolLab-Messung **Analyse durchführen** drücken, "
-        "dann siehst du die aktuellen Empfehlungen in der Markdown-Karte."
+        "Normalbetrieb. Nach PoolLab-Messung **Analyse durchführen** drücken."
     )
 
 
-def _render_measurements(ctx: WorkflowContext) -> str:
-    if not ctx.any_fresh():
-        header = (
-            "### Werte messen\n\n"
-            "PoolLab-Messung durchführen, Werte in HA übertragen, dann **Analyse durchführen**.\n\n"
-            "_Der Schritt bleibt aktiv bis mindestens eine frische Messung vorliegt._\n\n"
-        )
-    else:
-        header = (
-            "### Werte messen\n\n"
-            "✅ Frische Messwerte erkannt. **Analyse** für weiter.\n\n"
-        )
-    header += "**Aktueller Stand:**\n\n"
-    return (
-        header
-        + f"{_measured('pH', ctx.ph_manual, '', '{:.2f}')}\n"
-        + f"{_measured('Alkalität', ctx.ta, 'mg/l', '{:.0f}')}\n"
-        + f"{_measured('Freies Chlor (FC)', ctx.fc, 'mg/l', '{:.2f}')}\n"
-        + f"{_measured('Gebundenes Chlor (CC)', ctx.cc, 'mg/l', '{:.2f}')}\n"
-        + f"{_measured('Cyanursäure (CYA)', ctx.cya, 'mg/l', '{:.0f}')}\n"
-    )
-
-
-def _measure_step_satisfied(ctx: WorkflowContext) -> bool:
-    """Erstmessung is satisfied only once at least one value has been freshly measured."""
-    return ctx.any_fresh()
-
-
-# --- shock steps ---
+# ---------- shock step (single self-looping step) ----------
 
 
 def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = False):
     def render(ctx: WorkflowContext) -> str:
-        body = "### Dosieren & nachmessen\n\n" + _shock_dose_block(ctx, target_fc, scenario_label)
+        if ctx.fc is None or not ctx.any_fresh():
+            return (
+                "Bitte zuerst mit PoolLab messen (FC + CC) und Werte in HA übertragen.\n\n"
+                "Dann **Analyse** drücken."
+            )
+        cc_text = f"{ctx.cc:.2f}" if ctx.cc is not None else "—"
+        body = (
+            f"**Ziel-FC:** {target_fc:.0f} mg/l — aktuell {ctx.fc:.2f}, CC {cc_text} mg/l.\n\n"
+            + _shock_dose_block(ctx, target_fc, scenario_label)
+        )
         if include_brush:
-            body += "\n\nZusätzlich: Wände und Boden gründlich bürsten (2–3×)."
+            body += "\n\n**Zusätzlich:** Wände und Boden gründlich bürsten (2–3×)."
         from .const import SHOCK_CYA_PER_PPM_CL, SHOCK_STABILIZED
 
         if ctx.shock_type in SHOCK_STABILIZED:
             increase = max(0.0, target_fc - (ctx.fc or 0.0))
-            cya_add = increase * SHOCK_CYA_PER_PPM_CL.get(ctx.shock_type, 0.9)
-            cya_after = (ctx.cya or 0.0) + cya_add
             if increase > 0:
+                cya_add = increase * SHOCK_CYA_PER_PPM_CL.get(ctx.shock_type, 0.9)
+                cya_after = (ctx.cya or 0.0) + cya_add
                 body += (
-                    f"\n\n⚠ **Nebeneffekt Cyanursäure**: {ctx.shock_display} bringt "
-                    f"ca. {cya_add:.0f} mg/l CYA mit ins Wasser. "
-                    f"CYA nach Dosis ≈ **{cya_after:.0f} mg/l**."
+                    f"\n\n⚠ {ctx.shock_display} bringt ~{cya_add:.0f} mg/l CYA mit. "
+                    f"CYA danach ≈ **{cya_after:.0f} mg/l**."
                 )
-        body += (
-            "\n\n---\n"
-            "**Nach der Dosierung:** Filter 24h dauerhaft an, dann neu messen und "
-            "**Analyse durchführen** drücken. Wenn FC erreicht und CC < 0.2: Schritt erledigt."
-        )
         return body
 
     return render
@@ -216,9 +185,8 @@ def _shock_render(target_fc: float, scenario_label: str, include_brush: bool = F
 
 def _shock_satisfied(target_fc: float):
     def check(ctx: WorkflowContext) -> bool:
-        if ctx.fc is None:
+        if ctx.fc is None or not ctx.is_fresh("fc"):
             return False
-        # Target met when FC reached at least 80% of target AND CC low (if measured)
         fc_ok = ctx.fc >= target_fc * 0.8
         cc_ok = ctx.cc is None or ctx.cc <= 0.2
         return fc_ok and cc_ok
@@ -226,162 +194,154 @@ def _shock_satisfied(target_fc: float):
     return check
 
 
-def _shock_done(target_fc: float, scenario_label: str):
-    def render(ctx: WorkflowContext) -> str:
-        fc_text = f"{ctx.fc:.2f}" if ctx.fc is not None else "—"
-        cc_text = f"{ctx.cc:.2f}" if ctx.cc is not None else "—"
-        return (
-            f"### ✅ {scenario_label} abgeschlossen\n\n"
-            f"FC aktuell {fc_text} mg/l, CC {cc_text} mg/l.\n\n"
-            "FC wird in den nächsten Tagen natürlich auf den Zielbereich abfallen, dann übernimmt "
-            "die Dosieranlage wieder.\n\n"
-            "**Wartungsmodus zurück auf Normalbetrieb setzen** (Analyse-Button einmal drücken)."
-        )
+def _shock_summary(target_fc: float):
+    def summary(ctx: WorkflowContext) -> str:
+        fc = _fmt_val(ctx.fc, "mg/l")
+        cc = _fmt_val(ctx.cc, "mg/l")
+        return f"FC {fc} / CC {cc} — Ziel FC ≥ {target_fc:.0f}, CC ≤ 0.2"
 
-    return render
+    return summary
 
 
-# --- breakpoint ---
+# ---------- breakpoint ----------
 
 
 def _breakpoint_render(ctx: WorkflowContext) -> str:
-    if ctx.cc is None:
-        return "### Breakpoint\n\nKein CC-Wert vorhanden. Bitte messen."
+    if ctx.cc is None or not ctx.any_fresh():
+        return "Bitte erst CC messen. Dann Analyse drücken."
     target_fc = max(10.0, ctx.cc * 10.0)
-    body = f"### Breakpoint-Dosis\n\nCC **{ctx.cc:.2f} mg/l** → FC-Ziel **{target_fc:.1f} mg/l**.\n\n"
-    body += _shock_dose_block(ctx, target_fc, "Breakpoint")
-    body += (
-        "\n\n---\n"
-        "**Nach der Dosis:** Filter 24h an, dann neu messen. CC sollte < 0.2 mg/l sein."
+    body = (
+        f"CC **{ctx.cc:.2f} mg/l** → FC-Ziel **{target_fc:.1f} mg/l** (10× Regel).\n\n"
     )
+    body += _shock_dose_block(ctx, target_fc, "Breakpoint")
     return body
 
 
 def _breakpoint_satisfied(ctx: WorkflowContext) -> bool:
-    return ctx.cc is not None and ctx.cc <= 0.2
+    return ctx.cc is not None and ctx.is_fresh("cc") and ctx.cc <= 0.2
 
 
-# --- frischwasser steps ---
+def _breakpoint_summary(ctx: WorkflowContext) -> str:
+    fc = _fmt_val(ctx.fc, "mg/l")
+    cc = _fmt_val(ctx.cc, "mg/l")
+    return f"FC {fc} / CC {cc} — Ziel CC ≤ 0.2"
 
 
-def _fw_fill_render(_ctx: WorkflowContext) -> str:
-    return (
-        "### Pool befüllen und Filter starten\n\n"
-        "- Pool bis Skimmer-Mitte füllen\n"
-        "- Filterpumpe auf **Dauerlauf**\n"
-        "- Mindestens **2–4 h umwälzen** lassen (CO₂-Ausgasung, Mischung)\n\n"
-        "Dann **Analyse durchführen** (noch ohne Messung — nur Bestätigung)."
-    )
-
-
-def _fw_measure_render(ctx: WorkflowContext) -> str:
-    return _render_measurements(ctx)
+# ---------- Frischwasser steps ----------
 
 
 def _fw_ta_render(ctx: WorkflowContext) -> str:
-    if ctx.ta is None:
-        return "### TA anpassen\n\nNoch keine TA-Messung. Bitte messen."
+    if ctx.ta is None or not ctx.any_fresh():
+        return (
+            "Voraussetzung: Pool befüllt + Filter 2–4 h gelaufen + PoolLab-Messung.\n\n"
+            "Bitte messen, Werte in HA übertragen und **Analyse** drücken."
+        )
     delta = ctx.ta_target - ctx.ta
     if ctx.ta_min <= ctx.ta <= ctx.ta_max:
-        return (
-            f"### TA anpassen\n\nAktuell **{ctx.ta:.0f} mg/l** — bereits im Zielbereich "
-            f"({ctx.ta_min:.0f}–{ctx.ta_max:.0f}). Nichts zu tun. **Analyse** für weiter."
-        )
+        return f"**Bereits im Zielbereich.** Analyse drücken für den nächsten Schritt."
     if delta > 0:
         from .calculator import G_BICARB_PURE_PER_M3_PER_10_TA
 
         pure_g = G_BICARB_PURE_PER_M3_PER_10_TA * ctx.volume_m3 * (delta / 10.0)
         return (
-            "### TA anheben\n\n"
-            f"Aktuell **{ctx.ta:.0f} mg/l**, Ziel **{ctx.ta_target:.0f}** → Anhebung um {delta:.0f} mg/l.\n\n"
-            f"Dosiere **{pure_g:.0f} g {ctx.ta_plus_display}** (in Eimer auflösen, verteilen).\n\n"
-            "⏳ **12–24 h warten**, dann neu messen und Analyse drücken."
+            f"Anhebung um **{delta:.0f} mg/l** nötig.\n\n"
+            f"Dosiere **{pure_g:.0f} g {ctx.ta_plus_display}**.\n\n"
+            f"- In Eimer auflösen, verteilen\n"
+            f"- Filter **12–24 h** durchlaufen lassen\n"
+            f"- Neu messen + Analyse"
         )
     return (
-        "### TA senken\n\n"
-        f"Aktuell **{ctx.ta:.0f} mg/l**, Ziel **{ctx.ta_target:.0f}**.\n\n"
         "TA senken ist ein mehrtägiger Prozess (pH gezielt senken + belüften + wiederholen). "
-        "Keine einmalige Gramm-Empfehlung möglich — siehe Pool-Chemie-Literatur."
+        "Keine einmalige Gramm-Empfehlung möglich."
     )
 
 
 def _fw_ta_satisfied(ctx: WorkflowContext) -> bool:
-    return ctx.ta is not None and ctx.ta_min <= ctx.ta <= ctx.ta_max
+    return (
+        ctx.ta is not None
+        and ctx.is_fresh("ta")
+        and ctx.ta_min <= ctx.ta <= ctx.ta_max
+    )
+
+
+def _fw_ta_summary(ctx: WorkflowContext) -> str:
+    cur = _fmt_val(ctx.ta, "mg/l", 0)
+    return f"TA {cur} — Ziel **{ctx.ta_target:.0f}**, Bereich {ctx.ta_min:.0f}–{ctx.ta_max:.0f}"
 
 
 def _fw_ph_render(ctx: WorkflowContext) -> str:
     ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
-    if ph is None:
-        return "### pH grob einstellen\n\nKeine pH-Messung. Bitte messen."
-    delta = ctx.ph_target - ph
+    if ph is None or not ctx.any_fresh():
+        return "Bitte pH messen und Analyse drücken."
     if ctx.ph_min <= ph <= ctx.ph_max:
-        return (
-            f"### pH grob einstellen\n\nAktuell **{ph:.2f}** — passt "
-            f"({ctx.ph_min:.1f}–{ctx.ph_max:.1f}). **Analyse** für weiter."
-        )
+        return "**Bereits im Zielbereich.** Analyse drücken für den nächsten Schritt."
     from .calculator import (
         G_DRY_ACID_PURE_PER_M3_PER_01_PH,
         G_SODA_PURE_PER_M3_PER_01_PH,
         ML_HCL_33_PER_M3_PER_01_PH,
     )
 
+    delta = ctx.ph_target - ph
     units = abs(delta) / 0.1
     if delta > 0:
         grams = G_SODA_PURE_PER_M3_PER_01_PH * ctx.volume_m3 * units
         return (
-            "### pH anheben\n\n"
-            f"Aktuell **{ph:.2f}**, Ziel **{ctx.ph_target:.2f}**.\n\n"
+            f"Anhebung von {ph:.2f} → **{ctx.ph_target:.2f}**.\n\n"
             f"Dosiere **{grams:.0f} g {ctx.ph_plus_display}**.\n\n"
-            "⏳ 4–6 h warten, dann neu messen + Analyse."
+            f"- Filter **4–6 h** durchlaufen lassen\n"
+            f"- Neu messen + Analyse"
         )
     grams = G_DRY_ACID_PURE_PER_M3_PER_01_PH * ctx.volume_m3 * units
     ml = ML_HCL_33_PER_M3_PER_01_PH * ctx.volume_m3 * units
     return (
-        "### pH senken\n\n"
-        f"Aktuell **{ph:.2f}**, Ziel **{ctx.ph_target:.2f}**.\n\n"
+        f"Senkung von {ph:.2f} → **{ctx.ph_target:.2f}**.\n\n"
         f"Dosiere **{grams:.0f} g {ctx.ph_minus_display}** (oder ca. {ml:.0f} ml Salzsäure).\n\n"
-        "⏳ 4–6 h warten, dann neu messen + Analyse."
+        f"- Filter **4–6 h** durchlaufen lassen\n"
+        f"- Neu messen + Analyse"
     )
 
 
 def _fw_ph_satisfied(ctx: WorkflowContext) -> bool:
     ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
-    return ph is not None and ctx.ph_min <= ph <= ctx.ph_max
-
-
-def _fw_calib_ph(_ctx: WorkflowContext) -> str:
     return (
-        "### pH-Elektrode kalibrieren\n\n"
-        "**Bevor die Dosierung aktiviert wird:**\n\n"
-        "1. Elektrode in Pufferlösung **pH 7** → an der Anlage kalibrieren\n"
-        "2. Dann Pufferlösung **pH 4** → Zweipunkt-Kalibrierung abschließen\n"
-        "3. Elektrode zurück ins Probenwasser\n\n"
-        "Wenn keine stabile Messung möglich → Elektrode tauschen.\n\n"
-        "**Analyse** wenn fertig."
+        ph is not None
+        and ctx.is_fresh("ph_manual")
+        and ctx.ph_min <= ph <= ctx.ph_max
     )
 
 
-def _fw_activate_ph(ctx: WorkflowContext) -> str:
+def _fw_ph_summary(ctx: WorkflowContext) -> str:
+    ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
+    cur = _fmt_val(ph, "")
+    return f"pH {cur} — Ziel **{ctx.ph_target:.2f}**, Bereich {ctx.ph_min:.1f}–{ctx.ph_max:.1f}"
+
+
+def _fw_ph_system_render(ctx: WorkflowContext) -> str:
     return (
-        "### pH-Dosierung aktivieren\n\n"
-        f"An der Bayrol-Anlage:\n\n"
-        f"- pH-Sollwert auf **{ctx.ph_target:.1f}** setzen\n"
-        "- pH-Dosierung einschalten\n\n"
-        "Anlage übernimmt ab jetzt die Feinregelung.\n\n**Analyse** für weiter."
+        "**pH-Dosieranlage in Betrieb nehmen:**\n\n"
+        "1. pH-Elektrode in **Pufferlösung pH 7** → an der Anlage kalibrieren\n"
+        "2. In **Pufferlösung pH 4** → Zweipunkt-Kalibrierung abschließen\n"
+        "3. Elektrode zurück ins Probenwasser\n"
+        f"4. **pH-Sollwert auf {ctx.ph_target:.1f}** setzen\n"
+        "5. pH-Dosierung **einschalten**\n\n"
+        "Anlage übernimmt ab jetzt die Feinregelung. **Analyse** für weiter."
     )
+
+
+def _fw_ph_system_summary(ctx: WorkflowContext) -> str:
+    return f"Elektrode kalibrieren + Sollwert {ctx.ph_target:.2f} + Dosierung an"
 
 
 def _fw_cya_render(ctx: WorkflowContext) -> str:
-    current_cya = ctx.cya if ctx.cya is not None else 0.0
-    if current_cya >= ctx.cya_target * 0.9:
-        return (
-            f"### CYA\n\nAktuell **{current_cya:.0f} mg/l**, Ziel {ctx.cya_target:.0f} — ok. "
-            "**Analyse** weiter."
-        )
+    cur = ctx.cya if ctx.cya is not None else 0.0
+    if ctx.cya is not None and cur >= ctx.cya_target * 0.9:
+        return "**Bereits im Zielbereich.** Analyse für weiter."
+    if ctx.cya is None or not ctx.any_fresh():
+        return "Bitte CYA messen und Analyse drücken."
     shock_target_fc = SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE]
     shock_increase = max(0.0, shock_target_fc - (ctx.fc or 0.0))
     pre_dose_g = cya_pre_dose_grams(
-        current_cya=current_cya,
+        current_cya=cur,
         target_cya=ctx.cya_target,
         shock_fc_increase=shock_increase,
         shock_type=ctx.shock_type,
@@ -390,134 +350,116 @@ def _fw_cya_render(ctx: WorkflowContext) -> str:
     )
     if pre_dose_g <= 0:
         return (
-            f"### CYA\n\nAktuell **{current_cya:.0f} mg/l**, Ziel {ctx.cya_target:.0f}. "
-            "Der nachfolgende Shock bringt genug CYA mit. **Analyse** weiter."
+            f"Aktuell **{cur:.0f} mg/l**. Der nachfolgende Routine-Shock bringt "
+            "genug CYA mit — nichts vor-zu-dosieren. **Analyse** für weiter."
         )
     return (
-        "### Cyanursäure vor-dosieren\n\n"
-        f"Aktuell **{current_cya:.0f} mg/l**, Ziel **{ctx.cya_target:.0f}**.\n\n"
-        f"Dosiere **ca. {pre_dose_g * 0.8:.0f} g {ctx.cya_display}** (80 % Sicherheitspuffer).\n\n"
-        "**Wichtig:** in Skimmer-Sockel (Socke) oder Einsatzkorb geben — langsam löslich.\n\n"
-        "⏳ Filter 24–48 h durchlaufen, dann messen + Analyse.\n\n"
-        f"_Hinweis: der nachfolgende Shock bringt ~{shock_increase * 0.9:.0f} mg/l CYA mit._"
+        f"Aktuell **{cur:.0f} mg/l**, Ziel **{ctx.cya_target:.0f}**.\n\n"
+        f"Dosiere **ca. {pre_dose_g * 0.8:.0f} g {ctx.cya_display}** (80 % Sicherheit).\n\n"
+        "- In Skimmer-Sockel (Nylonsocke) oder Einsatzkorb geben — löst langsam\n"
+        "- Filter **24–48 h** durchlaufen lassen bis vollständig gelöst\n"
+        "- Dann messen + Analyse\n\n"
+        f"_Hinweis: der folgende Shock bringt zusätzlich ~{shock_increase * 0.9:.0f} mg/l CYA mit._"
     )
 
 
 def _fw_cya_satisfied(ctx: WorkflowContext) -> bool:
-    return ctx.cya is not None and ctx.cya >= ctx.cya_target * 0.6
+    return ctx.cya is not None and ctx.is_fresh("cya") and ctx.cya >= ctx.cya_target * 0.6
 
 
-def _fw_calib_redox(_ctx: WorkflowContext) -> str:
+def _fw_cya_summary(ctx: WorkflowContext) -> str:
+    cur = _fmt_val(ctx.cya, "mg/l", 0)
+    return f"CYA {cur} — Ziel **{ctx.cya_target:.0f}** mg/l"
+
+
+def _fw_cl_system_render(_ctx: WorkflowContext) -> str:
     return (
-        "### Redox-Elektrode kalibrieren\n\n"
-        "1. Elektrode in **Redox-Prüflösung 468 mV**\n"
-        "2. An der Anlage kalibrieren\n"
-        "3. Zurück ins Probenwasser\n\n"
-        "Redox-Elektroden driften schneller als pH. Nach Winter oft komplett daneben.\n\n"
-        "**Analyse** wenn fertig."
+        "**Chlor-Dosieranlage in Betrieb nehmen:**\n\n"
+        "1. **Redox-Elektrode** in Prüflösung 468 mV → kalibrieren\n"
+        "2. Elektrode zurück ins Probenwasser\n"
+        "3. **Chlor-Kanister** prüfen (voll? Haltbarkeit?)\n"
+        "4. **Redox-Sollwert 700 mV** setzen\n"
+        "5. Chlor-Dosierung **einschalten**\n\n"
+        "Dosierung pausiert noch, bis FC abbaut. **Analyse** für weiter."
     )
 
 
-def _fw_activate_cl(_ctx: WorkflowContext) -> str:
-    return (
-        "### Chlor-Dosierung aktivieren\n\n"
-        "An der Bayrol-Anlage:\n\n"
-        "- Chlor-Kanister prüfen (voll? Haltbarkeit?)\n"
-        "- **Redox-Sollwert 700 mV**\n"
-        "- Dosierung einschalten — pausiert noch, bis FC abbaut\n\n"
-        "**Analyse** weiter."
-    )
+def _fw_cl_system_summary(_ctx: WorkflowContext) -> str:
+    return "Elektrode kalibrieren + Redox-Sollwert 700 mV + Dosierung an"
 
 
 def _fw_shock_render(ctx: WorkflowContext) -> str:
-    return _shock_render(
-        SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE], "Routine-Shock (Inbetriebnahme)"
-    )(ctx)
+    return _shock_render(SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE], "Routine-Shock")(ctx)
+
+
+def _fw_shock_summary(ctx: WorkflowContext) -> str:
+    fc = _fmt_val(ctx.fc, "mg/l")
+    return f"FC {fc} — Shock-Ziel {SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE]:.0f} mg/l"
 
 
 _fw_shock_satisfied = _shock_satisfied(SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE])
 
 
-def _fw_done(_ctx: WorkflowContext) -> str:
-    return (
-        "### ✅ Inbetriebnahme abgeschlossen\n\n"
-        "Pool ist eingefahren. Ab jetzt Normalbetrieb:\n\n"
-        "- Tägliche PoolLab-Messung\n"
-        "- Analyse durchführen\n"
-        "- Empfehlungen folgen\n\n"
-        "**Wartungsmodus jetzt auf Normalbetrieb setzen.**"
-    )
-
-
 # ---------- workflow definitions ----------
 
 
-def _shock_workflow(target_fc: float, scenario_label: str, include_brush: bool = False) -> list[Step]:
+def _shock_single_step(target_fc: float, scenario_label: str, include_brush: bool = False) -> list[Step]:
     return [
-        Step("measure", "Messen", _render_measurements),
         Step(
-            "dose",
-            "Dosieren & Nachmessen",
+            f"shock_{scenario_label.lower().replace(' ', '_')}",
+            f"{scenario_label} — Dosieren & Nachmessen",
             _shock_render(target_fc, scenario_label, include_brush),
             satisfied=_shock_satisfied(target_fc),
+            summary=_shock_summary(target_fc),
             min_wait_hours=24,
         ),
-        Step("done", "Fertig", _shock_done(target_fc, scenario_label)),
     ]
 
 
 WORKFLOWS: dict[str, list[Step]] = {
     MODE_NORMAL: [Step("normal", "Normalbetrieb", _normal_body)],
-    MODE_SHOCK_ROUTINE: _shock_workflow(SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE], "Shock Routine"),
-    MODE_SHOCK_ALGEN_LEICHT: _shock_workflow(
+    MODE_SHOCK_ROUTINE: _shock_single_step(
+        SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE], "Shock Routine"
+    ),
+    MODE_SHOCK_ALGEN_LEICHT: _shock_single_step(
         SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Shock Algen leicht", include_brush=True
     ),
-    MODE_SHOCK_ALGEN_STARK: _shock_workflow(
+    MODE_SHOCK_ALGEN_STARK: _shock_single_step(
         SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_STARK], "Shock Algen stark", include_brush=True
     ),
-    MODE_SHOCK_SCHWARZALGEN: _shock_workflow(
+    MODE_SHOCK_SCHWARZALGEN: _shock_single_step(
         SHOCK_FC_TARGETS[MODE_SHOCK_SCHWARZALGEN], "Shock Schwarzalgen", include_brush=True
     ),
     MODE_SHOCK_BREAKPOINT: [
-        Step("measure", "Messen", _render_measurements),
         Step(
-            "dose",
-            "Breakpoint-Dosis",
+            "breakpoint",
+            "Breakpoint — Dosieren & Nachmessen",
             _breakpoint_render,
             satisfied=_breakpoint_satisfied,
+            summary=_breakpoint_summary,
             min_wait_hours=24,
         ),
-        Step("done", "Fertig", _shock_done(0, "Breakpoint")),
     ],
     MODE_FRISCHWASSER: [
-        Step("fill", "Befüllen & Filter", _fw_fill_render),
-        Step("measure1", "Erstmessung", _fw_measure_render, satisfied=_measure_step_satisfied),
-        Step("ta", "TA anpassen", _fw_ta_render, satisfied=_fw_ta_satisfied, min_wait_hours=12),
-        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, min_wait_hours=4),
-        Step("calib_ph", "pH-Sonde kalibrieren", _fw_calib_ph),
-        Step("activate_ph", "pH-Dosierung an", _fw_activate_ph),
-        Step("cya", "CYA vor-dosieren", _fw_cya_render, satisfied=_fw_cya_satisfied, min_wait_hours=24),
-        Step("calib_redox", "Redox-Sonde kalibrieren", _fw_calib_redox),
-        Step("activate_cl", "Chlor-Dosierung an", _fw_activate_cl),
-        Step("shock", "Routine-Shock", _fw_shock_render, satisfied=_fw_shock_satisfied, min_wait_hours=24),
-        Step("done", "Fertig", _fw_done),
+        Step("ta", "TA anpassen", _fw_ta_render, satisfied=_fw_ta_satisfied, summary=_fw_ta_summary, min_wait_hours=12),
+        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
+        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
+        Step("cya", "CYA vor-dosieren", _fw_cya_render, satisfied=_fw_cya_satisfied, summary=_fw_cya_summary, min_wait_hours=24),
+        Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
+        Step("shock", "Routine-Shock", _fw_shock_render, satisfied=_fw_shock_satisfied, summary=_fw_shock_summary, min_wait_hours=24),
     ],
     MODE_SAISONSTART: [
-        Step("measure", "Erstmessung", _fw_measure_render, satisfied=_measure_step_satisfied),
         Step(
             "shock",
             "Shock gegen Bio-Last",
-            _shock_render(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Shock Saisonstart", include_brush=True),
+            _shock_render(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Saisonstart-Shock", include_brush=True),
             satisfied=_shock_satisfied(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
+            summary=_shock_summary(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
             min_wait_hours=24,
         ),
-        Step("ph_remeasure", "pH nach Ausgasung prüfen", _fw_measure_render, satisfied=_measure_step_satisfied, min_wait_hours=24),
-        Step("calib_ph", "pH-Sonde kalibrieren", _fw_calib_ph),
-        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, min_wait_hours=4),
-        Step("activate_ph", "pH-Dosierung an", _fw_activate_ph),
-        Step("calib_redox", "Redox-Sonde kalibrieren", _fw_calib_redox),
-        Step("activate_cl", "Chlor-Dosierung an", _fw_activate_cl),
-        Step("done", "Fertig", _fw_done),
+        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
+        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
+        Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
     ],
 }
 
