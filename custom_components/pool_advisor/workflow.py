@@ -247,8 +247,13 @@ def _breakpoint_summary(ctx: WorkflowContext) -> str:
 def _fw_ta_render(ctx: WorkflowContext) -> str:
     if ctx.ta is None or not ctx.any_fresh():
         return (
-            "Voraussetzung: Pool befüllt + Filter 2–4 h gelaufen + PoolLab-Messung.\n\n"
-            "Bitte messen, Werte in HA übertragen und **Analyse** drücken."
+            "**Voraussetzungen:**\n\n"
+            "- Pool befüllt (bei Neuanlage) bzw. Abdeckung ab und sichtlich inspiziert (Saisonstart)\n"
+            "- **Gründliches Rückspülen** des Filters — bei Saisonstart gehen dabei 1–3 m³ "
+            "  altes Wasser raus, TA und CYA können dadurch merklich sinken\n"
+            "- Filter **2–4 h dauerhaft** gelaufen (Mischung + CO₂-Ausgasung)\n"
+            "- PoolLab-Messung: alle 5 Parameter (pH, TA, FC, CC, CYA)\n\n"
+            "Werte in HA übertragen, dann **Analyse** drücken."
         )
     delta = ctx.ta_target - ctx.ta
     if ctx.ta_min <= ctx.ta <= ctx.ta_max:
@@ -430,6 +435,30 @@ def _shock_single_step(target_fc: float, scenario_label: str, include_brush: boo
     ]
 
 
+def _inbetriebnahme_steps(shock_target_fc: float, shock_label: str, include_brush: bool = False) -> list[Step]:
+    """Shared workflow for Frischwasser und Saisonstart.
+
+    Unterschied nur im Shock-Ziel (Frischwasser: Routine 10 mg/l, Saisonstart:
+    Algen-leicht 15 mg/l) und dem Label. Alle anderen Schritte sind identisch
+    — Steps die schon im Zielbereich liegen, advancen einfach durch.
+    """
+    return [
+        Step("ta", "TA anpassen", _fw_ta_render, satisfied=_fw_ta_satisfied, summary=_fw_ta_summary, min_wait_hours=12),
+        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
+        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
+        Step("cya", "CYA vor-dosieren", _fw_cya_render, satisfied=_fw_cya_satisfied, summary=_fw_cya_summary, min_wait_hours=24),
+        Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
+        Step(
+            "shock",
+            shock_label,
+            _shock_render(shock_target_fc, shock_label, include_brush=include_brush),
+            satisfied=_shock_satisfied(shock_target_fc),
+            summary=_shock_summary(shock_target_fc),
+            min_wait_hours=24,
+        ),
+    ]
+
+
 WORKFLOWS: dict[str, list[Step]] = {
     MODE_NORMAL: [Step("normal", "Normalbetrieb", _normal_body)],
     MODE_SHOCK_ROUTINE: _shock_single_step(
@@ -454,35 +483,12 @@ WORKFLOWS: dict[str, list[Step]] = {
             min_wait_hours=24,
         ),
     ],
-    MODE_FRISCHWASSER: [
-        Step("ta", "TA anpassen", _fw_ta_render, satisfied=_fw_ta_satisfied, summary=_fw_ta_summary, min_wait_hours=12),
-        Step("ph", "pH grob", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
-        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
-        Step("cya", "CYA vor-dosieren", _fw_cya_render, satisfied=_fw_cya_satisfied, summary=_fw_cya_summary, min_wait_hours=24),
-        Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
-        Step("shock", "Routine-Shock", _fw_shock_render, satisfied=_fw_shock_satisfied, summary=_fw_shock_summary, min_wait_hours=24),
-    ],
-    MODE_SAISONSTART: [
-        # Reihenfolge bewusst gewählt:
-        # 1. pH grob mit PoolLab einstellen (FC=0 nach Winter → Phenolrot-Reagenz
-        #    ist nicht gebleicht, Messung verlässlich).
-        # 2. pH-Elektrode kalibrieren + Dosierung aktiv — damit steht während der
-        #    FC-Hochphase nach dem Shock eine verlässliche pH-Quelle bereit.
-        # 3. Erst JETZT schocken — mit optimaler pH-Chemie und funktionierender
-        #    Dosierung.
-        # 4. Chlor-System zuletzt — Redox-Elektrode kalibrieren + Dosierung an.
-        Step("ph", "pH grob (vor Shock)", _fw_ph_render, satisfied=_fw_ph_satisfied, summary=_fw_ph_summary, min_wait_hours=4),
-        Step("ph_system", "pH-Dosierung in Betrieb", _fw_ph_system_render, summary=_fw_ph_system_summary),
-        Step(
-            "shock",
-            "Shock gegen Bio-Last",
-            _shock_render(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Saisonstart-Shock", include_brush=True),
-            satisfied=_shock_satisfied(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
-            summary=_shock_summary(SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT]),
-            min_wait_hours=24,
-        ),
-        Step("cl_system", "Chlor-Dosierung in Betrieb", _fw_cl_system_render, summary=_fw_cl_system_summary),
-    ],
+    MODE_FRISCHWASSER: _inbetriebnahme_steps(
+        SHOCK_FC_TARGETS[MODE_SHOCK_ROUTINE], "Routine-Shock"
+    ),
+    MODE_SAISONSTART: _inbetriebnahme_steps(
+        SHOCK_FC_TARGETS[MODE_SHOCK_ALGEN_LEICHT], "Saisonstart-Shock", include_brush=True
+    ),
 }
 
 
