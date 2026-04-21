@@ -110,41 +110,26 @@ DEFAULT_CYA_TARGET: Final = 30.0
 DEFAULT_CYA_WATCH_AT: Final = 50.0
 DEFAULT_CYA_CRITICAL_AT: Final = 75.0
 
-# Workflow / maintenance mode
+# Wartungs-/Kontextmodus
 CONF_WARTUNGSMODUS: Final = "wartungsmodus"
-CONF_WORKFLOW_STEP: Final = "workflow_step"
 
 MODE_NORMAL: Final = "normal"
-MODE_SHOCK_ROUTINE: Final = "shock_routine"
-MODE_SHOCK_ALGEN_LEICHT: Final = "shock_algen_leicht"
-MODE_SHOCK_ALGEN_STARK: Final = "shock_algen_stark"
-MODE_SHOCK_SCHWARZALGEN: Final = "shock_schwarzalgen"
-MODE_SHOCK_BREAKPOINT: Final = "shock_breakpoint"
-MODE_FRISCHWASSER: Final = "frischwasser"
+MODE_WASSERWECHSEL: Final = "wasserwechsel"
 MODE_SAISONSTART: Final = "saisonstart"
+MODE_SCHOCKCHLORUNG: Final = "schockchlorung"
 
 WARTUNGSMODI: Final = [
     MODE_NORMAL,
-    MODE_SHOCK_ROUTINE,
-    MODE_SHOCK_ALGEN_LEICHT,
-    MODE_SHOCK_ALGEN_STARK,
-    MODE_SHOCK_SCHWARZALGEN,
-    MODE_SHOCK_BREAKPOINT,
-    MODE_FRISCHWASSER,
+    MODE_WASSERWECHSEL,
     MODE_SAISONSTART,
+    MODE_SCHOCKCHLORUNG,
 ]
 
-# Shock FC targets per scenario (mg/l absolute)
-SHOCK_FC_TARGETS: Final = {
-    MODE_SHOCK_ROUTINE: 10.0,
-    MODE_SHOCK_ALGEN_LEICHT: 15.0,
-    MODE_SHOCK_ALGEN_STARK: 20.0,
-    MODE_SHOCK_SCHWARZALGEN: 25.0,
-}
-
-# Storage version for persistent workflow state
-STORAGE_VERSION: Final = 1
-STORAGE_KEY_WORKFLOW: Final = f"{DOMAIN}.workflow"
+# Shock-FC-Zielwerte je Szenario (mg/l absolut)
+SHOCK_TARGET_ROUTINE: Final = 10.0
+SHOCK_TARGET_ALGEN_LEICHT: Final = 15.0
+SHOCK_TARGET_ALGEN_STARK: Final = 20.0
+SHOCK_TARGET_SCHWARZALGEN: Final = 25.0
 
 # Redox drift — plausibility check based on FC + pH + CYA
 CONF_REDOX_DRIFT_THRESHOLD: Final = "redox_drift_threshold"

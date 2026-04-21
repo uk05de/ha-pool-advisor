@@ -10,7 +10,6 @@ from homeassistant.const import Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .calculator import (
@@ -22,7 +21,7 @@ from .calculator import (
     recommend_ph,
     recommend_shock,
 )
-from .workflow import WorkflowContext, get_workflow, step_count
+from .workflow import WorkflowContext
 from .const import (
     CHLORINATION_SALT,
     CONF_CC_SHOCK_AT,
@@ -99,8 +98,6 @@ from .const import (
     MODE_NORMAL,
     PRODUCT_LABELS,
     SIGNAL_UPDATE,
-    STORAGE_KEY_WORKFLOW,
-    STORAGE_VERSION,
     WARTUNGSMODI,
 )
 
@@ -178,11 +175,8 @@ class PoolAdvisorData:
         self.manual_snapshot: dict[str, dict[str, Any]] = {}
         self.analysis_at: datetime | None = None
         self._unsub = None
-        # Workflow state
+        # Kontextmodus (Normalbetrieb / Wasserwechsel / Saisonstart / Schockchlorung)
         self.mode: str = MODE_NORMAL
-        self.step_index: int = 0
-        self.step_started_at: datetime | None = None
-        self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_WORKFLOW}.{entry.entry_id}")
 
     # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
@@ -318,16 +312,6 @@ class PoolAdvisorData:
 
     # --- lifecycle ---
     async def async_setup(self) -> None:
-        # Restore workflow state
-        stored = await self._store.async_load()
-        if stored:
-            mode = stored.get("mode", MODE_NORMAL)
-            self.mode = mode if mode in WARTUNGSMODI else MODE_NORMAL
-            self.step_index = int(stored.get("step_index", 0))
-            started_at_raw = stored.get("step_started_at")
-            if started_at_raw:
-                self.step_started_at = dt_util.parse_datetime(started_at_raw)
-
         tracked = [self._cfg(k) for k in AUTO_KEYS if self._cfg(k)]
 
         @callback
@@ -339,75 +323,13 @@ class PoolAdvisorData:
 
         self.run_analysis()
 
-    async def _persist_workflow(self) -> None:
-        await self._store.async_save(
-            {
-                "mode": self.mode,
-                "step_index": self.step_index,
-                "step_started_at": self.step_started_at.isoformat()
-                if self.step_started_at
-                else None,
-            }
-        )
-
     async def async_set_mode(self, mode: str) -> None:
         if mode not in WARTUNGSMODI:
             return
         self.mode = mode
-        self.step_index = 0
-        self.step_started_at = dt_util.utcnow()
-        await self._persist_workflow()
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
-
-    async def async_try_advance_step(self) -> bool:
-        """Called after run_analysis: advance if current step is satisfied.
-        Returns True if advanced."""
-        if self.mode == MODE_NORMAL:
-            return False
-        ctx = self.build_workflow_context()
-        step = self.current_step()
-        if not step.satisfied(ctx):
-            return False
-        steps = get_workflow(self.mode)
-        self.step_index += 1
-        self.step_started_at = dt_util.utcnow()
-        if self.step_index >= len(steps):
-            self.mode = MODE_NORMAL
-            self.step_index = 0
-        await self._persist_workflow()
-        async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
-        return True
-
-    def step_age_hours(self) -> float:
-        if self.step_started_at is None:
-            return 0.0
-        return (dt_util.utcnow() - self.step_started_at).total_seconds() / 3600.0
-
-    def current_step(self):
-        steps = get_workflow(self.mode)
-        if 0 <= self.step_index < len(steps):
-            return steps[self.step_index]
-        return steps[0]
-
-    def _snapshot_measured_at(self, entity_key: str) -> datetime | None:
-        snap = self.manual_snapshot.get(entity_key)
-        if not snap:
-            return None
-        raw = snap.get("measured_at")
-        if isinstance(raw, datetime):
-            return raw
-        if isinstance(raw, str):
-            return dt_util.parse_datetime(raw)
-        return None
 
     def build_workflow_context(self) -> WorkflowContext:
-        measured_at: dict[str, datetime | None] = {
-            "ph_manual": self._snapshot_measured_at(CONF_ENT_PH_MANUAL),
-            "ta": self._snapshot_measured_at(CONF_ENT_ALKALINITY),
-            "fc": self._snapshot_measured_at(CONF_ENT_FREE_CL),
-            "cc": self._snapshot_measured_at(CONF_ENT_COMBINED_CL),
-            "cya": self._snapshot_measured_at(CONF_ENT_CYANURIC),
-        }
         return WorkflowContext(
             volume_m3=float(self._cfg(CONF_POOL_VOLUME_M3, 30.0)),
             ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
@@ -434,9 +356,6 @@ class PoolAdvisorData:
             ph_max=float(self._cfg(CONF_PH_MAX)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
-            step_started_at=self.step_started_at,
-            analysis_at=self.analysis_at,
-            measured_at=measured_at,
         )
 
     async def async_unload(self) -> None:

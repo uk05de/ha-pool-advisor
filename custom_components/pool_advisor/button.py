@@ -1,10 +1,5 @@
-"""Single button: Analyse durchführen.
-
-Captures PoolLab snapshot, recomputes recommendations, and — if a workflow
-is active — evaluates the current step's `satisfied()` check. If satisfied,
-workflow advances by one step; otherwise the step's render reflects the
-fresh measurement (e.g. updated remaining dose).
-"""
+"""Analyse durchführen — einziger Button. Captures PoolLab snapshot,
+recomputes recommendations. Keine Step-Progression mehr."""
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
@@ -56,4 +51,3 @@ class AnalyzeButton(ButtonEntity):
 
     async def async_press(self) -> None:
         self._data.run_analysis()
-        await self._data.async_try_advance_step()

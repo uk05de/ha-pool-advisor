@@ -267,13 +267,9 @@
     "wartungsmodus": {
       "options": {
         "normal": "Normal operation",
-        "shock_routine": "Shock: routine (10 mg/l FC)",
-        "shock_algen_leicht": "Shock: light algae (15 mg/l FC)",
-        "shock_algen_stark": "Shock: heavy algae (20 mg/l FC)",
-        "shock_schwarzalgen": "Shock: black algae (25 mg/l FC)",
-        "shock_breakpoint": "Shock: breakpoint (10× CC)",
-        "frischwasser": "Fresh fill commissioning",
-        "saisonstart": "Season start after winter"
+        "wasserwechsel": "Water change / commissioning",
+        "saisonstart": "Season start after winter",
+        "schockchlorung": "Shock chlorination"
       }
     }
   },

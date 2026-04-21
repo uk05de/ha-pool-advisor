@@ -185,7 +185,7 @@ class DriftPhSensor(_BaseSensor):
 
 
 from .const import MODE_NORMAL
-from .workflow import get_workflow
+from .workflow import MODE_RENDERERS
 
 
 class DriftRedoxSensor(_BaseSensor):
@@ -226,151 +226,34 @@ class DriftRedoxSensor(_BaseSensor):
 ACTION_ICONS = {
     "ok": "✅",
     "watch": "👁",
-    "raise": "⬆",
-    "lower": "⬇",
+    "raise": "⚠",
+    "lower": "⚠",
     "shock": "🚨",
     "calibrate": "🎯",
     "no_data": "❔",
 }
 
-PARAM_TITLES = {
-    "ph": "pH",
-    "alkalinity": "Alkalität",
-    "chlorine": "Chlor",
-    "cya": "Cyanursäure",
-    "calibration": "Drift pH Sonde",
-    "drift_redox": "Drift Redox Sonde",
-}
-
 
 def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
-    steps = get_workflow(data.mode)
-    idx = data.step_index
-    total = len(steps)
-    if idx >= total:
-        idx = 0
+    """Render die passende Markdown-Liste für den aktuellen Modus."""
     ctx = data.build_workflow_context()
-
-    lines: list[str] = [f"## {_mode_title(data.mode)}", ""]
-
-    for i, step in enumerate(steps):
-        nr = i + 1
-        if i < idx:
-            icon = "✅"
-            suffix = ""
-        elif i == idx:
-            icon = "▶"
-            suffix = " _(aktueller Schritt)_"
-        else:
-            icon = "○"
-            suffix = ""
-
-        lines.append(f"{icon} **{nr}. {step.title}**{suffix}")
-
-        # Short one-line summary, shown on ALL steps regardless of state
-        if step.summary is not None:
-            lines.append(f"_{step.summary(ctx)}_")
-
-        if i == idx:
-            # Active step: full body as blockquote for visual grouping
-            body = step.render(ctx)
-            # Soft wait warning — only when user has actually pressed Analyse
-            # during this step (otherwise the warning just nags on entry).
-            age_h = data.step_age_hours()
-            if (
-                step.min_wait_hours > 0
-                and age_h < step.min_wait_hours
-                and ctx.analyzed_during_step()
-            ):
-                body = (
-                    f"⚠ Empfohlene Wartezeit **{step.min_wait_hours} h** — "
-                    f"du bist bei {age_h:.1f} h. Weiter möglich, aber Messung "
-                    "evtl. noch nicht aussagekräftig.\n\n" + body
-                )
-            # Indent every line as blockquote
-            lines.append("")
-            for blk_line in body.split("\n"):
-                lines.append(f"> {blk_line}" if blk_line else ">")
-        lines.append("")
-
-    lines.append("---")
-    lines.append(
-        "➡ **Analyse durchführen** drücken. Ziel erreicht → automatisch weiter, "
-        "sonst wird die Empfehlung aktualisiert."
-    )
-    return "\n".join(lines)
-
-
-def _mode_title(mode: str) -> str:
-    return {
-        "normal": "Normalbetrieb",
-        "shock_routine": "Shock Routine",
-        "shock_algen_leicht": "Shock Algen leicht",
-        "shock_algen_stark": "Shock Algen stark",
-        "shock_schwarzalgen": "Shock Schwarzalgen",
-        "shock_breakpoint": "Shock Breakpoint",
-        "frischwasser": "Erstbefüllung Frischwasser",
-        "saisonstart": "Saisonstart nach Winter",
-    }.get(mode, mode)
+    renderer = MODE_RENDERERS.get(data.mode)
+    if renderer is None:
+        renderer = MODE_RENDERERS[MODE_NORMAL]
+    return renderer(ctx, data.recommendations)
 
 
 def _build_markdown(data: "PoolAdvisorData") -> str:
-    # When a maintenance workflow is active, that drives the summary.
-    if data.mode != MODE_NORMAL:
-        return _build_workflow_markdown(data)
-
-    lines: list[str] = ["## Pool-Empfehlung", ""]
+    """Renders the full markdown summary via the mode-specific renderer."""
+    body = _build_workflow_markdown(data)
     if data.analysis_at is not None:
         local = data.analysis_at.astimezone()
-        lines.append(f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*")
-        lines.append("")
-
-    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
-        rec = data.recommendations.get(key)
-        if rec is None:
-            continue
-        icon = ACTION_ICONS.get(rec.action, "")
-        title = PARAM_TITLES[key]
-
-        if rec.action == "ok":
-            lines.append(f"### {icon} {title}: OK")
-            lines.append(rec.reason)
-        elif rec.action == "no_data":
-            lines.append(f"### {icon} {title}: Keine Daten")
-            lines.append(rec.reason)
-        elif rec.action == "watch":
-            lines.append(f"### {icon} {title}: Beobachten")
-            lines.append(rec.reason)
-            if rec.note:
-                lines.append("")
-                lines.append(f"> {rec.note}")
-        elif rec.action == "calibrate":
-            lines.append(f"### {icon} {title}: Kalibrierung prüfen")
-            lines.append(rec.reason)
-            if rec.note:
-                lines.append("")
-                lines.append(f"> {rec.note}")
-        else:
-            # raise / lower / shock
-            label = {"raise": "Erhöhen", "lower": "Senken", "shock": "Shock"}[rec.action]
-            lines.append(f"### {icon} {title}: {label}")
-            lines.append(rec.reason)
-            if rec.steps:
-                lines.append("")
-                step_no = 1
-                for s in rec.steps:
-                    lines.append(f"{step_no}. **{s.amount:g} {s.unit}** {s.product}")
-                    step_no += 1
-                    if s.wait_hours > 0:
-                        lines.append(f"{step_no}. ⏳ **{s.wait_hours} h warten**, Filter laufen lassen, durchmischen")
-                        step_no += 1
-                lines.append(f"{step_no}. 📏 Neu messen vor weiterer Aktion")
-            if rec.note:
-                lines.append("")
-                lines.append(f"> {rec.note}")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
+        header = f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*\n\n"
+        # Insert after the first heading line
+        parts = body.split("\n", 1)
+        if len(parts) == 2:
+            return parts[0] + "\n\n" + header + parts[1]
+    return body
 
 
 class MarkdownSummarySensor(_BaseSensor):
