@@ -46,7 +46,7 @@
           "fc_target": "Freies Chlor Ziel (mg/l)",
           "fc_max": "Freies Chlor max (mg/l)",
           "cc_max": "Gebundenes Chlor max (mg/l)",
-          "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
+          "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
           "redox_max": "Redox max (mV)",
@@ -55,6 +55,9 @@
           "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
           "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
+          "cya_target": "Cyanursäure Ziel (mg/l)",
+          "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
+          "cya_critical_at": "Cyanursäure kritisch ab (mg/l)",
           "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
           "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
           "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
@@ -81,7 +84,10 @@
           "routine_cl_strength": "Routine-Chlor Stärke (%)",
           "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
           "shock_type": "Shock-Chlor Wirkstoff",
-          "shock_strength": "Shock-Chlor Stärke (%)"
+          "shock_strength": "Shock-Chlor Stärke (%)",
+          "cya_name": "Cyanursäure Produktname",
+          "cya_type": "Cyanursäure Wirkstoff",
+          "cya_strength": "Cyanursäure Stärke (%)"
         }
       },
       "dosing": {
@@ -166,7 +172,7 @@
           "fc_target": "Freies Chlor Ziel (mg/l)",
           "fc_max": "Freies Chlor max (mg/l)",
           "cc_max": "Gebundenes Chlor max (mg/l)",
-          "cc_shock_at": "Shock ab (gebund. Cl, mg/l)",
+          "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)",
           "redox_min": "Redox min (mV)",
           "redox_target": "Redox Ziel (mV)",
           "redox_max": "Redox max (mV)",
@@ -175,6 +181,9 @@
           "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
           "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
+          "cya_target": "Cyanursäure Ziel (mg/l)",
+          "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
+          "cya_critical_at": "Cyanursäure kritisch ab (mg/l)",
           "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
           "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
           "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
@@ -200,7 +209,10 @@
           "routine_cl_strength": "Routine-Chlor Stärke (%)",
           "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
           "shock_type": "Shock-Chlor Wirkstoff",
-          "shock_strength": "Shock-Chlor Stärke (%)"
+          "shock_strength": "Shock-Chlor Stärke (%)",
+          "cya_name": "Cyanursäure Produktname",
+          "cya_type": "Cyanursäure Wirkstoff",
+          "cya_strength": "Cyanursäure Stärke (%)"
         }
       },
       "dosing": {

@@ -55,6 +55,9 @@
           "ta_critical_low": "TA critical low (mg/l)",
           "ta_critical_high": "TA critical high (mg/l)",
           "fc_critical_low": "Free Cl critical low (mg/l)",
+          "cya_target": "Cyanuric acid target (mg/l)",
+          "cya_watch_at": "Cyanuric acid watch at (mg/l)",
+          "cya_critical_at": "Cyanuric acid critical at (mg/l)",
           "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
           "redox_drift_threshold": "Redox drift threshold (mV)",
           "stale_ta_days": "Alkalinity — reading stale after (days)",
@@ -81,7 +84,10 @@
           "routine_cl_strength": "Routine chlorine strength (%)",
           "shock_name": "Shock chlorine product name",
           "shock_type": "Shock chlorine active compound",
-          "shock_strength": "Shock chlorine strength (%)"
+          "shock_strength": "Shock chlorine strength (%)",
+          "cya_name": "Cyanuric acid product name",
+          "cya_type": "Cyanuric acid active compound",
+          "cya_strength": "Cyanuric acid strength (%)"
         }
       },
       "dosing": {
@@ -175,6 +181,9 @@
           "ta_critical_low": "TA critical low (mg/l)",
           "ta_critical_high": "TA critical high (mg/l)",
           "fc_critical_low": "Free Cl critical low (mg/l)",
+          "cya_target": "Cyanuric acid target (mg/l)",
+          "cya_watch_at": "Cyanuric acid watch at (mg/l)",
+          "cya_critical_at": "Cyanuric acid critical at (mg/l)",
           "ph_calibration_threshold": "pH drift threshold",
           "redox_drift_threshold": "Redox drift threshold (mV)",
           "stale_ta_days": "Alkalinity — reading stale after (days)",
@@ -200,7 +209,10 @@
           "routine_cl_strength": "Routine chlorine strength (%)",
           "shock_name": "Shock chlorine product name",
           "shock_type": "Shock chlorine active compound",
-          "shock_strength": "Shock chlorine strength (%)"
+          "shock_strength": "Shock chlorine strength (%)",
+          "cya_name": "Cyanuric acid product name",
+          "cya_type": "Cyanuric acid active compound",
+          "cya_strength": "Cyanuric acid strength (%)"
         }
       },
       "dosing": {
