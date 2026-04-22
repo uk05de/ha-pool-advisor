@@ -263,10 +263,21 @@ def recommend_alkalinity(
     )
 
 
+def _cl_values_summary(
+    free_cl: float | None, combined_cl: float | None, total_cl: float | None
+) -> str:
+    parts: list[str] = []
+    parts.append(f"FC {free_cl:.2f}" if free_cl is not None else "FC —")
+    parts.append(f"CC {combined_cl:.2f}" if combined_cl is not None else "CC —")
+    parts.append(f"TC {total_cl:.2f}" if total_cl is not None else "TC —")
+    return " / ".join(parts) + " mg/l"
+
+
 def recommend_shock(
     *,
     combined_cl: float | None,
     free_cl: float | None,
+    total_cl: float | None,
     fc_min: float,
     fc_max: float,
     fc_target: float,
@@ -296,7 +307,8 @@ def recommend_shock(
       3. Free Cl between fc_critical_low and fc_min → "watch" (no dose), let
          the auto-dosing system correct it.
     """
-    if combined_cl is None and free_cl is None:
+    values = _cl_values_summary(free_cl, combined_cl, total_cl)
+    if combined_cl is None and free_cl is None and total_cl is None:
         return Recommendation(action="no_data", steps=(), reason="Keine Chlor-Messwerte vorhanden")
 
     # 1. Shock case — always uses the configured SHOCK product
@@ -311,7 +323,7 @@ def recommend_shock(
             max_dose_fraction=max_dose_fraction,
             interval_h=interval_h,
             action="shock",
-            reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l — Breakpoint-Dosierung",
+            reason=f"{values} — Breakpoint-Dosierung (CC > {cc_shock_at:.2f})",
         )
         if chlorination_is_salt:
             rec = _append_note(
@@ -334,13 +346,13 @@ def recommend_shock(
                 max_dose_fraction=max_dose_fraction,
                 interval_h=interval_h,
                 action="raise",
-                reason=f"Freies Chlor {free_cl:.2f} mg/l kritisch niedrig — Ziel {fc_target:.2f}",
+                reason=f"{values} — FC kritisch niedrig (Ziel {fc_target:.2f})",
             )
         else:
             rec = Recommendation(
                 action="raise",
                 steps=(),
-                reason=f"Freies Chlor {free_cl:.2f} mg/l kritisch niedrig — Ziel {fc_target:.2f}",
+                reason=f"{values} — FC kritisch niedrig (Ziel {fc_target:.2f})",
                 delta=fc_target - free_cl,
                 note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
             )
@@ -363,7 +375,7 @@ def recommend_shock(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"Freies Chlor {free_cl:.2f} mg/l leicht unter {fc_min:.2f} — beobachten",
+            reason=f"{values} — FC leicht unter {fc_min:.2f}, beobachten",
             delta=fc_target - free_cl,
             note=(
                 "Dosieranlage sollte selbst nachregeln." if (chlorination_is_salt or has_auto_dosing)
@@ -390,7 +402,7 @@ def recommend_shock(
             return Recommendation(
                 action="watch",
                 steps=(),
-                reason=f"Freies Chlor {free_cl:.2f} mg/l auf Shock-Niveau — definitiv nicht baden",
+                reason=f"{values} — FC auf Shock-Niveau, definitiv nicht baden",
                 delta=free_cl - fc_max,
                 note=("Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
                       "Filter + UV + Zeit reichen." + decay_note),
@@ -399,14 +411,14 @@ def recommend_shock(
             return Recommendation(
                 action="watch",
                 steps=(),
-                reason=f"Freies Chlor {free_cl:.2f} mg/l deutlich überdosiert — nicht baden",
+                reason=f"{values} — FC deutlich überdosiert, nicht baden",
                 delta=free_cl - fc_max,
                 note=("Anlage pausiert Dosierung. Filter + UV + Zeit." + decay_note),
             )
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"Freies Chlor {free_cl:.2f} mg/l leicht über {fc_max:.2f} — Anlage pausiert, klingt ab",
+            reason=f"{values} — FC leicht über {fc_max:.2f}, Anlage pausiert, klingt ab",
             delta=free_cl - fc_max,
         )
 
@@ -415,21 +427,19 @@ def recommend_shock(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l über {cc_max:.2f} — beobachten",
+            reason=f"{values} — CC über {cc_max:.2f}, beobachten",
             delta=combined_cl - cc_max,
             note=(
                 f"Wenn CC nicht unter {cc_max:.2f} fällt: Breakpoint-Modus erwägen."
             ),
         )
 
-    fc_text = f"FC {free_cl:.2f} mg/l" if free_cl is not None else "FC —"
-    cc_text = f"CC {combined_cl:.2f} mg/l" if combined_cl is not None else "CC —"
     return Recommendation(
         action="ok",
         steps=(),
         reason=(
-            f"{fc_text} (Ziel {fc_target:.2f}, Bereich {fc_min:.2f}–{fc_max:.2f}) / "
-            f"{cc_text} (max {cc_max:.2f}, Shock ab {cc_shock_at:.2f})"
+            f"{values} — Ziel-FC {fc_target:.2f} (Bereich {fc_min:.2f}–{fc_max:.2f}), "
+            f"CC max {cc_max:.2f}, Shock ab {cc_shock_at:.2f}"
         ),
     )
 

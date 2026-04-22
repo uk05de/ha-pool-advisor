@@ -428,6 +428,7 @@ class PoolAdvisorData:
         cl_rec = recommend_shock(
             combined_cl=self._manual_value(CONF_ENT_COMBINED_CL),
             free_cl=self._manual_value(CONF_ENT_FREE_CL),
+            total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
             fc_min=float(self._cfg(CONF_FC_MIN)),
             fc_max=float(self._cfg(CONF_FC_MAX)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
