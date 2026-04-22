@@ -290,44 +290,41 @@ def _colored(value: str, color: str) -> str:
 # --- Swim-Safety ---
 
 
-def _swim_safety_check(ctx: WorkflowContext) -> tuple[bool, set[str]]:
-    """Returns (is_safe, keys_that_are_swim_blocking).
-
-    Die claimed-Keys werden von _non_swim_warnings ausgeschlossen, damit
-    nichts doppelt als Bade-Alert UND Warning-Alert angezeigt wird. Die
-    genauen Gründe stehen ohnehin als Farbe in der Messwerte-Tabelle und
-    als blauer Action-Alert.
+def _swim_safety_check(ctx: WorkflowContext) -> bool:
+    """True wenn Baden aktuell sicher. Nur der generische Bade-Status;
+    Detail-Infos kommen aus gelben Warnungen + Messwerte-Tabelle.
     """
-    claimed: set[str] = set()
     ph = _eff_ph(ctx)
     if ctx.fc is not None and (ctx.fc > 3.0 or ctx.fc < 0.3):
-        claimed.add("chlorine")
+        return False
     if ctx.cc is not None and ctx.cc > 0.5:
-        claimed.add("chlorine")
+        return False
     if ph is not None and (ph < 6.8 or ph > 7.8):
-        claimed.add("ph")
+        return False
     if ctx.cya is not None and ctx.cya > 100:
-        claimed.add("cya")
-    return len(claimed) == 0, claimed
+        return False
+    return True
 
 
-def _non_swim_warnings(
+def _param_warnings(
     ctx: WorkflowContext,
     recs: dict[str, Recommendation],
-    claimed: set[str],
 ) -> list[str]:
-    """Sammelt Nicht-Bade-blockierende Baustellen. Keys in `claimed` werden
-    übersprungen, weil sie schon als rote Swim-Block-Alerts erscheinen."""
+    """Gelbe Parameter-Warnungen aus allen aktiven Recommendations.
+
+    Jeder Parameter mit action != ok/no_data erzeugt einen Warning-Alert
+    mit der spezifischen Reason-Zeile. Doppelungen zum roten Bade-Alert
+    gibt es nicht, weil der nur generisch "Nicht baden" sagt.
+    """
     warnings: list[str] = []
     for key, label in (
         ("ph", "pH"),
         ("alkalinity", "Alkalität"),
+        ("chlorine", "Chlor"),
         ("cya", "Cyanursäure"),
         ("calibration", "Drift pH Sonde"),
         ("drift_redox", "Drift Redox Sonde"),
     ):
-        if key in claimed:
-            continue
         rec = recs.get(key)
         if rec is None or rec.action in ("ok", "no_data"):
             continue
@@ -631,8 +628,8 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
 def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     lines: list[str] = ["## Pool-Empfehlung", ""]
 
-    # 1. Alerts — Bade-Status als einziger roter Alert (Details siehe Tabelle)
-    is_safe, claimed = _swim_safety_check(ctx)
+    # 1. Alerts — Bade-Status als einziger roter Alert
+    is_safe = _swim_safety_check(ctx)
     if not is_safe:
         lines.append(
             '<ha-alert alert-type="error">Nicht baden — Werte außerhalb Bade-Bereich!</ha-alert>'
@@ -644,7 +641,8 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         )
         lines.append("")
 
-    for w in _non_swim_warnings(ctx, recs, claimed):
+    # Gelbe Parameter-Warnungen für alle nicht-OK-Parameter
+    for w in _param_warnings(ctx, recs):
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
         lines.append("")
 
