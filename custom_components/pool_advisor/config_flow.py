@@ -16,7 +16,7 @@ from .const import (
     CONF_PH_DOSING,
     DEFAULT_PH_DOSING,
     PH_DOSING_CHOICES,
-    CONF_CC_SHOCK_AT,
+    CONF_CC_CRITICAL_HIGH,
     CONF_CHLORINATION,
     CONF_ENT_ALKALINITY,
     CONF_ENT_COMBINED_CL,
@@ -27,6 +27,7 @@ from .const import (
     CONF_ENT_REDOX,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
+    CONF_FC_CRITICAL_HIGH,
     CONF_FC_CRITICAL_LOW,
     CONF_FC_MAX,
     CONF_FC_MIN,
@@ -45,6 +46,8 @@ from .const import (
     CONF_PH_PLUS_TYPE,
     CONF_PH_TARGET,
     CONF_POOL_VOLUME_M3,
+    CONF_REDOX_CRITICAL_HIGH,
+    CONF_REDOX_CRITICAL_LOW,
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
     CONF_REDOX_TARGET,
@@ -62,12 +65,14 @@ from .const import (
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
-    CONF_CYA_CRITICAL_AT,
+    CONF_CYA_CRITICAL_HIGH,
+    CONF_CYA_CRITICAL_LOW,
+    CONF_CYA_MAX,
+    CONF_CYA_MIN,
     CONF_CYA_NAME,
     CONF_CYA_STRENGTH,
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
-    CONF_CYA_WATCH_AT,
     CONF_REDOX_DRIFT_THRESHOLD,
     CONF_TEST_ALKALINITY,
     CONF_TEST_COMBINED_CL,
@@ -84,7 +89,8 @@ from .const import (
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
     DEFAULT_CC_MAX,
-    DEFAULT_CC_SHOCK_AT,
+    DEFAULT_CC_CRITICAL_HIGH,
+    DEFAULT_FC_CRITICAL_HIGH,
     DEFAULT_FC_CRITICAL_LOW,
     DEFAULT_FC_MAX_CLASSIC,
     DEFAULT_FC_MAX_SALT,
@@ -98,6 +104,8 @@ from .const import (
     DEFAULT_PH_MAX,
     DEFAULT_PH_MIN,
     DEFAULT_PH_TARGET,
+    DEFAULT_REDOX_CRITICAL_HIGH,
+    DEFAULT_REDOX_CRITICAL_LOW,
     DEFAULT_REDOX_MAX,
     DEFAULT_REDOX_MIN,
     DEFAULT_REDOX_TARGET,
@@ -109,10 +117,12 @@ from .const import (
     CYA_CHOICES,
     CYA_PURE,
     DEFAULT_REDOX_DRIFT_THRESHOLD,
-    DEFAULT_CYA_CRITICAL_AT,
+    DEFAULT_CYA_CRITICAL_HIGH,
+    DEFAULT_CYA_CRITICAL_LOW,
+    DEFAULT_CYA_MAX,
+    DEFAULT_CYA_MIN,
     DEFAULT_CYA_STRENGTH,
     DEFAULT_CYA_TARGET,
-    DEFAULT_CYA_WATCH_AT,
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DEFAULT_TA_MAX,
@@ -233,9 +243,11 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
     cya_section = section(
         vol.Schema(
             {
+                vol.Required(CONF_CYA_MIN, default=_dv(CONF_CYA_MIN, DEFAULT_CYA_MIN)): _number(0, 100, 1),
                 vol.Required(CONF_CYA_TARGET, default=_dv(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)): _number(10, 100, 5),
-                vol.Required(CONF_CYA_WATCH_AT, default=_dv(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)): _number(20, 200, 5),
-                vol.Required(CONF_CYA_CRITICAL_AT, default=_dv(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)): _number(30, 200, 5),
+                vol.Required(CONF_CYA_MAX, default=_dv(CONF_CYA_MAX, DEFAULT_CYA_MAX)): _number(20, 200, 5),
+                vol.Required(CONF_CYA_CRITICAL_LOW, default=_dv(CONF_CYA_CRITICAL_LOW, DEFAULT_CYA_CRITICAL_LOW)): _number(0, 100, 1),
+                vol.Required(CONF_CYA_CRITICAL_HIGH, default=_dv(CONF_CYA_CRITICAL_HIGH, DEFAULT_CYA_CRITICAL_HIGH)): _number(30, 200, 5),
             }
         ),
         {"collapsed": True},
@@ -247,6 +259,7 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 vol.Required(CONF_FC_TARGET, default=_dv(CONF_FC_TARGET, DEFAULT_FC_TARGET_SALT)): _number(0.0, 10.0, 0.1),
                 vol.Required(CONF_FC_MAX, default=_dv(CONF_FC_MAX, DEFAULT_FC_MAX_SALT)): _number(0.0, 10.0, 0.1),
                 vol.Required(CONF_FC_CRITICAL_LOW, default=_dv(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)): _number(0.0, 5.0, 0.05),
+                vol.Required(CONF_FC_CRITICAL_HIGH, default=_dv(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH)): _number(1.0, 20.0, 0.5),
             }
         ),
         {"collapsed": True},
@@ -255,7 +268,7 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
         vol.Schema(
             {
                 vol.Required(CONF_CC_MAX, default=_dv(CONF_CC_MAX, DEFAULT_CC_MAX)): _number(0.0, 5.0, 0.05),
-                vol.Required(CONF_CC_SHOCK_AT, default=_dv(CONF_CC_SHOCK_AT, DEFAULT_CC_SHOCK_AT)): _number(0.0, 5.0, 0.05),
+                vol.Required(CONF_CC_CRITICAL_HIGH, default=_dv(CONF_CC_CRITICAL_HIGH, DEFAULT_CC_CRITICAL_HIGH)): _number(0.0, 5.0, 0.05),
             }
         ),
         {"collapsed": True},
@@ -266,6 +279,8 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 vol.Required(CONF_REDOX_MIN, default=_dv(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)): _number(400, 900, 5),
                 vol.Required(CONF_REDOX_TARGET, default=_dv(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)): _number(400, 900, 5),
                 vol.Required(CONF_REDOX_MAX, default=_dv(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)): _number(400, 900, 5),
+                vol.Required(CONF_REDOX_CRITICAL_LOW, default=_dv(CONF_REDOX_CRITICAL_LOW, DEFAULT_REDOX_CRITICAL_LOW)): _number(300, 900, 5),
+                vol.Required(CONF_REDOX_CRITICAL_HIGH, default=_dv(CONF_REDOX_CRITICAL_HIGH, DEFAULT_REDOX_CRITICAL_HIGH)): _number(500, 1000, 5),
             }
         ),
         {"collapsed": True},
@@ -444,7 +459,7 @@ def _schema_testmodus(defaults: dict[str, Any]) -> vol.Schema:
 class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Initial config flow."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}

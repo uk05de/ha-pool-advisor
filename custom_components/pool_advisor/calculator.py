@@ -373,8 +373,9 @@ def recommend_shock(
     fc_max: float,
     fc_target: float,
     fc_critical_low: float,
+    fc_critical_high: float,
     cc_max: float,
-    cc_shock_at: float,
+    cc_critical_high: float,
     volume_m3: float,
     routine_type: str | None,
     routine_strength_pct: float,
@@ -390,7 +391,7 @@ def recommend_shock(
     """Shock / chlorine correction.
 
     Three-tier behavior:
-      1. Combined Cl above cc_shock_at → Shock (breakpoint) with *shock* product.
+      1. Combined Cl above cc_critical_high → Shock (breakpoint) with *shock* product.
       2. Free Cl below fc_critical_low → active Raise with *routine* product
          (if configured, else note-only with auto-dosing hint).
       3. Free Cl between fc_critical_low and fc_min → "watch" (no dose), let
@@ -401,7 +402,7 @@ def recommend_shock(
         return Recommendation(action="no_data", steps=(), reason="Keine Chlor-Messwerte vorhanden")
 
     # 1. Shock case — always uses the configured SHOCK product
-    if combined_cl is not None and combined_cl >= cc_shock_at:
+    if combined_cl is not None and combined_cl >= cc_critical_high:
         need_fc_mg_per_l = combined_cl * SHOCK_FC_MULTIPLIER
         rec = _build_cl_dose(
             target_fc_increase=need_fc_mg_per_l,
@@ -410,7 +411,7 @@ def recommend_shock(
             shock_strength_pct=shock_strength_pct,
             shock_display=shock_display,
             action="shock",
-            reason=f"{values} — Breakpoint-Dosierung (CC > {cc_shock_at:.2f})",
+            reason=f"{values} — Breakpoint-Dosierung (CC > {cc_critical_high:.2f})",
         )
         if chlorination_is_salt:
             rec = _append_note(
@@ -468,43 +469,41 @@ def recommend_shock(
             ),
         )
 
-    # 4. Free Cl too high — three severity zones, never dose down (Zeit + Filter)
+    # 4. Free Cl too high
     if free_cl is not None and free_cl > fc_max:
+        # Decay-Schätzung bis fc_max
         decay_note = ""
-        if free_cl > 3.0:
-            hours = estimate_fc_decay_hours(
-                fc_current=free_cl, fc_target=3.0, cya=cya, water_temp_c=water_temp
-            )
-            if hours is not None and hours > 0:
-                lo_d = hours * 0.75 / 24
-                hi_d = hours * 1.25 / 24
-                if hi_d < 1.5:
-                    range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
-                else:
-                    range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
-                decay_note = f" ⏳ Geschätzt **~{range_str}** bis FC ≤ 3 (Filter an, Abdeckung ab)."
-        if free_cl > 10:
+        hours = estimate_fc_decay_hours(
+            fc_current=free_cl, fc_target=fc_max, cya=cya, water_temp_c=water_temp
+        )
+        if hours is not None and hours > 0:
+            lo_d = hours * 0.75 / 24
+            hi_d = hours * 1.25 / 24
+            if hi_d < 1.5:
+                range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
+            else:
+                range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
+            decay_note = f" ⏳ Geschätzt **~{range_str}** bis FC ≤ {fc_max:.1f} (Filter an, Abdeckung ab)."
+
+        # Oberhalb critical_high: nicht baden, aktive Warnung
+        if free_cl > fc_critical_high:
             return Recommendation(
-                action="watch",
-                steps=(),
-                reason=f"{values} — FC auf Shock-Niveau, definitiv nicht baden",
-                delta=free_cl - fc_max,
-                note=("Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
-                      "Filter + UV + Zeit reichen." + decay_note),
-            )
-        if free_cl > 3.0:
-            return Recommendation(
-                action="watch",
+                action="lower",
                 steps=(),
                 reason=f"{values} — FC zu hoch — nicht baden",
                 delta=free_cl - fc_max,
-                note=("Anlage pausiert Dosierung. Filter + UV + Zeit." + decay_note),
+                note=(
+                    "Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
+                    "Filter + UV + Zeit reichen." + decay_note
+                ),
             )
+        # Zwischen fc_max und critical_high: harmlos, klingt ab
         return Recommendation(
             action="watch",
             steps=(),
             reason=f"{values} — FC hoch — Anlage pausiert, klingt ab",
             delta=free_cl - fc_max,
+            note=(decay_note.strip() if decay_note else None),
         )
 
     # 5. Combined Cl elevated but below shock threshold
@@ -524,7 +523,7 @@ def recommend_shock(
         steps=(),
         reason=(
             f"{values} — Ziel-FC {fc_target:.2f} (Bereich {fc_min:.2f}–{fc_max:.2f}), "
-            f"CC max {cc_max:.2f}, Shock ab {cc_shock_at:.2f}"
+            f"CC max {cc_max:.2f}, Shock ab {cc_critical_high:.2f}"
         ),
     )
 
@@ -538,43 +537,75 @@ def recommend_cya(
     *,
     current: float | None,
     target: float,
-    watch_at: float,
-    critical_at: float,
+    cya_min: float,
+    cya_max: float,
+    critical_low: float,
+    critical_high: float,
     volume_m3: float,
     cya_display: str,
     cya_strength_pct: float,
 ) -> Recommendation:
-    """Evaluate CYA level. Provides a concrete dose when under target (with 80%
-    safety buffer), and flags partial-water-exchange when over critical.
-    CYA cannot be lowered chemically."""
+    """Evaluate CYA level. Mirrors the pH/TA semantic but without auto-correction
+    (no CYA dosing system exists): inside [min, max] is ok, outside but not
+    critical is 'watch', past the critical thresholds gets an active dose /
+    water-exchange recommendation.
+
+    critical_low = 0 disables the low-criticality warning (acceptable because
+    too-little CYA is never a safety issue, only inefficient chlorination).
+    """
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Keine CYA-Messung vorhanden")
-    if current < target * 0.6:
-        delta = target - current
-        # 1 mg/l × 1 m³ = 1 g pure CYA; account for product strength, apply 80% buffer
-        pure_g = delta * volume_m3
-        product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
-        step = DoseStep(
-            amount=round(product_g, 0),
-            unit="g",
-            product=cya_display,
-            wait_hours=48,
-        )
-        rec = Recommendation(
-            action="raise",
-            steps=(step,),
-            reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
-            delta=delta,
-            note=(
-                "Menge = 80 % der Rechnung als Sicherheitspuffer. "
-                "Einmalige Aktion: CYA baut nicht ab."
+    if cya_min <= current <= cya_max:
+        return Recommendation(
+            action="ok",
+            steps=(),
+            reason=(
+                f"{current:.0f} mg/l "
+                f"(Ziel {target:.0f}, Bereich {cya_min:.0f}–{cya_max:.0f})"
             ),
         )
-        method = _method_hint("cyanuric_acid")
-        if method:
-            rec = _append_note(rec, method)
-        return rec
-    if current >= critical_at:
+
+    # Too low — soft warning between critical_low and cya_min, active dose below critical_low
+    if current < cya_min:
+        delta = target - current
+        # critical_low > 0 und current darunter → aktiv dosieren. Sonst nur watch.
+        if critical_low > 0 and current < critical_low:
+            pure_g = delta * volume_m3
+            product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
+            step = DoseStep(
+                amount=round(product_g, 0),
+                unit="g",
+                product=cya_display,
+                wait_hours=48,
+            )
+            rec = Recommendation(
+                action="raise",
+                steps=(step,),
+                reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
+                delta=delta,
+                note=(
+                    "Menge = 80 % der Rechnung als Sicherheitspuffer. "
+                    "Einmalige Aktion: CYA baut nicht ab."
+                ),
+            )
+            method = _method_hint("cyanuric_acid")
+            if method:
+                rec = _append_note(rec, method)
+            return rec
+        # Watch-Zone zwischen critical_low und min
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=f"{current:.0f} mg/l niedrig — Ziel {target:.0f}",
+            delta=delta,
+            note=(
+                "Stabilisator unter Zielbereich: Chlor wird durch UV schneller "
+                "abgebaut, Dosierung effizient halten durch CYA-Nachlegen."
+            ),
+        )
+
+    # current > cya_max — watch zone or active water-exchange
+    if current >= critical_high:
         return Recommendation(
             action="lower",
             steps=(),
@@ -585,21 +616,12 @@ def recommend_cya(
                 "auf Flüssig-Chlor (NaOCl) oder Calciumhypochlorit umstellen."
             ),
         )
-    if current >= watch_at:
-        return Recommendation(
-            action="watch",
-            steps=(),
-            reason=f"{current:.0f} mg/l hoch — beobachten",
-            delta=current - target,
-            note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
-        )
     return Recommendation(
-        action="ok",
+        action="watch",
         steps=(),
-        reason=(
-            f"{current:.0f} mg/l "
-            f"(Ziel {target:.0f}, Watch ab {watch_at:.0f}, kritisch ab {critical_at:.0f})"
-        ),
+        reason=f"{current:.0f} mg/l hoch — Ziel {target:.0f}",
+        delta=current - target,
+        note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
     )
 
 

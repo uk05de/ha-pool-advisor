@@ -69,11 +69,13 @@ CONF_FC_MAX: Final = "fc_max"
 CONF_FC_TARGET: Final = "fc_target"
 
 CONF_CC_MAX: Final = "cc_max"
-CONF_CC_SHOCK_AT: Final = "cc_shock_at"
+CONF_CC_CRITICAL_HIGH: Final = "cc_critical_high"
 
 CONF_REDOX_MIN: Final = "redox_min"
 CONF_REDOX_MAX: Final = "redox_max"
 CONF_REDOX_TARGET: Final = "redox_target"
+CONF_REDOX_CRITICAL_LOW: Final = "redox_critical_low"
+CONF_REDOX_CRITICAL_HIGH: Final = "redox_critical_high"
 
 # Critical thresholds (outside which active intervention is recommended;
 # between normal min/max and critical the advisor only says "beobachten")
@@ -82,12 +84,20 @@ CONF_PH_CRITICAL_HIGH: Final = "ph_critical_high"
 CONF_TA_CRITICAL_LOW: Final = "ta_critical_low"
 CONF_TA_CRITICAL_HIGH: Final = "ta_critical_high"
 CONF_FC_CRITICAL_LOW: Final = "fc_critical_low"
+CONF_FC_CRITICAL_HIGH: Final = "fc_critical_high"
 
 DEFAULT_PH_CRITICAL_LOW = 6.8
 DEFAULT_PH_CRITICAL_HIGH = 7.7
 DEFAULT_TA_CRITICAL_LOW = 60.0
 DEFAULT_TA_CRITICAL_HIGH = 150.0
 DEFAULT_FC_CRITICAL_LOW = 0.2
+DEFAULT_FC_CRITICAL_HIGH = 5.0
+
+# FC/CYA-Verhältnis-Schwellen (TFP-Guideline, chemie-hart)
+# Zu niedrig: Chlor wird von CYA gebunden, Sanitation leidet
+# Zu hoch (Richtung SLAM-Level): Reizung relativ zum CYA-Puffer
+FC_CYA_RATIO_MIN: Final = 0.05
+FC_CYA_RATIO_HIGH: Final = 0.40
 
 # Chemicals
 CONF_PH_MINUS_TYPE: Final = "ph_minus_type"
@@ -116,12 +126,16 @@ CYA_CHOICES: Final = [CYA_PURE]
 DEFAULT_CYA_STRENGTH: Final = 99.0
 
 # CYA targets & warning thresholds
+CONF_CYA_MIN: Final = "cya_min"
 CONF_CYA_TARGET: Final = "cya_target"
-CONF_CYA_WATCH_AT: Final = "cya_watch_at"
-CONF_CYA_CRITICAL_AT: Final = "cya_critical_at"
+CONF_CYA_MAX: Final = "cya_max"
+CONF_CYA_CRITICAL_LOW: Final = "cya_critical_low"
+CONF_CYA_CRITICAL_HIGH: Final = "cya_critical_high"
+DEFAULT_CYA_MIN: Final = 20.0
 DEFAULT_CYA_TARGET: Final = 30.0
-DEFAULT_CYA_WATCH_AT: Final = 50.0
-DEFAULT_CYA_CRITICAL_AT: Final = 75.0
+DEFAULT_CYA_MAX: Final = 50.0
+DEFAULT_CYA_CRITICAL_LOW: Final = 0.0  # 0 = "never critical low" — user kann's erhöhen
+DEFAULT_CYA_CRITICAL_HIGH: Final = 75.0
 
 # Shock-FC-Zielwerte je Szenario (mg/l absolut)
 SHOCK_TARGET_ROUTINE: Final = 10.0
@@ -223,11 +237,13 @@ DEFAULT_FC_MIN_CLASSIC = 0.5
 DEFAULT_FC_MAX_CLASSIC = 1.5
 
 DEFAULT_CC_MAX = 0.2
-DEFAULT_CC_SHOCK_AT = 0.5
+DEFAULT_CC_CRITICAL_HIGH = 0.5
 
 DEFAULT_REDOX_TARGET = 700
 DEFAULT_REDOX_MIN = 650
 DEFAULT_REDOX_MAX = 750
+DEFAULT_REDOX_CRITICAL_LOW = 600
+DEFAULT_REDOX_CRITICAL_HIGH = 800
 
 # --- Signals / events ---
 SIGNAL_UPDATE = f"{DOMAIN}_update"

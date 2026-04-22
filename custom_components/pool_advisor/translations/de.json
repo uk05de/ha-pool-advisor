@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH-Wert",
-            "description": "Zielbereich und kritische Schwellen für pH",
+            "description": "Säure-Base-Wert des Wassers. Bestimmt sowohl Baden-Komfort (Augen/Haut) als auch Chlor-Wirksamkeit — bei höherem pH fällt der Anteil aktiver Hypochloriger Säure. Ziel 7.0–7.4.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH Ziel",
@@ -49,7 +49,7 @@
           },
           "alkalinity": {
             "name": "Alkalität (TA)",
-            "description": "Karbonathärte — Puffer für stabilen pH",
+            "description": "Karbonathärte — Puffer gegen pH-Schwankungen. Zu wenig und pH pendelt bei jeder Dosis, zu viel macht pH-Regulierung zäh und fördert Kalkausfällung. Ziel 80–120 mg/l.",
             "data": {
               "ta_min": "Alkalität min (mg/l)",
               "ta_target": "Alkalität Ziel (mg/l)",
@@ -60,43 +60,48 @@
           },
           "cyanuric": {
             "name": "Cyanursäure",
-            "description": "Stabilisator-Konzentration, Ziel und Grenzwerte",
+            "description": "Stabilisator — bindet Chlor reversibel und schützt es vor UV-Abbau. Ohne CYA verbrennt Chlor in Stunden; zu viel CYA blockiert Chlor so dass es kaum noch desinfiziert. Sweet Spot 30–50 mg/l.",
             "data": {
+              "cya_min": "Cyanursäure min (mg/l)",
               "cya_target": "Cyanursäure Ziel (mg/l)",
-              "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
-              "cya_critical_at": "Cyanursäure kritisch ab (mg/l)"
+              "cya_max": "Cyanursäure max (mg/l)",
+              "cya_critical_low": "Cyanursäure kritisch niedrig (0 = aus)",
+              "cya_critical_high": "Cyanursäure kritisch hoch (mg/l)"
             }
           },
           "free_chlorine": {
             "name": "Freies Chlor",
-            "description": "FC-Bereich, Ziel und kritische Untergrenze",
+            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen. Zu niedrig = Keime wachsen schneller als Chlor sie abbaut, zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt am CYA-Level.",
             "data": {
               "fc_min": "Freies Chlor min (mg/l)",
               "fc_target": "Freies Chlor Ziel (mg/l)",
               "fc_max": "Freies Chlor max (mg/l)",
-              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)"
+              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
+              "fc_critical_high": "Freies Chlor kritisch hoch (mg/l, Bade-Sperre)"
             }
           },
           "combined_chlorine": {
             "name": "Gebundenes Chlor",
-            "description": "CC-Obergrenze und Shockchlor-Auslöser",
+            "description": "Verbrauchte Chlor-Verbindungen — entstehen durch Reaktion mit Haut, Haar, Schweiß, Urin. Der typische \"Chlor-Geruch\" kommt davon, nicht vom aktiven Chlor. Hoch = hohe Bade-Belastung, Breakpoint-Chlorung fällig.",
             "data": {
-              "cc_max": "Gebundenes Chlor max (mg/l)",
-              "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)"
+              "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
+              "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
             }
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Sollwert und Bereich der Redox-Elektrode",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser desinfizieren kann. Die Dosieranlage regelt darauf; hier ist der Wert primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig hoch.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",
-              "redox_max": "Redox max (mV)"
+              "redox_max": "Redox max (mV)",
+              "redox_critical_low": "Redox kritisch niedrig (mV, Diagnose-Alarm)",
+              "redox_critical_high": "Redox kritisch hoch (mV, Diagnose-Alarm)"
             }
           },
           "drift": {
             "name": "Sonden-Drift",
-            "description": "Abweichungsschwellen pH und Redox",
+            "description": "Elektroden der Dosieranlage altern und driften. Der Advisor vergleicht pH-Sonde gegen Photometer und Redox-Sonde gegen chemisch berechneten Erwartungswert. Bei Überschreiten → Nachkalibrieren.",
             "data": {
               "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
               "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)"
@@ -104,7 +109,7 @@
           },
           "stale": {
             "name": "Veraltet-Schwellen",
-            "description": "Ab wann gilt eine Messung als veraltet (Tage)",
+            "description": "PoolLab-Werte werden live gelesen — wird zu lange nicht gemessen, verliert der Wert an Aussagekraft. Je Parameter anderer Rhythmus: TA/CYA sind stabil (selten messen ok), FC dynamisch (häufiger).",
             "data": {
               "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
               "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
@@ -261,43 +266,48 @@
           },
           "cyanuric": {
             "name": "Cyanursäure",
-            "description": "Stabilisator-Konzentration, Ziel und Grenzwerte",
+            "description": "Stabilisator — zu wenig = Chlor verbrennt, zu viel = Chlor wird gebunden",
             "data": {
+              "cya_min": "Cyanursäure min (mg/l)",
               "cya_target": "Cyanursäure Ziel (mg/l)",
-              "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
-              "cya_critical_at": "Cyanursäure kritisch ab (mg/l)"
+              "cya_max": "Cyanursäure max (mg/l)",
+              "cya_critical_low": "Cyanursäure kritisch niedrig (0 = aus)",
+              "cya_critical_high": "Cyanursäure kritisch hoch (mg/l)"
             }
           },
           "free_chlorine": {
             "name": "Freies Chlor",
-            "description": "FC-Bereich, Ziel und kritische Untergrenze",
+            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen. Zu niedrig = Keime wachsen schneller als Chlor sie abbaut, zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt am CYA-Level.",
             "data": {
               "fc_min": "Freies Chlor min (mg/l)",
               "fc_target": "Freies Chlor Ziel (mg/l)",
               "fc_max": "Freies Chlor max (mg/l)",
-              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)"
+              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
+              "fc_critical_high": "Freies Chlor kritisch hoch (mg/l, Bade-Sperre)"
             }
           },
           "combined_chlorine": {
             "name": "Gebundenes Chlor",
-            "description": "CC-Obergrenze und Shockchlor-Auslöser",
+            "description": "Verbrauchte Chlor-Verbindungen — entstehen durch Reaktion mit Haut, Haar, Schweiß, Urin. Der typische \"Chlor-Geruch\" kommt davon, nicht vom aktiven Chlor. Hoch = hohe Bade-Belastung, Breakpoint-Chlorung fällig.",
             "data": {
-              "cc_max": "Gebundenes Chlor max (mg/l)",
-              "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)"
+              "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
+              "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
             }
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Sollwert und Bereich der Redox-Elektrode",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser desinfizieren kann. Die Dosieranlage regelt darauf; hier ist der Wert primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig hoch.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",
-              "redox_max": "Redox max (mV)"
+              "redox_max": "Redox max (mV)",
+              "redox_critical_low": "Redox kritisch niedrig (mV, Diagnose-Alarm)",
+              "redox_critical_high": "Redox kritisch hoch (mV, Diagnose-Alarm)"
             }
           },
           "drift": {
             "name": "Sonden-Drift",
-            "description": "Abweichungsschwellen pH und Redox",
+            "description": "Elektroden der Dosieranlage altern und driften. Der Advisor vergleicht pH-Sonde gegen Photometer und Redox-Sonde gegen chemisch berechneten Erwartungswert. Bei Überschreiten → Nachkalibrieren.",
             "data": {
               "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
               "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)"
@@ -305,7 +315,7 @@
           },
           "stale": {
             "name": "Veraltet-Schwellen",
-            "description": "Ab wann gilt eine Messung als veraltet (Tage)",
+            "description": "PoolLab-Werte werden live gelesen — wird zu lange nicht gemessen, verliert der Wert an Aussagekraft. Je Parameter anderer Rhythmus: TA/CYA sind stabil (selten messen ok), FC dynamisch (häufiger).",
             "data": {
               "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
               "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",

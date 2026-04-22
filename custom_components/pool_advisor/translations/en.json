@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Target range and critical thresholds for pH",
+            "description": "Acid-base value of the water. Drives both bather comfort (eyes/skin) and chlorine effectiveness — at higher pH less active hypochlorous acid is available. Target 7.0–7.4.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -49,7 +49,7 @@
           },
           "alkalinity": {
             "name": "Alkalinity (TA)",
-            "description": "Carbonate hardness — buffer for stable pH",
+            "description": "Carbonate hardness — buffer against pH swings. Too low and pH drifts with every dose; too high makes pH adjustments sluggish and encourages scale. Target 80–120 mg/l.",
             "data": {
               "ta_min": "TA min (mg/l)",
               "ta_target": "TA target (mg/l)",
@@ -60,43 +60,48 @@
           },
           "cyanuric": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer concentration, target and limits",
+            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA chlorine burns off within hours; too much blocks chlorine so it barely sanitises. Sweet spot 30–50 mg/l.",
             "data": {
+              "cya_min": "Cyanuric acid min (mg/l)",
               "cya_target": "Cyanuric acid target (mg/l)",
-              "cya_watch_at": "Cyanuric acid watch at (mg/l)",
-              "cya_critical_at": "Cyanuric acid critical at (mg/l)"
+              "cya_max": "Cyanuric acid max (mg/l)",
+              "cya_critical_low": "Cyanuric acid critical low (0 = off)",
+              "cya_critical_high": "Cyanuric acid critical high (mg/l)"
             }
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "FC range, target and critical low",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae. Too low and germs outrun chlorine, too high irritates eyes and skin. Effective fraction depends on the CYA level.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",
               "fc_max": "Free Cl max (mg/l)",
-              "fc_critical_low": "Free Cl critical low (mg/l)"
+              "fc_critical_low": "Free Cl critical low (mg/l)",
+              "fc_critical_high": "Free Cl critical high (mg/l, swim sperre)"
             }
           },
           "combined_chlorine": {
             "name": "Combined chlorine",
-            "description": "CC upper limit and shock-dose trigger",
+            "description": "Spent chlorine compounds — formed by reaction with skin, hair, sweat, urine. The typical \"chlorine smell\" comes from these, not from active chlorine. High = high bather load, breakpoint dose due.",
             "data": {
-              "cc_max": "Combined Cl max (mg/l)",
-              "cc_shock_at": "Shock when combined Cl ≥ (mg/l)"
+              "cc_max": "Combined Cl max (mg/l, watch)",
+              "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
             }
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Setpoint and range for the redox probe",
+            "description": "Oxidation potential in mV — aggregate measure of the water's disinfection power. The dosing controller regulates on this; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
-              "redox_max": "Redox max (mV)"
+              "redox_max": "Redox max (mV)",
+              "redox_critical_low": "Redox critical low (mV, diagnostic alarm)",
+              "redox_critical_high": "Redox critical high (mV, diagnostic alarm)"
             }
           },
           "drift": {
             "name": "Probe drift",
-            "description": "Deviation thresholds for pH and redox",
+            "description": "Dosing-controller electrodes age and drift. The advisor compares the pH probe against the photometer and the redox probe against a chemically-derived expected value. Above threshold → recalibrate.",
             "data": {
               "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
               "redox_drift_threshold": "Redox drift threshold (mV)"
@@ -104,7 +109,7 @@
           },
           "stale": {
             "name": "Stale thresholds",
-            "description": "When a reading counts as stale (days)",
+            "description": "PoolLab values are read live — if you haven't measured for too long, the last value loses meaning. Per-parameter rhythms: TA/CYA stable (rare ok), FC dynamic (more often).",
             "data": {
               "stale_ta_days": "Alkalinity — reading stale after (days)",
               "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
@@ -239,7 +244,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Target range and critical thresholds for pH",
+            "description": "Acid-base value of the water. Drives both bather comfort (eyes/skin) and chlorine effectiveness — at higher pH less active hypochlorous acid is available. Target 7.0–7.4.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -250,7 +255,7 @@
           },
           "alkalinity": {
             "name": "Alkalinity (TA)",
-            "description": "Carbonate hardness — buffer for stable pH",
+            "description": "Carbonate hardness — buffer against pH swings. Too low and pH drifts with every dose; too high makes pH adjustments sluggish and encourages scale. Target 80–120 mg/l.",
             "data": {
               "ta_min": "TA min (mg/l)",
               "ta_target": "TA target (mg/l)",
@@ -261,43 +266,48 @@
           },
           "cyanuric": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer concentration, target and limits",
+            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA chlorine burns off within hours; too much blocks chlorine so it barely sanitises. Sweet spot 30–50 mg/l.",
             "data": {
+              "cya_min": "Cyanuric acid min (mg/l)",
               "cya_target": "Cyanuric acid target (mg/l)",
-              "cya_watch_at": "Cyanuric acid watch at (mg/l)",
-              "cya_critical_at": "Cyanuric acid critical at (mg/l)"
+              "cya_max": "Cyanuric acid max (mg/l)",
+              "cya_critical_low": "Cyanuric acid critical low (0 = off)",
+              "cya_critical_high": "Cyanuric acid critical high (mg/l)"
             }
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "FC range, target and critical low",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae. Too low and germs outrun chlorine, too high irritates eyes and skin. Effective fraction depends on the CYA level.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",
               "fc_max": "Free Cl max (mg/l)",
-              "fc_critical_low": "Free Cl critical low (mg/l)"
+              "fc_critical_low": "Free Cl critical low (mg/l)",
+              "fc_critical_high": "Free Cl critical high (mg/l, swim sperre)"
             }
           },
           "combined_chlorine": {
             "name": "Combined chlorine",
-            "description": "CC upper limit and shock-dose trigger",
+            "description": "Spent chlorine compounds — formed by reaction with skin, hair, sweat, urine. The typical \"chlorine smell\" comes from these, not from active chlorine. High = high bather load, breakpoint dose due.",
             "data": {
-              "cc_max": "Combined Cl max (mg/l)",
-              "cc_shock_at": "Shock when combined Cl ≥ (mg/l)"
+              "cc_max": "Combined Cl max (mg/l, watch)",
+              "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
             }
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Setpoint and range for the redox probe",
+            "description": "Oxidation potential in mV — aggregate measure of the water's disinfection power. The dosing controller regulates on this; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
-              "redox_max": "Redox max (mV)"
+              "redox_max": "Redox max (mV)",
+              "redox_critical_low": "Redox critical low (mV, diagnostic alarm)",
+              "redox_critical_high": "Redox critical high (mV, diagnostic alarm)"
             }
           },
           "drift": {
             "name": "Probe drift",
-            "description": "Deviation thresholds for pH and redox",
+            "description": "Dosing-controller electrodes age and drift. The advisor compares the pH probe against the photometer and the redox probe against a chemically-derived expected value. Above threshold → recalibrate.",
             "data": {
               "ph_calibration_threshold": "pH drift threshold",
               "redox_drift_threshold": "Redox drift threshold (mV)"
@@ -305,7 +315,7 @@
           },
           "stale": {
             "name": "Stale thresholds",
-            "description": "When a reading counts as stale (days)",
+            "description": "PoolLab values are read live — if you haven't measured for too long, the last value loses meaning. Per-parameter rhythms: TA/CYA stable (rare ok), FC dynamic (more often).",
             "data": {
               "stale_ta_days": "Alkalinity — reading stale after (days)",
               "stale_ph_manual_days": "pH (manual) — reading stale after (days)",

@@ -24,7 +24,7 @@ from .calculator import (
 from .workflow import WorkflowContext
 from .const import (
     CHLORINATION_SALT,
-    CONF_CC_SHOCK_AT,
+    CONF_CC_CRITICAL_HIGH,
     CONF_CHLORINATION,
     CONF_PH_DOSING,
     DEFAULT_PH_DOSING,
@@ -41,6 +41,7 @@ from .const import (
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
     CONF_CC_MAX,
+    CONF_FC_CRITICAL_HIGH,
     CONF_FC_CRITICAL_LOW,
     CONF_FC_MAX,
     CONF_FC_MIN,
@@ -72,17 +73,23 @@ from .const import (
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
     CONF_TA_MIN,
-    CONF_CYA_CRITICAL_AT,
+    CONF_CYA_CRITICAL_HIGH,
+    CONF_CYA_CRITICAL_LOW,
+    CONF_CYA_MAX,
+    CONF_CYA_MIN,
     CONF_CYA_NAME,
     CONF_CYA_STRENGTH,
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
-    CONF_CYA_WATCH_AT,
+    CONF_REDOX_CRITICAL_HIGH,
+    CONF_REDOX_CRITICAL_LOW,
     CONF_REDOX_DRIFT_THRESHOLD,
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
     CONF_REDOX_TARGET,
     CONF_TEST_MODE,
+    DEFAULT_REDOX_CRITICAL_HIGH,
+    DEFAULT_REDOX_CRITICAL_LOW,
     DEFAULT_REDOX_DRIFT_THRESHOLD,
     DEFAULT_REDOX_MAX,
     DEFAULT_REDOX_MIN,
@@ -96,14 +103,17 @@ from .const import (
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
+    DEFAULT_FC_CRITICAL_HIGH,
     DEFAULT_FC_CRITICAL_LOW,
     DEFAULT_PH_CALIB_THRESHOLD,
     DEFAULT_PH_CRITICAL_HIGH,
     DEFAULT_PH_CRITICAL_LOW,
-    DEFAULT_CYA_CRITICAL_AT,
+    DEFAULT_CYA_CRITICAL_HIGH,
+    DEFAULT_CYA_CRITICAL_LOW,
+    DEFAULT_CYA_MAX,
+    DEFAULT_CYA_MIN,
     DEFAULT_CYA_STRENGTH,
     DEFAULT_CYA_TARGET,
-    DEFAULT_CYA_WATCH_AT,
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DOMAIN,
@@ -357,12 +367,15 @@ class PoolAdvisorData:
             ta_critical_low=float(self._cfg(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)),
             ta_critical_high=float(self._cfg(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)),
             fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
+            fc_critical_high=float(self._cfg(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH)),
             fc_min_val=float(self._cfg(CONF_FC_MIN)),
             fc_max=float(self._cfg(CONF_FC_MAX)),
             cc_max=float(self._cfg(CONF_CC_MAX)),
-            cc_shock_at=float(self._cfg(CONF_CC_SHOCK_AT)),
-            cya_watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
-            cya_critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
+            cc_critical_high=float(self._cfg(CONF_CC_CRITICAL_HIGH)),
+            cya_min=float(self._cfg(CONF_CYA_MIN, DEFAULT_CYA_MIN)),
+            cya_max=float(self._cfg(CONF_CYA_MAX, DEFAULT_CYA_MAX)),
+            cya_critical_low=float(self._cfg(CONF_CYA_CRITICAL_LOW, DEFAULT_CYA_CRITICAL_LOW)),
+            cya_critical_high=float(self._cfg(CONF_CYA_CRITICAL_HIGH, DEFAULT_CYA_CRITICAL_HIGH)),
             ph_calib_threshold=float(self._cfg(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD)),
             redox_drift_threshold=float(
                 self._cfg(CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD)
@@ -372,6 +385,8 @@ class PoolAdvisorData:
             redox_min=float(self._cfg(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)),
             redox_target=float(self._cfg(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)),
             redox_max=float(self._cfg(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)),
+            redox_critical_low=float(self._cfg(CONF_REDOX_CRITICAL_LOW, DEFAULT_REDOX_CRITICAL_LOW)),
+            redox_critical_high=float(self._cfg(CONF_REDOX_CRITICAL_HIGH, DEFAULT_REDOX_CRITICAL_HIGH)),
             stale=stale_map,
             measured_at=measured_at_map,
             stale_days=stale_days_map,
@@ -437,8 +452,9 @@ class PoolAdvisorData:
             fc_max=float(self._cfg(CONF_FC_MAX)),
             fc_target=float(self._cfg(CONF_FC_TARGET)),
             fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
+            fc_critical_high=float(self._cfg(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH)),
             cc_max=float(self._cfg(CONF_CC_MAX)),
-            cc_shock_at=float(self._cfg(CONF_CC_SHOCK_AT)),
+            cc_critical_high=float(self._cfg(CONF_CC_CRITICAL_HIGH)),
             volume_m3=volume,
             routine_type=self._cfg(CONF_ROUTINE_CL_TYPE),
             routine_strength_pct=(
@@ -461,8 +477,10 @@ class PoolAdvisorData:
         cya_rec = recommend_cya(
             current=self._manual_value(CONF_ENT_CYANURIC),
             target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
-            watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
-            critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
+            cya_min=float(self._cfg(CONF_CYA_MIN, DEFAULT_CYA_MIN)),
+            cya_max=float(self._cfg(CONF_CYA_MAX, DEFAULT_CYA_MAX)),
+            critical_low=float(self._cfg(CONF_CYA_CRITICAL_LOW, DEFAULT_CYA_CRITICAL_LOW)),
+            critical_high=float(self._cfg(CONF_CYA_CRITICAL_HIGH, DEFAULT_CYA_CRITICAL_HIGH)),
             volume_m3=volume,
             cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
             cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
@@ -507,3 +525,39 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if data is not None:
         await data.async_unload()
     return unloaded
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entries between schema versions.
+
+    v1 → v2 (Parameter-Struktur-Vereinheitlichung):
+      CYA: cya_watch_at → cya_max, cya_critical_at → cya_critical_high,
+           neu cya_min (default 20), neu cya_critical_low (default 0 = aus)
+      CC:  cc_shock_at → cc_critical_high
+      FC:  neu fc_critical_high (default 5) — nur als Setdefault
+      Redox: neu redox_critical_low/high (defaults 600/800) — setdefault
+    """
+    _LOGGER.info("Migrating pool_advisor entry from v%s", entry.version)
+    if entry.version < 2:
+        new_options = {**entry.options}
+        new_data = {**entry.data}
+        for source in (new_options, new_data):
+            # CYA renames
+            if "cya_watch_at" in source:
+                source["cya_max"] = source.pop("cya_watch_at")
+            if "cya_critical_at" in source:
+                source["cya_critical_high"] = source.pop("cya_critical_at")
+            source.setdefault("cya_min", 20.0)
+            source.setdefault("cya_critical_low", 0.0)
+            # CC rename
+            if "cc_shock_at" in source:
+                source["cc_critical_high"] = source.pop("cc_shock_at")
+            # FC additive
+            source.setdefault("fc_critical_high", 5.0)
+            # Redox additive
+            source.setdefault("redox_critical_low", 600.0)
+            source.setdefault("redox_critical_high", 800.0)
+        hass.config_entries.async_update_entry(
+            entry, data=new_data, options=new_options, version=2
+        )
+    return True

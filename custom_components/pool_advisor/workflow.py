@@ -20,6 +20,8 @@ from .calculator import (
     shock_dose_grams_or_ml,
 )
 from .const import (
+    FC_CYA_RATIO_HIGH,
+    FC_CYA_RATIO_MIN,
     SHOCK_CYA_PER_PPM_CL,
     SHOCK_STABILIZED,
     SHOCK_TARGET_ALGEN_LEICHT,
@@ -27,6 +29,61 @@ from .const import (
     SHOCK_TARGET_ROUTINE,
     SHOCK_TARGET_SCHWARZALGEN,
 )
+
+
+def _redox_level_warning(ctx: WorkflowContext) -> str | None:
+    """Gelbe Warnung wenn Live-Redox außerhalb der kritischen Schwellen liegt.
+    Diagnose-Hinweis auf Elektrode / Kanister / Produktionsrate — keine
+    direkte Dosier-Empfehlung (das macht FC).
+    """
+    if ctx.redox is None:
+        return None
+    if ctx.redox < ctx.redox_critical_low:
+        return (
+            f"**Redox**: {ctx.redox:.0f} mV zu niedrig (kritisch < {ctx.redox_critical_low:.0f}) — "
+            "Chlor-Kanister der Dosieranlage prüfen (leer?), Produktionsrate der "
+            "Elektrolyse erhöhen oder Elektrode-Kalibrierung checken."
+        )
+    if ctx.redox > ctx.redox_critical_high:
+        return (
+            f"**Redox**: {ctx.redox:.0f} mV zu hoch (kritisch > {ctx.redox_critical_high:.0f}) — "
+            "Überdosierung oder Sondendrift? Manuelles FC nachmessen, ggf. Elektrode neu kalibrieren."
+        )
+    return None
+
+
+def _fc_cya_ratio_issue(ctx: WorkflowContext) -> dict | None:
+    """Prüft ob FC im Verhältnis zu CYA sinnvoll liegt.
+
+    Rückgabe:
+        None wenn alles ok oder eine Messung fehlt.
+        dict(direction, fc_suggested, reason) wenn außerhalb des TFP-Bands.
+    """
+    if ctx.fc is None or ctx.cya is None or ctx.cya <= 0:
+        return None
+    min_fc = ctx.cya * FC_CYA_RATIO_MIN
+    max_fc = ctx.cya * FC_CYA_RATIO_HIGH
+    if ctx.fc < min_fc:
+        return {
+            "direction": "low",
+            "fc_suggested": min_fc,
+            "reason": (
+                f"FC {ctx.fc:.2f} mg/l ist für deinen CYA-Level ({ctx.cya:.0f}) zu niedrig. "
+                f"Mindestens ~{min_fc:.2f} mg/l nötig (CYA × {FC_CYA_RATIO_MIN:.2f}), "
+                "sonst wird Chlor von CYA gebunden und die Sanitation leidet."
+            ),
+        }
+    if ctx.fc > max_fc:
+        return {
+            "direction": "high",
+            "fc_suggested": max_fc,
+            "reason": (
+                f"FC {ctx.fc:.2f} mg/l liegt für deinen CYA-Level ({ctx.cya:.0f}) im SLAM-Bereich. "
+                f"Komfort-Obergrenze ~{max_fc:.2f} mg/l (CYA × {FC_CYA_RATIO_HIGH:.2f}) — "
+                "kurzfristig ok, abwarten bis Chlor abbaut."
+            ),
+        }
+    return None
 
 
 # ---------- Kontext ----------
@@ -73,12 +130,15 @@ class WorkflowContext:
     ta_critical_low: float = 60.0
     ta_critical_high: float = 150.0
     fc_critical_low: float = 0.2
+    fc_critical_high: float = 5.0
     fc_min_val: float = 0.5
     fc_max: float = 1.5
     cc_max: float = 0.2
-    cc_shock_at: float = 0.5
-    cya_watch_at: float = 50.0
-    cya_critical_at: float = 75.0
+    cc_critical_high: float = 0.5
+    cya_min: float = 20.0
+    cya_max: float = 50.0
+    cya_critical_low: float = 0.0
+    cya_critical_high: float = 75.0
     ph_calib_threshold: float = 0.2
     redox_drift_threshold: float = 70.0
 
@@ -86,6 +146,8 @@ class WorkflowContext:
     redox_min: float = 650.0
     redox_target: float = 700.0
     redox_max: float = 750.0
+    redox_critical_low: float = 600.0
+    redox_critical_high: float = 800.0
 
     total_cl: float | None = None
     redox: float | None = None
@@ -188,11 +250,9 @@ def _color_ta_val(ta: float | None, ctx: WorkflowContext) -> str:
 def _color_fc_val(fc: float | None, ctx: WorkflowContext) -> str:
     if fc is None:
         return COLOR_GREY
-    if fc < ctx.fc_critical_low or fc > 10.0:
+    if fc < ctx.fc_critical_low or fc > ctx.fc_critical_high:
         return COLOR_RED
-    if fc < ctx.fc_min_val or fc > 3.0:
-        return COLOR_RED if fc > 3.0 else COLOR_ORANGE
-    if fc > ctx.fc_max:
+    if fc < ctx.fc_min_val or fc > ctx.fc_max:
         return COLOR_ORANGE
     return COLOR_GREEN
 
@@ -200,7 +260,7 @@ def _color_fc_val(fc: float | None, ctx: WorkflowContext) -> str:
 def _color_cc_val(cc: float | None, ctx: WorkflowContext) -> str:
     if cc is None:
         return COLOR_GREY
-    if cc >= ctx.cc_shock_at:
+    if cc >= ctx.cc_critical_high:
         return COLOR_RED
     if cc > ctx.cc_max:
         return COLOR_ORANGE
@@ -221,26 +281,23 @@ def _color_tc_val(tc: float | None, ctx: WorkflowContext) -> str:
 def _color_redox_val(redox: float | None, ctx: WorkflowContext) -> str:
     if redox is None:
         return COLOR_GREY
-    if ctx.redox_min <= redox <= ctx.redox_max:
-        return COLOR_GREEN
-    # Größere Abweichung → rot, leichtes Abweichen → orange
-    lo_crit = ctx.redox_min - (ctx.redox_max - ctx.redox_min) * 0.3
-    hi_crit = ctx.redox_max + (ctx.redox_max - ctx.redox_min) * 0.3
-    if redox < lo_crit or redox > hi_crit:
+    if redox < ctx.redox_critical_low or redox > ctx.redox_critical_high:
         return COLOR_RED
-    return COLOR_ORANGE
+    if redox < ctx.redox_min or redox > ctx.redox_max:
+        return COLOR_ORANGE
+    return COLOR_GREEN
 
 
 def _color_cya_val(cya: float | None, ctx: WorkflowContext) -> str:
     if cya is None:
         return COLOR_GREY
-    if cya >= ctx.cya_critical_at:
+    # Kritisch hoch oder (nur wenn aktiviert) kritisch niedrig → rot
+    if cya >= ctx.cya_critical_high:
         return COLOR_RED
-    if cya >= ctx.cya_watch_at:
-        return COLOR_ORANGE
-    if cya < ctx.cya_target * 0.6:
+    if ctx.cya_critical_low > 0 and cya < ctx.cya_critical_low:
         return COLOR_RED
-    if cya < ctx.cya_target * 0.9:
+    # Außerhalb Zielbereich aber nicht kritisch → orange
+    if cya < ctx.cya_min or cya > ctx.cya_max:
         return COLOR_ORANGE
     return COLOR_GREEN
 
@@ -267,11 +324,11 @@ def _swim_safety_check(ctx: WorkflowContext) -> bool:
     Detail-Infos kommen aus gelben Warnungen + Messwerte-Tabelle.
     """
     ph = _eff_ph(ctx)
-    if ctx.fc is not None and (ctx.fc > 3.0 or ctx.fc < 0.3):
+    if ctx.fc is not None and (ctx.fc > ctx.fc_critical_high or ctx.fc < ctx.fc_critical_low):
         return False
-    if ctx.cc is not None and ctx.cc > 0.5:
+    if ctx.cc is not None and ctx.cc >= ctx.cc_critical_high:
         return False
-    if ph is not None and (ph < 6.8 or ph > 7.8):
+    if ph is not None and (ph < ctx.ph_critical_low or ph > ctx.ph_critical_high):
         return False
     if ctx.cya is not None and ctx.cya > 100:
         return False
@@ -443,10 +500,18 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         "|----------|---------|------|-----|-----|",
     ]
 
+    ratio_issue = _fc_cya_ratio_issue(ctx)
+    ratio_affected = {"fc", "cya"} if ratio_issue else set()
+
     def _row(label: str, actual: str, ziel: str, mn: str, mx: str, stale_key: str | None) -> str:
         # Aktuell-Zelle behält ihre Status-Farbe; restliche Zellen und das Label
-        # werden gelb, wenn der Messwert als veraltet markiert ist.
-        if stale_key is not None and ctx.stale.get(stale_key):
+        # werden gelb wenn der Messwert veraltet ist ODER das FC/CYA-Verhältnis
+        # für diese Zeile auffällig ist.
+        is_yellow = (
+            (stale_key is not None and ctx.stale.get(stale_key))
+            or (stale_key in ratio_affected)
+        )
+        if is_yellow:
             label = _colored(label, COLOR_YELLOW_STALE)
             ziel = _colored(ziel, COLOR_YELLOW_STALE) if ziel != "—" else ziel
             mn = _colored(mn, COLOR_YELLOW_STALE) if mn != "—" else mn
@@ -488,7 +553,7 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
     )
     L.append(_row(
         "Cyanursäure (mg/l)", cya_str, f"{ctx.cya_target:.0f}",
-        f"{ctx.cya_watch_at:.0f}", f"{ctx.cya_critical_at:.0f}", "cya",
+        f"{ctx.cya_min:.0f}", f"{ctx.cya_max:.0f}", "cya",
     ))
 
     # Chlor frei (FC)
@@ -588,8 +653,8 @@ def _scenarios_table(ctx: WorkflowContext) -> list[str]:
         "| Szenario | FC-Ziel | Dosis | CYA-Anstieg (mg/l) |",
         "|----------|--------:|------:|-------------------:|",
     ]
-    # Breakpoint nur wenn CC erhöht (Schwelle = cc_shock_at). Ziel ist strikt 10× CC.
-    if ctx.cc is not None and ctx.cc >= ctx.cc_shock_at:
+    # Breakpoint nur wenn CC erhöht (Schwelle = cc_critical_high). Ziel ist strikt 10× CC.
+    if ctx.cc is not None and ctx.cc >= ctx.cc_critical_high:
         target = ctx.cc * 10.0
         L.append(_scenario_row(ctx, target, f"Breakpoint (10× CC = {target:.1f})"))
     for target, label in (
@@ -662,6 +727,28 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
     return notes
 
 
+def _fc_cya_ratio_explanation(ctx: WorkflowContext) -> str | None:
+    """Erklärungs-Text unter der Tabelle wenn das FC/CYA-Verhältnis auffällig ist."""
+    issue = _fc_cya_ratio_issue(ctx)
+    if issue is None:
+        return None
+    if issue["direction"] == "low":
+        return (
+            f"**FC/CYA-Hinweis**: bei CYA {ctx.cya:.0f} mg/l sollte FC ≥ "
+            f"**{issue['fc_suggested']:.2f} mg/l** sein (TFP-Faustregel CYA × "
+            f"{FC_CYA_RATIO_MIN:.2f}). Aktuell ist Chlor größtenteils an CYA gebunden; "
+            "die aktive HOCl-Fraktion reicht nicht zum sauber-halten. Routinedosis anheben "
+            "oder Produktionsrate der Dosieranlage steigern."
+        )
+    # direction == "high"
+    return (
+        f"**FC/CYA-Hinweis**: bei CYA {ctx.cya:.0f} mg/l liegt die Komfort-Obergrenze bei "
+        f"**~{issue['fc_suggested']:.2f} mg/l** (CYA × {FC_CYA_RATIO_HIGH:.2f}). Aktuell "
+        "höher — Chlor-Dosierung pausieren lassen und warten, bis FC durch UV/Verbrauch abklingt. "
+        "Nur bei SLAM-Prozess (Algen/Kontamination) gewollt."
+    )
+
+
 # --- Hauptrender (unified) ---
 
 
@@ -687,6 +774,20 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         lines.append(a)
         lines.append("")
 
+    # FC/CYA-Ratio-Warnung (chemisch, nicht schwellen-basiert)
+    ratio_issue = _fc_cya_ratio_issue(ctx)
+    if ratio_issue is not None:
+        lines.append(
+            f'<ha-alert alert-type="warning"><b>FC/CYA-Verhältnis</b>: {ratio_issue["reason"]}</ha-alert>'
+        )
+        lines.append("")
+
+    # Redox-Level außerhalb der kritischen Schwellen
+    redox_warn = _redox_level_warning(ctx)
+    if redox_warn is not None:
+        lines.append(f'<ha-alert alert-type="warning">{redox_warn}</ha-alert>')
+        lines.append("")
+
     # Gelbe Parameter-Warnungen für alle nicht-OK-Parameter
     for w in _param_warnings(ctx, recs):
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
@@ -705,10 +806,14 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     lines += _values_table(ctx, recs)
 
     # Hinweise unter der Messwerte-Tabelle
-    for n in _measurement_notes(recs):
+    notes_below = list(_measurement_notes(recs))
+    ratio_explain = _fc_cya_ratio_explanation(ctx)
+    if ratio_explain:
+        notes_below.append(ratio_explain)
+    for n in notes_below:
         lines.append(f"> {n}")
         lines.append(">")
-    if _measurement_notes(recs):
+    if notes_below:
         lines.append("")
 
     # 3. Shock-Szenarien-Tabelle (permanent)
