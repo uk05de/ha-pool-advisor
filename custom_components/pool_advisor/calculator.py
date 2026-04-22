@@ -268,8 +268,10 @@ def recommend_shock(
     combined_cl: float | None,
     free_cl: float | None,
     fc_min: float,
+    fc_max: float,
     fc_target: float,
     fc_critical_low: float,
+    cc_max: float,
     cc_shock_at: float,
     volume_m3: float,
     routine_type: str | None,
@@ -282,6 +284,8 @@ def recommend_shock(
     interval_h: int,
     chlorination_is_salt: bool,
     has_auto_dosing: bool,
+    cya: float | None = None,
+    water_temp: float | None = None,
 ) -> Recommendation:
     """Shock / chlorine correction.
 
@@ -367,14 +371,65 @@ def recommend_shock(
             ),
         )
 
+    # 4. Free Cl too high — three severity zones, never dose down (Zeit + Filter)
+    if free_cl is not None and free_cl > fc_max:
+        decay_note = ""
+        if free_cl > 3.0:
+            hours = estimate_fc_decay_hours(
+                fc_current=free_cl, fc_target=3.0, cya=cya, water_temp_c=water_temp
+            )
+            if hours is not None and hours > 0:
+                lo_d = hours * 0.75 / 24
+                hi_d = hours * 1.25 / 24
+                if hi_d < 1.5:
+                    range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
+                else:
+                    range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
+                decay_note = f" ⏳ Geschätzt **~{range_str}** bis FC ≤ 3 (Filter an, Abdeckung ab)."
+        if free_cl > 10:
+            return Recommendation(
+                action="watch",
+                steps=(),
+                reason=f"Freies Chlor {free_cl:.2f} mg/l auf Shock-Niveau — definitiv nicht baden",
+                delta=free_cl - fc_max,
+                note=("Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
+                      "Filter + UV + Zeit reichen." + decay_note),
+            )
+        if free_cl > 3.0:
+            return Recommendation(
+                action="watch",
+                steps=(),
+                reason=f"Freies Chlor {free_cl:.2f} mg/l deutlich überdosiert — nicht baden",
+                delta=free_cl - fc_max,
+                note=("Anlage pausiert Dosierung. Filter + UV + Zeit." + decay_note),
+            )
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=f"Freies Chlor {free_cl:.2f} mg/l leicht über {fc_max:.2f} — Anlage pausiert, klingt ab",
+            delta=free_cl - fc_max,
+        )
+
+    # 5. Combined Cl elevated but below shock threshold
+    if combined_cl is not None and combined_cl > cc_max:
+        return Recommendation(
+            action="watch",
+            steps=(),
+            reason=f"Gebundenes Chlor {combined_cl:.2f} mg/l über {cc_max:.2f} — beobachten",
+            delta=combined_cl - cc_max,
+            note=(
+                f"Wenn CC nicht unter {cc_max:.2f} fällt: Breakpoint-Modus erwägen."
+            ),
+        )
+
     fc_text = f"FC {free_cl:.2f} mg/l" if free_cl is not None else "FC —"
     cc_text = f"CC {combined_cl:.2f} mg/l" if combined_cl is not None else "CC —"
     return Recommendation(
         action="ok",
         steps=(),
         reason=(
-            f"{fc_text} (Ziel {fc_target:.2f}, min {fc_min:.2f}) / "
-            f"{cc_text} (Shock ab {cc_shock_at:.2f})"
+            f"{fc_text} (Ziel {fc_target:.2f}, Bereich {fc_min:.2f}–{fc_max:.2f}) / "
+            f"{cc_text} (max {cc_max:.2f}, Shock ab {cc_shock_at:.2f})"
         ),
     )
 

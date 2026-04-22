@@ -191,6 +191,10 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         ("drift_redox", "Drift Redox Sonde"),
     ):
         lines.extend(_render_rec(title, recs.get(key)))
+    # Badebetrieb-Freigabe als finale Sektion
+    lines.append("---")
+    lines.append("")
+    lines.extend(_swim_ready_block(ctx))
     return "\n".join(lines)
 
 
@@ -333,18 +337,32 @@ def _swim_ready_block(ctx: WorkflowContext, nr: int | None = None) -> list[str]:
     if ctx.fc is None:
         return [f"### ❔ {prefix}Badebetrieb-Freigabe", "FC noch nicht gemessen.", ""]
     reasons: list[str] = []
+    # Direkte Reizungsfaktoren
     if ctx.fc > 3.0:
-        reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l)")
-    if ctx.cc is not None and ctx.cc > 0.2:
-        reasons.append(f"CC **{ctx.cc:.2f}** zu hoch (Ziel ≤ 0.2)")
+        reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l) — reizt Augen/Haut")
+    if ctx.fc < 0.3:
+        reasons.append(f"FC **{ctx.fc:.2f}** zu niedrig (mind. 0.3 mg/l) — keine Desinfektion")
+    if ctx.cc is not None and ctx.cc > 0.5:
+        reasons.append(f"CC **{ctx.cc:.2f}** zu hoch (Chloramin-Belastung, reizt)")
     ph = _eff_ph(ctx)
-    if ph is not None and (ph < 7.0 or ph > 7.6):
-        reasons.append(f"pH **{ph:.2f}** außerhalb 7.0–7.6")
+    if ph is not None and (ph < 6.8 or ph > 7.8):
+        reasons.append(f"pH **{ph:.2f}** außerhalb 6.8–7.8 — reizt Augen/Haut")
+    # Indirekte Sicherheit: CYA-Lock
+    if ctx.cya is not None and ctx.cya > 100:
+        reasons.append(
+            f"CYA **{ctx.cya:.0f}** mg/l zu hoch — Chlorine-Lock, Chlor wirkt nicht mehr "
+            "richtig (Wassertausch nötig)"
+        )
+    elif ctx.cya is not None and ctx.cya > 75 and ctx.fc < 2.0:
+        reasons.append(
+            f"CYA {ctx.cya:.0f} reduziert Chlor-Wirksamkeit — FC {ctx.fc:.2f} "
+            "evtl. zu niedrig für sichere Desinfektion"
+        )
     if not reasons:
         return [
             f"### ✅ {prefix}Badebetrieb-Freigabe",
-            f"FC {ctx.fc:.2f}, CC {_val(ctx.cc, 'mg/l')}, pH {_val(ph, '')} — alles ok. "
-            "Pool nutzbar.",
+            f"FC {ctx.fc:.2f}, CC {_val(ctx.cc, 'mg/l')}, pH {_val(ph, '')}, "
+            f"CYA {_val(ctx.cya, 'mg/l', 0)} — alles im sicheren Bereich. Pool nutzbar.",
             "",
         ]
     # FC-Abklingzeit-Schätzung wenn FC das Hauptproblem ist
