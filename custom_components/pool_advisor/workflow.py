@@ -357,20 +357,15 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
                 "dann neu messen"
             )
 
-    # Chlor-Aktionen: Breakpoint bei hohem CC, oder Routine-Dosis bei niedrigem FC
+    # Chlor-Aktionen: Breakpoint bei hohem CC, oder Routine-Dosis bei niedrigem FC.
+    # Konkrete Dosen stehen in der Shock-Szenarien-Tabelle unten — hier nur
+    # Kurzempfehlung.
     cl_rec = recs.get("chlorine")
     if cl_rec is not None and cl_rec.steps:
         if cl_rec.action == "shock":
-            # Breakpoint-Dose — Ziel ist 10× CC
-            if ctx.cc is not None:
-                target_fc = ctx.cc * 10.0
-                alerts.append(
-                    f"**Chlor (Breakpoint)**: {_format_steps_inline(cl_rec.steps)} "
-                    f"— Ziel FC {target_fc:.1f} mg/l (10× CC). "
-                    "Bei Outdoor-Pool auch 24–48 h abwarten eine Option (UV + Filter bauen CC natürlich ab)."
-                )
+            alerts.append("**Chlor (Breakpoint)**: Schockchlorung siehe Tabelle empfohlen.")
         elif cl_rec.action == "raise":
-            alerts.append(f"**Chlor**: {_format_steps_inline(cl_rec.steps)}")
+            alerts.append("**Chlor**: Routine-Shock siehe Tabelle empfohlen.")
 
     # Kalibrierungs-Handlungen
     cal = recs.get("calibration")
@@ -552,9 +547,7 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     is_safe, claimed = _swim_safety_check(ctx)
     if not is_safe:
         lines.append(
-            '<ha-alert alert-type="error">'
-            'Nicht baden — Werte außerhalb Bade-Bereich, Details siehe Tabelle und Hinweise'
-            '</ha-alert>'
+            '<ha-alert alert-type="error">Nicht baden — Werte außerhalb Bade-Bereich!</ha-alert>'
         )
         lines.append("")
     else:
