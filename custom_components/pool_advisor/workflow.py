@@ -272,28 +272,43 @@ def _colored(value: str, color: str) -> str:
 # --- Swim-Safety ---
 
 
-def _swim_safety_reasons(ctx: WorkflowContext) -> list[str]:
-    """Liste aller Gründe warum Baden aktuell nicht möglich. Leer = alles OK."""
+def _swim_safety_check(ctx: WorkflowContext) -> tuple[list[str], set[str]]:
+    """Returns (bade-blockierende Gründe, keys die schon abgedeckt sind).
+
+    Die claimed-Keys werden von _non_swim_warnings ausgeschlossen, damit
+    nichts doppelt als rot UND gelb angezeigt wird.
+    """
     reasons: list[str] = []
+    claimed: set[str] = set()
     ph = _eff_ph(ctx)
     if ctx.fc is not None:
         if ctx.fc > 3.0:
             reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l) — reizt Augen/Haut")
+            claimed.add("chlorine")
         elif ctx.fc < 0.3:
             reasons.append(f"FC **{ctx.fc:.2f}** zu niedrig (mind. 0.3 mg/l) — keine Desinfektion")
+            claimed.add("chlorine")
     if ctx.cc is not None and ctx.cc > 0.5:
         reasons.append(f"CC **{ctx.cc:.2f}** zu hoch — Chloramine, Reizung")
+        claimed.add("chlorine")
     if ph is not None and (ph < 6.8 or ph > 7.8):
         reasons.append(f"pH **{ph:.2f}** außerhalb 6.8–7.8 — Augen/Haut-Reizung")
+        claimed.add("ph")
     if ctx.cya is not None and ctx.cya > 100:
         reasons.append(
             f"CYA **{ctx.cya:.0f}** mg/l zu hoch — Chlorine-Lock, Chlor wirkt nicht mehr"
         )
-    return reasons
+        claimed.add("cya")
+    return reasons, claimed
 
 
-def _non_swim_warnings(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
-    """Sammelt Nicht-Bade-blockierende Baustellen (TA, CYA moderat, Drift etc.)."""
+def _non_swim_warnings(
+    ctx: WorkflowContext,
+    recs: dict[str, Recommendation],
+    claimed: set[str],
+) -> list[str]:
+    """Sammelt Nicht-Bade-blockierende Baustellen. Keys in `claimed` werden
+    übersprungen, weil sie schon als rote Swim-Block-Alerts erscheinen."""
     warnings: list[str] = []
     for key, label in (
         ("alkalinity", "Alkalität"),
@@ -301,14 +316,16 @@ def _non_swim_warnings(ctx: WorkflowContext, recs: dict[str, Recommendation]) ->
         ("calibration", "Drift pH Sonde"),
         ("drift_redox", "Drift Redox Sonde"),
     ):
+        if key in claimed:
+            continue
         rec = recs.get(key)
         if rec is None or rec.action in ("ok", "no_data"):
             continue
         warnings.append(f"**{label}**: {rec.reason}")
-    # pH watch (wenn nicht swim-blocking)
-    ph_rec = recs.get("ph")
-    if ph_rec and ph_rec.action == "watch":
-        warnings.append(f"**pH**: {ph_rec.reason}")
+    if "ph" not in claimed:
+        ph_rec = recs.get("ph")
+        if ph_rec and ph_rec.action == "watch":
+            warnings.append(f"**pH**: {ph_rec.reason}")
     return warnings
 
 
@@ -541,7 +558,7 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     lines: list[str] = ["## Pool-Empfehlung", ""]
 
     # 1. Alerts
-    swim_issues = _swim_safety_reasons(ctx)
+    swim_issues, claimed = _swim_safety_check(ctx)
     if swim_issues:
         lines.append('<ha-alert alert-type="error">Baden aktuell nicht möglich</ha-alert>')
         lines.append("")
@@ -554,7 +571,7 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         )
         lines.append("")
 
-    for w in _non_swim_warnings(ctx, recs):
+    for w in _non_swim_warnings(ctx, recs, claimed):
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
         lines.append("")
 
