@@ -302,6 +302,7 @@ def _non_swim_warnings(
     übersprungen, weil sie schon als rote Swim-Block-Alerts erscheinen."""
     warnings: list[str] = []
     for key, label in (
+        ("ph", "pH"),
         ("alkalinity", "Alkalität"),
         ("cya", "Cyanursäure"),
         ("calibration", "Drift pH Sonde"),
@@ -313,10 +314,6 @@ def _non_swim_warnings(
         if rec is None or rec.action in ("ok", "no_data"):
             continue
         warnings.append(f"**{label}**: {rec.reason}")
-    if "ph" not in claimed:
-        ph_rec = recs.get("ph")
-        if ph_rec and ph_rec.action == "watch":
-            warnings.append(f"**pH**: {ph_rec.reason}")
     return warnings
 
 
