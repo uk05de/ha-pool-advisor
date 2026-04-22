@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH-Wert",
-            "description": "Säure-Base-Wert des Wassers. Bestimmt sowohl Baden-Komfort (Augen/Haut) als auch Chlor-Wirksamkeit — bei höherem pH fällt der Anteil aktiver Hypochloriger Säure. Ziel 7.0–7.4.",
+            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (&lt; 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (&gt; 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH Ziel",
@@ -49,7 +49,7 @@
           },
           "alkalinity": {
             "name": "Alkalität (TA)",
-            "description": "Karbonathärte — Puffer gegen pH-Schwankungen. Zu wenig und pH pendelt bei jeder Dosis, zu viel macht pH-Regulierung zäh und fördert Kalkausfällung. Ziel 80–120 mg/l.",
+            "description": "Karbonathärte (HCO₃⁻) — das chemische Gedächtnis des pH. Viel TA = pH ist robust gegen Säure-/Base-Stöße; zu wenig TA = jede kleine Dosis lässt pH springen. Zu hoher TA bindet zu viel Säure, pH tendiert nach oben und Kalk fällt aus. Anheben mit Natron (NaHCO₃), Senken ist ein mehrtägiger Prozess (pH auf ~7.0 + kräftig belüften). Ziel 80–120 mg/l.",
             "data": {
               "ta_min": "Alkalität min (mg/l)",
               "ta_target": "Alkalität Ziel (mg/l)",
@@ -60,7 +60,7 @@
           },
           "cyanuric": {
             "name": "Cyanursäure",
-            "description": "Stabilisator — bindet Chlor reversibel und schützt es vor UV-Abbau. Ohne CYA verbrennt Chlor in Stunden; zu viel CYA blockiert Chlor so dass es kaum noch desinfiziert. Sweet Spot 30–50 mg/l.",
+            "description": "Stabilisator — bindet Chlor reversibel und schützt es vor UV-Zersetzung. Ohne CYA halbiert sich FC unter direkter Sonne in ~30–60 Minuten; zu viel CYA hingegen bindet Chlor so stark dass es kaum noch als Sanitizer wirkt (siehe FC/CYA-Verhältnis unten). Baut nicht ab, ist nur durch Wasserteilwechsel senkbar — also sparsam dosieren. Ziel 30–50 mg/l.",
             "data": {
               "cya_min": "Cyanursäure min (mg/l)",
               "cya_target": "Cyanursäure Ziel (mg/l)",
@@ -244,7 +244,7 @@
         "sections": {
           "ph": {
             "name": "pH-Wert",
-            "description": "Zielbereich und kritische Schwellen für pH",
+            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (&lt; 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (&gt; 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH Ziel",
@@ -255,7 +255,7 @@
           },
           "alkalinity": {
             "name": "Alkalität (TA)",
-            "description": "Karbonathärte — Puffer für stabilen pH",
+            "description": "Karbonathärte (HCO₃⁻) — das chemische Gedächtnis des pH. Viel TA = pH ist robust gegen Säure-/Base-Stöße; zu wenig TA = jede kleine Dosis lässt pH springen. Zu hoher TA bindet zu viel Säure, pH tendiert nach oben und Kalk fällt aus. Anheben mit Natron (NaHCO₃), Senken ist ein mehrtägiger Prozess (pH auf ~7.0 + kräftig belüften). Ziel 80–120 mg/l.",
             "data": {
               "ta_min": "Alkalität min (mg/l)",
               "ta_target": "Alkalität Ziel (mg/l)",
@@ -266,7 +266,7 @@
           },
           "cyanuric": {
             "name": "Cyanursäure",
-            "description": "Stabilisator — zu wenig = Chlor verbrennt, zu viel = Chlor wird gebunden",
+            "description": "Stabilisator — bindet Chlor reversibel und schützt es vor UV-Zersetzung. Ohne CYA halbiert sich FC unter direkter Sonne in ~30–60 Minuten; zu viel CYA hingegen bindet Chlor so stark dass es kaum noch als Sanitizer wirkt (siehe FC/CYA-Verhältnis unten). Baut nicht ab, ist nur durch Wasserteilwechsel senkbar — also sparsam dosieren. Ziel 30–50 mg/l.",
             "data": {
               "cya_min": "Cyanursäure min (mg/l)",
               "cya_target": "Cyanursäure Ziel (mg/l)",

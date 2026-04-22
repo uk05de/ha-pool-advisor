@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value of the water. Drives both bather comfort (eyes/skin) and chlorine effectiveness — at higher pH less active hypochlorous acid is available. Target 7.0–7.4.",
+            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (&lt; 7) = eye irritation, metal/liner corrosion; too basic (&gt; 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -49,7 +49,7 @@
           },
           "alkalinity": {
             "name": "Alkalinity (TA)",
-            "description": "Carbonate hardness — buffer against pH swings. Too low and pH drifts with every dose; too high makes pH adjustments sluggish and encourages scale. Target 80–120 mg/l.",
+            "description": "Carbonate hardness (HCO₃⁻) — the chemical memory of pH. Plenty of TA = pH is robust against acid/base shocks; too little = every small dose makes pH jump. Too much TA absorbs too much acid, pH drifts up and scale forms. Raise with baking soda (NaHCO₃); lowering is a multi-day process (drop pH to ~7.0 and aerate heavily). Target 80–120 mg/l.",
             "data": {
               "ta_min": "TA min (mg/l)",
               "ta_target": "TA target (mg/l)",
@@ -60,7 +60,7 @@
           },
           "cyanuric": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA chlorine burns off within hours; too much blocks chlorine so it barely sanitises. Sweet spot 30–50 mg/l.",
+            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA, FC in direct sun halves in ~30–60 minutes; too much CYA instead binds chlorine so tightly it barely sanitises anymore (see FC/CYA ratio below). Does not degrade — can only be reduced by partial water exchange, so dose sparingly. Target 30–50 mg/l.",
             "data": {
               "cya_min": "Cyanuric acid min (mg/l)",
               "cya_target": "Cyanuric acid target (mg/l)",
@@ -244,7 +244,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value of the water. Drives both bather comfort (eyes/skin) and chlorine effectiveness — at higher pH less active hypochlorous acid is available. Target 7.0–7.4.",
+            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (&lt; 7) = eye irritation, metal/liner corrosion; too basic (&gt; 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -255,7 +255,7 @@
           },
           "alkalinity": {
             "name": "Alkalinity (TA)",
-            "description": "Carbonate hardness — buffer against pH swings. Too low and pH drifts with every dose; too high makes pH adjustments sluggish and encourages scale. Target 80–120 mg/l.",
+            "description": "Carbonate hardness (HCO₃⁻) — the chemical memory of pH. Plenty of TA = pH is robust against acid/base shocks; too little = every small dose makes pH jump. Too much TA absorbs too much acid, pH drifts up and scale forms. Raise with baking soda (NaHCO₃); lowering is a multi-day process (drop pH to ~7.0 and aerate heavily). Target 80–120 mg/l.",
             "data": {
               "ta_min": "TA min (mg/l)",
               "ta_target": "TA target (mg/l)",
@@ -266,7 +266,7 @@
           },
           "cyanuric": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA chlorine burns off within hours; too much blocks chlorine so it barely sanitises. Sweet spot 30–50 mg/l.",
+            "description": "Stabilizer — reversibly binds chlorine to protect it from UV breakdown. Without CYA, FC in direct sun halves in ~30–60 minutes; too much CYA instead binds chlorine so tightly it barely sanitises anymore (see FC/CYA ratio below). Does not degrade — can only be reduced by partial water exchange, so dose sparingly. Target 30–50 mg/l.",
             "data": {
               "cya_min": "Cyanuric acid min (mg/l)",
               "cya_target": "Cyanuric acid target (mg/l)",
