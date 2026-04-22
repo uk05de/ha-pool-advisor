@@ -481,9 +481,9 @@ def _scenarios_table(ctx: WorkflowContext) -> list[str]:
         "| Szenario | FC-Ziel | Dosis | CYA-Anstieg (mg/l) |",
         "|----------|--------:|------:|-------------------:|",
     ]
-    # Breakpoint nur wenn CC erhöht (sonst verwirrend, weil FC-Ziel < Routine)
-    if ctx.cc is not None and ctx.cc >= 0.5:
-        target = max(10.0, ctx.cc * 10.0)
+    # Breakpoint nur wenn CC erhöht (Schwelle = cc_shock_at). Ziel ist strikt 10× CC.
+    if ctx.cc is not None and ctx.cc >= ctx.cc_shock_at:
+        target = ctx.cc * 10.0
         L.append(_scenario_row(ctx, target, f"Breakpoint (10× CC = {target:.1f})"))
     for target, label in (
         (SHOCK_TARGET_ROUTINE, "Routine (präventiv)"),
