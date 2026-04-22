@@ -72,14 +72,46 @@ ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 = 8.0
 # Shock multiplier on combined chlorine (breakpoint chlorination)
 SHOCK_FC_MULTIPLIER = 10.0
 
+# Max Sicherheits-Einzeldosis je Produkt-Typ (pro m³ pro Anwendung).
+# Damit nicht 1.2 L Salzsäure auf einmal reinkippt, auch wenn mathematisch nötig.
+# Werte aus Bayrol/TFP-Praxis-Empfehlungen für Privatpools.
+MAX_DOSE_PER_M3 = {
+    "dry_acid_nahso4": 30.0,       # g/m³  — pH−
+    "muriatic_acid_hcl": 20.0,     # ml/m³ — pH− flüssig HCl
+    "soda_ash_na2co3": 30.0,       # g/m³  — pH+
+    "sodium_bicarbonate_nahco3": 50.0,  # g/m³ — TA+
+    "dichlor": 25.0,               # g/m³  — Shock Dichlor
+    "calcium_hypochlorite": 20.0,  # g/m³  — Shock Cal-Hypo
+    "sodium_hypochlorite": 20.0,   # ml/m³ — Flüssig-Chlor
+    "cyanuric_acid": 30.0,         # g/m³  — Stabilisator
+}
 
-def _split(total: float, unit: str, product: str, max_fraction: float, interval_h: int) -> tuple[DoseStep, ...]:
-    """Split a total dose into parts no larger than `max_fraction` of the total."""
+
+def _split(
+    total: float,
+    unit: str,
+    product: str,
+    max_fraction: float,
+    interval_h: int,
+    max_single_dose: float | None = None,
+) -> tuple[DoseStep, ...]:
+    """Split a total dose into parts.
+
+    Die Teildosis wird durch das Minimum aus (max_fraction × total) und
+    max_single_dose (absolute Sicherheits-Obergrenze) begrenzt. Dadurch
+    wird bei großen Gesamtmengen automatisch in mehr Teildosen aufgeteilt.
+    """
     if total <= 0:
         return ()
     max_fraction = max(0.1, min(max_fraction, 1.0))
-    n_parts = max(1, int(-(-1 // max_fraction)))  # ceil(1/max_fraction)
-    # Round part up to 1 g / 10 ml for usability
+    max_part_from_fraction = total * max_fraction
+    if max_single_dose is not None and max_single_dose > 0:
+        max_part = min(max_part_from_fraction, max_single_dose)
+    else:
+        max_part = max_part_from_fraction
+    # Mindestens 1 (ganz) dosieren, sonst anhand der Obergrenze aufteilen
+    import math
+    n_parts = max(1, math.ceil(total / max_part))
     part = total / n_parts
     step = 1.0 if unit == "g" else 10.0
     part = max(step, round(part / step) * step)
@@ -151,11 +183,13 @@ def recommend_ph(
         if ph_minus_type == PH_MINUS_DRY_ACID:
             pure = G_DRY_ACID_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure * (100.0 / max(1.0, ph_minus_strength_pct))
-            steps = _split(total, "g", ph_minus_display, max_dose_fraction, interval_h)
+            cap = MAX_DOSE_PER_M3.get(PH_MINUS_DRY_ACID, 30.0) * volume_m3
+            steps = _split(total, "g", ph_minus_display, max_dose_fraction, interval_h, cap)
         elif ph_minus_type == PH_MINUS_HCL:
             pure_ml = ML_HCL_33_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure_ml * (33.0 / max(1.0, ph_minus_strength_pct))
-            steps = _split(total, "ml", ph_minus_display, max_dose_fraction, interval_h)
+            cap = MAX_DOSE_PER_M3.get(PH_MINUS_HCL, 20.0) * volume_m3
+            steps = _split(total, "ml", ph_minus_display, max_dose_fraction, interval_h, cap)
         else:
             return Recommendation(action="lower", steps=(), reason="Unbekanntes pH− Produkt", delta=delta)
         rec = Recommendation(
@@ -174,7 +208,8 @@ def recommend_ph(
     if ph_plus_type == PH_PLUS_SODA:
         pure = G_SODA_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
         total = pure * (100.0 / max(1.0, ph_plus_strength_pct))
-        steps = _split(total, "g", ph_plus_display, max_dose_fraction, interval_h)
+        cap = MAX_DOSE_PER_M3.get(PH_PLUS_SODA, 30.0) * volume_m3
+        steps = _split(total, "g", ph_plus_display, max_dose_fraction, interval_h, cap)
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
 
@@ -244,7 +279,8 @@ def recommend_alkalinity(
             return Recommendation(action="raise", steps=(), reason="Unbekanntes TA+ Produkt", delta=delta)
         pure = G_BICARB_PURE_PER_M3_PER_10_TA * volume_m3 * (abs(delta) / 10.0)
         total = pure * (100.0 / max(1.0, ta_plus_strength_pct))
-        steps = _split(total, "g", ta_plus_display, max_dose_fraction, interval_h)
+        cap = MAX_DOSE_PER_M3.get(TA_PLUS_BICARB, 50.0) * volume_m3
+        steps = _split(total, "g", ta_plus_display, max_dose_fraction, interval_h, cap)
         return Recommendation(
             action="raise",
             steps=steps,
@@ -741,15 +777,18 @@ def _build_cl_dose(
     if shock_type == SHOCK_DICHLOR:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
+        cap = MAX_DOSE_PER_M3.get(SHOCK_DICHLOR, 25.0) * volume_m3
+        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h, cap)
     elif shock_type == SHOCK_CAL_HYPO:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
+        cap = MAX_DOSE_PER_M3.get(SHOCK_CAL_HYPO, 20.0) * volume_m3
+        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h, cap)
     elif shock_type == SHOCK_NAOCL_LIQUID:
         pure_ml = ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 * volume_m3 * target_fc_increase
         total = pure_ml * (12.5 / max(1.0, shock_strength_pct))
-        steps = _split(total, "ml", shock_display, max_dose_fraction, interval_h)
+        cap = MAX_DOSE_PER_M3.get(SHOCK_NAOCL_LIQUID, 20.0) * volume_m3
+        steps = _split(total, "ml", shock_display, max_dose_fraction, interval_h, cap)
     else:
         return Recommendation(action=action, steps=(), reason="Unbekanntes Shock-Produkt", delta=target_fc_increase)
 

@@ -321,9 +321,24 @@ def _non_swim_warnings(
 
 
 def _format_steps_inline(steps) -> str:
-    """Fasst Dose-Steps als kompakte Zeile zusammen."""
+    """Fasst Dose-Steps als kompakte Zeile zusammen.
+
+    Bei ≥ 3 gleich großen Teildosen: "Dosiere N × X Einheit Produkt,
+    alle Y h (gesamt Z)" statt langer Aufzählung.
+    """
     if not steps:
         return ""
+    amounts = {s.amount for s in steps}
+    if len(steps) >= 3 and len(amounts) == 1:
+        s = steps[0]
+        n = len(steps)
+        wait = steps[0].wait_hours or 0
+        total = s.amount * n
+        wait_str = f" alle {wait} h" if wait > 0 else ""
+        return (
+            f"Dosiere **{n}× {s.amount:g} {s.unit}** {s.product}"
+            f"{wait_str} (gesamt ~{total:g} {s.unit}, ~{(n - 1) * wait} h Gesamtdauer)"
+        )
     parts: list[str] = []
     for i, s in enumerate(steps, 1):
         parts.append(f"**{s.amount:g} {s.unit}** {s.product}")
