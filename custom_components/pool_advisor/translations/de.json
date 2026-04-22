@@ -71,7 +71,7 @@
           },
           "free_chlorine": {
             "name": "Freies Chlor",
-            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen. Zu niedrig = Keime wachsen schneller als Chlor sie abbaut, zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt am CYA-Level.",
+            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen über die Hypochlorige Säure (HOCl). Zu niedrig = Keime wachsen schneller als Chlor sie abbaut (Trübung, Algenbildung); zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt stark am CYA-Level — TFP-Faustregel: Ziel-FC ≈ CYA × 0.075, also z.B. 3 mg/l bei CYA 40. Die Dosieranlage regelt FC indirekt über Redox.",
             "data": {
               "fc_min": "Freies Chlor min (mg/l)",
               "fc_target": "Freies Chlor Ziel (mg/l)",
@@ -82,7 +82,7 @@
           },
           "combined_chlorine": {
             "name": "Gebundenes Chlor",
-            "description": "Verbrauchte Chlor-Verbindungen — entstehen durch Reaktion mit Haut, Haar, Schweiß, Urin. Der typische \"Chlor-Geruch\" kommt davon, nicht vom aktiven Chlor. Hoch = hohe Bade-Belastung, Breakpoint-Chlorung fällig.",
+            "description": "Verbrauchte Chlor-Verbindungen (Chloramine) — entstehen durch Reaktion von freiem Chlor mit Haut, Haar, Schweiß, Urin und organischen Partikeln. Der typische \"Chlor-Geruch\" und gereizte Augen stammen von CC, nicht vom aktiven Chlor (ein sauber betriebener Pool riecht nicht). Idealwert ist 0; bleibt CC dauerhaft über Watch-Schwelle, hilft nur Breakpoint-Chlorung — FC kurzzeitig auf 10× CC hochziehen um alle Chloramine chemisch aufzubrechen.",
             "data": {
               "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
               "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
@@ -90,7 +90,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser desinfizieren kann. Die Dosieranlage regelt darauf; hier ist der Wert primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig hoch.",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",
@@ -277,7 +277,7 @@
           },
           "free_chlorine": {
             "name": "Freies Chlor",
-            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen. Zu niedrig = Keime wachsen schneller als Chlor sie abbaut, zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt am CYA-Level.",
+            "description": "Aktiver Sanitizer im Wasser — tötet Bakterien, Viren und Algen über die Hypochlorige Säure (HOCl). Zu niedrig = Keime wachsen schneller als Chlor sie abbaut (Trübung, Algenbildung); zu hoch reizt Augen und Haut. Die wirksame Fraktion hängt stark am CYA-Level — TFP-Faustregel: Ziel-FC ≈ CYA × 0.075, also z.B. 3 mg/l bei CYA 40. Die Dosieranlage regelt FC indirekt über Redox.",
             "data": {
               "fc_min": "Freies Chlor min (mg/l)",
               "fc_target": "Freies Chlor Ziel (mg/l)",
@@ -288,7 +288,7 @@
           },
           "combined_chlorine": {
             "name": "Gebundenes Chlor",
-            "description": "Verbrauchte Chlor-Verbindungen — entstehen durch Reaktion mit Haut, Haar, Schweiß, Urin. Der typische \"Chlor-Geruch\" kommt davon, nicht vom aktiven Chlor. Hoch = hohe Bade-Belastung, Breakpoint-Chlorung fällig.",
+            "description": "Verbrauchte Chlor-Verbindungen (Chloramine) — entstehen durch Reaktion von freiem Chlor mit Haut, Haar, Schweiß, Urin und organischen Partikeln. Der typische \"Chlor-Geruch\" und gereizte Augen stammen von CC, nicht vom aktiven Chlor (ein sauber betriebener Pool riecht nicht). Idealwert ist 0; bleibt CC dauerhaft über Watch-Schwelle, hilft nur Breakpoint-Chlorung — FC kurzzeitig auf 10× CC hochziehen um alle Chloramine chemisch aufzubrechen.",
             "data": {
               "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
               "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
@@ -296,7 +296,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser desinfizieren kann. Die Dosieranlage regelt darauf; hier ist der Wert primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig hoch.",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",

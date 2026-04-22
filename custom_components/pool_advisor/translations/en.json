@@ -71,7 +71,7 @@
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae. Too low and germs outrun chlorine, too high irritates eyes and skin. Effective fraction depends on the CYA level.",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",
@@ -82,7 +82,7 @@
           },
           "combined_chlorine": {
             "name": "Combined chlorine",
-            "description": "Spent chlorine compounds — formed by reaction with skin, hair, sweat, urine. The typical \"chlorine smell\" comes from these, not from active chlorine. High = high bather load, breakpoint dose due.",
+            "description": "Spent chlorine compounds (chloramines) — formed by reaction of free chlorine with skin, hair, sweat, urine and organic debris. The typical \"chlorine smell\" and irritated eyes come from CC, not from active chlorine (a properly run pool has no smell). Ideal value is 0; if CC stays persistently above the watch threshold, only breakpoint chlorination helps — push FC briefly to 10× CC to chemically break all chloramines apart.",
             "data": {
               "cc_max": "Combined Cl max (mg/l, watch)",
               "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
@@ -90,7 +90,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of the water's disinfection power. The dosing controller regulates on this; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious.",
+            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
@@ -277,7 +277,7 @@
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae. Too low and germs outrun chlorine, too high irritates eyes and skin. Effective fraction depends on the CYA level.",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",
@@ -288,7 +288,7 @@
           },
           "combined_chlorine": {
             "name": "Combined chlorine",
-            "description": "Spent chlorine compounds — formed by reaction with skin, hair, sweat, urine. The typical \"chlorine smell\" comes from these, not from active chlorine. High = high bather load, breakpoint dose due.",
+            "description": "Spent chlorine compounds (chloramines) — formed by reaction of free chlorine with skin, hair, sweat, urine and organic debris. The typical \"chlorine smell\" and irritated eyes come from CC, not from active chlorine (a properly run pool has no smell). Ideal value is 0; if CC stays persistently above the watch threshold, only breakpoint chlorination helps — push FC briefly to 10× CC to chemically break all chloramines apart.",
             "data": {
               "cc_max": "Combined Cl max (mg/l, watch)",
               "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
@@ -296,7 +296,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of the water's disinfection power. The dosing controller regulates on this; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious.",
+            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
