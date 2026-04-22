@@ -90,14 +90,6 @@
           "cya_strength": "Cyanursäure Stärke (%)"
         }
       },
-      "dosing": {
-        "title": "Dosierung",
-        "description": "Max. Einzeldosis als Anteil und Wartezeit zwischen Teildosen.",
-        "data": {
-          "max_dose_fraction": "Max. Einzeldosis (Anteil)",
-          "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
-        }
-      },
       "testmodus": {
         "title": "Testmodus",
         "description": "Bei aktivem Testmodus nutzt der Advisor die hier eingetragenen statischen Werte statt der echten Entity-Messwerte. Ideal zum Durchspielen von Workflows und Empfehlungen. Alle Werte optional — leere Felder werden wie 'nicht gemessen' behandelt.",
@@ -127,7 +119,6 @@
           "entities_manual": "Manuelle Messung",
           "targets": "Zielwerte & Toleranzen",
           "chemicals": "Chemikalien",
-          "dosing": "Dosierung",
           "testmodus": "Testmodus (statische Werte)",
           "edit_all": "Alles der Reihe nach"
         }
@@ -213,13 +204,6 @@
           "cya_name": "Cyanursäure Produktname",
           "cya_type": "Cyanursäure Wirkstoff",
           "cya_strength": "Cyanursäure Stärke (%)"
-        }
-      },
-      "dosing": {
-        "title": "Dosierung",
-        "data": {
-          "max_dose_fraction": "Max. Einzeldosis (Anteil)",
-          "dose_interval_hours": "Wartezeit zwischen Dosen (Stunden)"
         }
       },
       "testmodus": {

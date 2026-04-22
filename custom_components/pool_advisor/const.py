@@ -169,10 +169,6 @@ PRODUCT_LABELS: Final = {
     "cyanuric_acid": "Cyanursäure (Stabilisator)",
 }
 
-# Dose splitting
-CONF_MAX_DOSE_FRACTION: Final = "max_dose_fraction"
-CONF_DOSE_INTERVAL_H: Final = "dose_interval_hours"
-
 # --- Choice values ---
 CHLORINATION_SALT: Final = "salt_electrolysis"
 CHLORINATION_CLASSIC: Final = "classic"
@@ -232,9 +228,6 @@ DEFAULT_CC_SHOCK_AT = 0.5
 DEFAULT_REDOX_TARGET = 700
 DEFAULT_REDOX_MIN = 650
 DEFAULT_REDOX_MAX = 750
-
-DEFAULT_MAX_DOSE_FRACTION = 0.5
-DEFAULT_DOSE_INTERVAL_H = 6
 
 # --- Signals / events ---
 SIGNAL_UPDATE = f"{DOMAIN}_update"

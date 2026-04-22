@@ -90,14 +90,6 @@
           "cya_strength": "Cyanuric acid strength (%)"
         }
       },
-      "dosing": {
-        "title": "Dosing",
-        "description": "Max single dose as fraction and wait time between split doses.",
-        "data": {
-          "max_dose_fraction": "Max single dose (fraction)",
-          "dose_interval_hours": "Wait between doses (hours)"
-        }
-      },
       "testmodus": {
         "title": "Test mode",
         "description": "When active, the advisor uses these static values instead of real entity readings. Perfect for walking through workflows and verifying recommendations. All values optional — empty = not measured.",
@@ -127,7 +119,6 @@
           "entities_manual": "Manual measurements",
           "targets": "Targets & tolerances",
           "chemicals": "Chemicals",
-          "dosing": "Dosing",
           "testmodus": "Test mode (static values)",
           "edit_all": "Edit everything in order"
         }
@@ -213,13 +204,6 @@
           "cya_name": "Cyanuric acid product name",
           "cya_type": "Cyanuric acid active compound",
           "cya_strength": "Cyanuric acid strength (%)"
-        }
-      },
-      "dosing": {
-        "title": "Dosing",
-        "data": {
-          "max_dose_fraction": "Max single dose (fraction)",
-          "dose_interval_hours": "Wait between doses (hours)"
         }
       },
       "testmodus": {

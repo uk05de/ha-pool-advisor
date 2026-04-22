@@ -55,7 +55,7 @@ class Recommendation:
 #   Soda (Na2CO3) pH anheben:     5–7 g/m³ pro 0.1 pH  → Mittel 6.0
 #   Trockensäure pH senken:       7.5–9 g/m³ pro 0.1 pH → Mittel 8.0
 #   Salzsäure 33 % pH senken:     7–8 mL/m³ pro 0.1 pH  → Mittel 7.5
-# Advisor splittet ohnehin Dosen (max_dose_fraction=0.5), User misst zwischendurch.
+# Advisor splittet Dosen bei Bedarf (MAX_DOSE_PER_M3), User misst zwischendurch.
 G_SODA_PURE_PER_M3_PER_01_PH = 6.0
 G_DRY_ACID_PURE_PER_M3_PER_01_PH = 8.0
 ML_HCL_33_PER_M3_PER_01_PH = 7.5
@@ -86,30 +86,79 @@ MAX_DOSE_PER_M3 = {
     "cyanuric_acid": 30.0,         # g/m³  — Stabilisator (Batch-Anwendung üblich)
 }
 
+# Wartezeit zwischen Teildosen je Produkt-Typ (Stunden). Chemie-abhängig:
+# schnell-wirkende/mild lösliche Produkte kürzer, langsam-lösende länger.
+# Quellen: Bayrol/TFP-Praxis.
+DOSE_INTERVAL_PER_CHEMICAL = {
+    "dry_acid_nahso4": 4,              # Trockensäure — zirkulieren lassen
+    "muriatic_acid_hcl": 4,            # Salzsäure — zirkulieren, nicht zu schnell nachkippen
+    "soda_ash_na2co3": 6,              # Soda — kann trüben, länger warten
+    "sodium_bicarbonate_nahco3": 2,    # Natron — mild, löst schnell
+    "dichlor": 6,                      # Dichlor-Granulat — langsam auflösen
+    "calcium_hypochlorite": 6,         # Cal-Hypo — kräftig, Verteilung abwarten
+    "sodium_hypochlorite": 2,          # Flüssig-Chlor — wirkt schnell
+    "cyanuric_acid": 24,               # CYA — gehört in Filter-/Skimmer-Socke, tagelang
+}
+
+# Applikationsmethode je Chemikalie. Faustregel: alles Granulat/Konzentrat im
+# Eimer Wasser vorlösen, damit es sich sauber verteilt und den Liner nicht
+# punktuell angreift. Ausnahme CYA (zu langsam löslich → Socke).
+APPLICATION_METHOD_PER_CHEMICAL = {
+    "dry_acid_nahso4": (
+        "**Im Eimer Wasser auflösen**, dann bei laufender Pumpe langsam ins Becken."
+    ),
+    "muriatic_acid_hcl": (
+        "**Eimer erst mit Wasser füllen, dann Säure langsam hineingeben** "
+        "(niemals umgekehrt — exothermes Spritzen). Bei laufender Pumpe ins tiefe Becken."
+    ),
+    "soda_ash_na2co3": (
+        "**Im Eimer Wasser auflösen**, dann bei laufender Pumpe langsam ins Becken."
+    ),
+    "sodium_bicarbonate_nahco3": (
+        "**Im Eimer Wasser auflösen**, dann bei laufender Pumpe langsam ins Becken."
+    ),
+    "dichlor": (
+        "**Im Eimer Wasser vollständig auflösen** — ungelöste Körner bleichen den Liner (weiße Flecken)."
+    ),
+    "calcium_hypochlorite": (
+        "**Im Eimer Wasser vollständig auflösen** — ungelöste Körner bleichen den Liner, "
+        "Kalzium-Sediment am Boden möglich."
+    ),
+    "sodium_hypochlorite": (
+        "**Im Eimer 1:5 mit Wasser verdünnen**, dann bei laufender Pumpe langsam ins Becken — "
+        "schonendere Verteilung als direkt einkippen."
+    ),
+    "cyanuric_acid": (
+        "**In Skimmer- oder Filter-Socke** geben (Eimer zu langsam löslich). "
+        "Pumpe 24–48 h laufen lassen, erst dann neu messen."
+    ),
+}
+
+
+def _method_hint(chemical_type: str) -> str | None:
+    """Anwendungs-Hinweis (Eimer/Socke/direkt) für eine Chemikalie."""
+    return APPLICATION_METHOD_PER_CHEMICAL.get(chemical_type)
+
+
+# Öffentlicher Alias — von workflow.py importiert, damit der Render den
+# Hinweis an derselben Stelle formulieren kann wie der Calculator.
+method_hint = _method_hint
+
 
 def _split(
     total: float,
     unit: str,
     product: str,
-    max_fraction: float,
-    interval_h: int,
-    max_single_dose: float | None = None,
+    chemical_type: str,
+    volume_m3: float,
 ) -> tuple[DoseStep, ...]:
-    """Split a total dose into parts.
-
-    Die Teildosis wird durch das Minimum aus (max_fraction × total) und
-    max_single_dose (absolute Sicherheits-Obergrenze) begrenzt. Dadurch
-    wird bei großen Gesamtmengen automatisch in mehr Teildosen aufgeteilt.
+    """Split a total dose into parts, sized by the chemical's per-m³ cap and
+    timed by its typical dissolution/circulation interval.
     """
     if total <= 0:
         return ()
-    max_fraction = max(0.1, min(max_fraction, 1.0))
-    max_part_from_fraction = total * max_fraction
-    if max_single_dose is not None and max_single_dose > 0:
-        max_part = min(max_part_from_fraction, max_single_dose)
-    else:
-        max_part = max_part_from_fraction
-    # Mindestens 1 (ganz) dosieren, sonst anhand der Obergrenze aufteilen
+    max_part = MAX_DOSE_PER_M3.get(chemical_type, 20.0) * volume_m3
+    interval_h = DOSE_INTERVAL_PER_CHEMICAL.get(chemical_type, 4)
     import math
     n_parts = max(1, math.ceil(total / max_part))
     part = total / n_parts
@@ -142,8 +191,6 @@ def recommend_ph(
     ph_plus_type: str,
     ph_plus_strength_pct: float,
     ph_plus_display: str,
-    max_dose_fraction: float,
-    interval_h: int,
     ph_dosing_minus: bool,
     ph_dosing_plus: bool,
 ) -> Recommendation:
@@ -184,13 +231,11 @@ def recommend_ph(
         if ph_minus_type == PH_MINUS_DRY_ACID:
             pure = G_DRY_ACID_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure * (100.0 / max(1.0, ph_minus_strength_pct))
-            cap = MAX_DOSE_PER_M3.get(PH_MINUS_DRY_ACID, 20.0) * volume_m3
-            steps = _split(total, "g", ph_minus_display, max_dose_fraction, interval_h, cap)
+            steps = _split(total, "g", ph_minus_display, PH_MINUS_DRY_ACID, volume_m3)
         elif ph_minus_type == PH_MINUS_HCL:
             pure_ml = ML_HCL_33_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure_ml * (33.0 / max(1.0, ph_minus_strength_pct))
-            cap = MAX_DOSE_PER_M3.get(PH_MINUS_HCL, 20.0) * volume_m3
-            steps = _split(total, "ml", ph_minus_display, max_dose_fraction, interval_h, cap)
+            steps = _split(total, "ml", ph_minus_display, PH_MINUS_HCL, volume_m3)
         else:
             return Recommendation(action="lower", steps=(), reason="Unbekanntes pH− Produkt", delta=delta)
         rec = Recommendation(
@@ -199,6 +244,9 @@ def recommend_ph(
             reason=f"{current:.2f} zu hoch — Ziel {target:.2f}",
             delta=delta,
         )
+        method = _method_hint(ph_minus_type)
+        if method:
+            rec = _append_note(rec, method)
         if ph_dosing_minus:
             rec = _append_note(
                 rec, "**pH-Alternative**: Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
@@ -209,8 +257,7 @@ def recommend_ph(
     if ph_plus_type == PH_PLUS_SODA:
         pure = G_SODA_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
         total = pure * (100.0 / max(1.0, ph_plus_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(PH_PLUS_SODA, 20.0) * volume_m3
-        steps = _split(total, "g", ph_plus_display, max_dose_fraction, interval_h, cap)
+        steps = _split(total, "g", ph_plus_display, PH_PLUS_SODA, volume_m3)
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
 
@@ -220,6 +267,9 @@ def recommend_ph(
         reason=f"{current:.2f} zu niedrig — Ziel {target:.2f}",
         delta=delta,
     )
+    method = _method_hint(ph_plus_type)
+    if method:
+        rec = _append_note(rec, method)
     if ph_dosing_plus:
         rec = _append_note(
             rec, "**pH-Alternative**: Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
@@ -246,8 +296,6 @@ def recommend_alkalinity(
     ta_plus_type: str,
     ta_plus_strength_pct: float,
     ta_plus_display: str,
-    max_dose_fraction: float,
-    interval_h: int,
 ) -> Recommendation:
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Keine Alkalitäts-Messung vorhanden")
@@ -279,14 +327,17 @@ def recommend_alkalinity(
             return Recommendation(action="raise", steps=(), reason="Unbekanntes TA+ Produkt", delta=delta)
         pure = G_BICARB_PURE_PER_M3_PER_10_TA * volume_m3 * (abs(delta) / 10.0)
         total = pure * (100.0 / max(1.0, ta_plus_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(TA_PLUS_BICARB, 50.0) * volume_m3
-        steps = _split(total, "g", ta_plus_display, max_dose_fraction, interval_h, cap)
-        return Recommendation(
+        steps = _split(total, "g", ta_plus_display, TA_PLUS_BICARB, volume_m3)
+        rec = Recommendation(
             action="raise",
             steps=steps,
             reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
         )
+        method = _method_hint(TA_PLUS_BICARB)
+        if method:
+            rec = _append_note(rec, method)
+        return rec
 
     # Lowering TA is a multi-day process (pH-down + aeration). Don't produce gram numbers;
     # give a guided note instead.
@@ -331,8 +382,6 @@ def recommend_shock(
     shock_type: str,
     shock_strength_pct: float,
     shock_display: str,
-    max_dose_fraction: float,
-    interval_h: int,
     chlorination_is_salt: bool,
     has_auto_dosing: bool,
     cya: float | None = None,
@@ -360,8 +409,6 @@ def recommend_shock(
             shock_type=shock_type,
             shock_strength_pct=shock_strength_pct,
             shock_display=shock_display,
-            max_dose_fraction=max_dose_fraction,
-            interval_h=interval_h,
             action="shock",
             reason=f"{values} — Breakpoint-Dosierung (CC > {cc_shock_at:.2f})",
         )
@@ -383,8 +430,6 @@ def recommend_shock(
                 shock_type=routine_type,
                 shock_strength_pct=routine_strength_pct,
                 shock_display=routine_display,
-                max_dose_fraction=max_dose_fraction,
-                interval_h=interval_h,
                 action="raise",
                 reason=f"{values} — FC zu niedrig (Ziel {fc_target:.2f})",
             )
@@ -515,18 +560,20 @@ def recommend_cya(
             product=cya_display,
             wait_hours=48,
         )
-        return Recommendation(
+        rec = Recommendation(
             action="raise",
             steps=(step,),
             reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
             note=(
                 "Menge = 80 % der Rechnung als Sicherheitspuffer. "
-                "In Skimmer-Sockel (Nylonsocke) oder Einsatzkorb geben — löst sich langsam. "
-                "Filter 24–48 h durchlaufen lassen, erst dann nachmessen und ggf. nachlegen. "
                 "Einmalige Aktion: CYA baut nicht ab."
             ),
         )
+        method = _method_hint("cyanuric_acid")
+        if method:
+            rec = _append_note(rec, method)
+        return rec
     if current >= critical_at:
         return Recommendation(
             action="lower",
@@ -768,26 +815,21 @@ def _build_cl_dose(
     shock_type: str,
     shock_strength_pct: float,
     shock_display: str,
-    max_dose_fraction: float,
-    interval_h: int,
     action: str,
     reason: str,
 ) -> Recommendation:
     if shock_type == SHOCK_DICHLOR:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(SHOCK_DICHLOR, 20.0) * volume_m3
-        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h, cap)
+        steps = _split(total, "g", shock_display, SHOCK_DICHLOR, volume_m3)
     elif shock_type == SHOCK_CAL_HYPO:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(SHOCK_CAL_HYPO, 20.0) * volume_m3
-        steps = _split(total, "g", shock_display, max_dose_fraction, interval_h, cap)
+        steps = _split(total, "g", shock_display, SHOCK_CAL_HYPO, volume_m3)
     elif shock_type == SHOCK_NAOCL_LIQUID:
         pure_ml = ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 * volume_m3 * target_fc_increase
         total = pure_ml * (12.5 / max(1.0, shock_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(SHOCK_NAOCL_LIQUID, 20.0) * volume_m3
-        steps = _split(total, "ml", shock_display, max_dose_fraction, interval_h, cap)
+        steps = _split(total, "ml", shock_display, SHOCK_NAOCL_LIQUID, volume_m3)
     else:
         return Recommendation(action=action, steps=(), reason="Unbekanntes Shock-Produkt", delta=target_fc_increase)
 
@@ -802,6 +844,10 @@ def _build_cl_dose(
             "CYA-frei schocken: Flüssig-Chlor (NaOCl) oder Monopersulfat/Oxi."
         )
 
-    return Recommendation(
+    rec = Recommendation(
         action=action, steps=steps, reason=reason, delta=target_fc_increase, note=note
     )
+    method = _method_hint(shock_type)
+    if method:
+        rec = _append_note(rec, method)
+    return rec

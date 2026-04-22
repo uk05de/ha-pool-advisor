@@ -16,6 +16,7 @@ from datetime import datetime
 
 from .calculator import (
     Recommendation,
+    method_hint,
     shock_dose_grams_or_ml,
 )
 from .const import (
@@ -609,6 +610,9 @@ def _scenario_notes(ctx: WorkflowContext) -> list[str]:
         "Algen-Szenarien zusätzlich Wände und Boden bürsten (2–3×); Schwarzalgen "
         "mechanisch + ggf. mehrtägiger Prozess.",
     ]
+    method = method_hint(ctx.shock_type) if ctx.shock_type else None
+    if method:
+        notes.append(f"**Anwendung {ctx.shock_display}**: {method}")
     if ctx.shock_type in SHOCK_STABILIZED:
         notes.append(
             f"{ctx.shock_display} ist stabilisiert — jede Dosis erhöht CYA "
@@ -617,6 +621,19 @@ def _scenario_notes(ctx: WorkflowContext) -> list[str]:
             "Calciumhypochlorit erwägen."
         )
     return notes
+
+
+def _safety_rules() -> list[str]:
+    """Generelle Sicherheitsregeln beim manuellen Dosieren — immer zeigen."""
+    return [
+        "**Sicherheitsregeln beim manuellen Dosieren**",
+        "• **Immer nur eine Chemikalie pro Eimer und Dosiervorgang.** "
+        "Nach jeder Dosis Zirkulation abwarten, neu messen, erst dann nächste Chemikalie.",
+        "• **Erst Wasser in den Eimer, dann die Säure/Chemikalie** — niemals umgekehrt (Spritzgefahr).",
+        "• **Niemals zwei Pool-Chemikalien zusammenkippen** — Säure + Chlor = Chlorgas, "
+        "Dichlor + Cal-Hypo = exotherme Reaktion. Eimer nach jeder Anwendung ausspülen, "
+        "nicht 'nachfüllen'.",
+    ]
 
 
 def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
@@ -705,6 +722,14 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     for n in _scenario_notes(ctx):
         lines.append(f"> {n}")
         lines.append(">")
+
+    # Generelle Sicherheits-Regeln beim manuellen Dosieren
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    for n in _safety_rules():
+        lines.append(n)
+        lines.append("")
 
     return "\n".join(lines)
 

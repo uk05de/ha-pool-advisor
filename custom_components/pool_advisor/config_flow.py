@@ -18,7 +18,6 @@ from .const import (
     PH_DOSING_CHOICES,
     CONF_CC_SHOCK_AT,
     CONF_CHLORINATION,
-    CONF_DOSE_INTERVAL_H,
     CONF_ENT_ALKALINITY,
     CONF_ENT_COMBINED_CL,
     CONF_ENT_CYANURIC,
@@ -32,7 +31,6 @@ from .const import (
     CONF_FC_MAX,
     CONF_FC_MIN,
     CONF_FC_TARGET,
-    CONF_MAX_DOSE_FRACTION,
     CONF_NAME,
     CONF_PH_CALIB_THRESHOLD,
     CONF_PH_CRITICAL_HIGH,
@@ -87,7 +85,6 @@ from .const import (
     CONF_TA_TARGET,
     DEFAULT_CC_MAX,
     DEFAULT_CC_SHOCK_AT,
-    DEFAULT_DOSE_INTERVAL_H,
     DEFAULT_FC_CRITICAL_LOW,
     DEFAULT_FC_MAX_CLASSIC,
     DEFAULT_FC_MAX_SALT,
@@ -95,7 +92,6 @@ from .const import (
     DEFAULT_FC_MIN_SALT,
     DEFAULT_FC_TARGET_CLASSIC,
     DEFAULT_FC_TARGET_SALT,
-    DEFAULT_MAX_DOSE_FRACTION,
     DEFAULT_PH_CALIB_THRESHOLD,
     DEFAULT_PH_CRITICAL_HIGH,
     DEFAULT_PH_CRITICAL_LOW,
@@ -359,21 +355,6 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _schema_dosing(defaults: dict[str, Any]) -> vol.Schema:
-    return vol.Schema(
-        {
-            vol.Required(
-                CONF_MAX_DOSE_FRACTION,
-                default=defaults.get(CONF_MAX_DOSE_FRACTION, DEFAULT_MAX_DOSE_FRACTION),
-            ): _number(0.1, 1.0, 0.05),
-            vol.Required(
-                CONF_DOSE_INTERVAL_H,
-                default=defaults.get(CONF_DOSE_INTERVAL_H, DEFAULT_DOSE_INTERVAL_H),
-            ): _number(1, 48, 1),
-        }
-    )
-
-
 def _schema_testmodus(defaults: dict[str, Any]) -> vol.Schema:
     def _opt_num(key: str, min_v: float, max_v: float, step: float = 0.1) -> dict[str, Any]:
         current = defaults.get(key)
@@ -453,14 +434,8 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_chemicals(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(user_input)
-            return await self.async_step_dosing()
-        return self.async_show_form(step_id="chemicals", data_schema=_schema_chemicals({}))
-
-    async def async_step_dosing(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        if user_input is not None:
-            self._data.update(user_input)
             return await self.async_step_testmodus()
-        return self.async_show_form(step_id="dosing", data_schema=_schema_dosing({}))
+        return self.async_show_form(step_id="chemicals", data_schema=_schema_chemicals({}))
 
     async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
@@ -509,7 +484,6 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 "entities_manual",
                 "targets",
                 "chemicals",
-                "dosing",
                 "testmodus",
                 "edit_all",
             ],
@@ -575,19 +549,11 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._data.update(user_input)
             if self._chain:
-                return await self.async_step_dosing()
+                return await self.async_step_testmodus()
             return self._save()
         return self.async_show_form(
             step_id="chemicals", data_schema=_schema_chemicals(self._current_all())
         )
-
-    async def async_step_dosing(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        if user_input is not None:
-            self._data.update(user_input)
-            if self._chain:
-                return await self.async_step_testmodus()
-            return self._save()
-        return self.async_show_form(step_id="dosing", data_schema=_schema_dosing(self._current_all()))
 
     async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:

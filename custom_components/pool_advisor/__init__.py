@@ -31,7 +31,6 @@ from .const import (
     PH_DOSING_BOTH,
     PH_DOSING_MINUS,
     PH_DOSING_PLUS,
-    CONF_DOSE_INTERVAL_H,
     CONF_ENT_ALKALINITY,
     CONF_ENT_COMBINED_CL,
     CONF_ENT_CYANURIC,
@@ -46,7 +45,6 @@ from .const import (
     CONF_FC_MAX,
     CONF_FC_MIN,
     CONF_FC_TARGET,
-    CONF_MAX_DOSE_FRACTION,
     CONF_PH_CALIB_THRESHOLD,
     CONF_PH_CRITICAL_HIGH,
     CONF_PH_CRITICAL_LOW,
@@ -388,8 +386,6 @@ class PoolAdvisorData:
     def recalculate(self) -> None:
         volume = float(self._cfg(CONF_POOL_VOLUME_M3, 30.0))
         chlorination_is_salt = self._cfg(CONF_CHLORINATION) == CHLORINATION_SALT
-        max_frac = float(self._cfg(CONF_MAX_DOSE_FRACTION, 0.5))
-        interval_h = int(self._cfg(CONF_DOSE_INTERVAL_H, 6))
         # Auto-detect dosing system: salt electrolysis OR a configured redox
         # entity (implies Bayrol-style dosing controller).
         has_auto_dosing = chlorination_is_salt or bool(self._cfg(CONF_ENT_REDOX))
@@ -417,8 +413,6 @@ class PoolAdvisorData:
             ph_plus_type=self._cfg(CONF_PH_PLUS_TYPE),
             ph_plus_strength_pct=float(self._cfg(CONF_PH_PLUS_STRENGTH)),
             ph_plus_display=self._display(CONF_PH_PLUS_NAME, CONF_PH_PLUS_TYPE),
-            max_dose_fraction=max_frac,
-            interval_h=interval_h,
             ph_dosing_minus=ph_dosing_minus,
             ph_dosing_plus=ph_dosing_plus,
         )
@@ -433,8 +427,6 @@ class PoolAdvisorData:
             ta_plus_type=self._cfg(CONF_TA_PLUS_TYPE),
             ta_plus_strength_pct=float(self._cfg(CONF_TA_PLUS_STRENGTH)),
             ta_plus_display=self._display(CONF_TA_PLUS_NAME, CONF_TA_PLUS_TYPE),
-            max_dose_fraction=max_frac,
-            interval_h=interval_h,
         )
         routine_strength_raw = self._cfg(CONF_ROUTINE_CL_STRENGTH)
         cl_rec = recommend_shock(
@@ -456,8 +448,6 @@ class PoolAdvisorData:
             shock_type=self._cfg(CONF_SHOCK_TYPE),
             shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH)),
             shock_display=self._display(CONF_SHOCK_NAME, CONF_SHOCK_TYPE),
-            max_dose_fraction=max_frac,
-            interval_h=interval_h,
             chlorination_is_salt=chlorination_is_salt,
             has_auto_dosing=has_auto_dosing,
             cya=self._manual_value(CONF_ENT_CYANURIC),
