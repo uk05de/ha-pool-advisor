@@ -76,14 +76,14 @@ SHOCK_FC_MULTIPLIER = 10.0
 # Damit nicht 1.2 L Salzsäure auf einmal reinkippt, auch wenn mathematisch nötig.
 # Werte aus Bayrol/TFP-Praxis-Empfehlungen für Privatpools.
 MAX_DOSE_PER_M3 = {
-    "dry_acid_nahso4": 30.0,       # g/m³  — pH−
-    "muriatic_acid_hcl": 20.0,     # ml/m³ — pH− flüssig HCl
-    "soda_ash_na2co3": 30.0,       # g/m³  — pH+
-    "sodium_bicarbonate_nahco3": 50.0,  # g/m³ — TA+
-    "dichlor": 25.0,               # g/m³  — Shock Dichlor
-    "calcium_hypochlorite": 20.0,  # g/m³  — Shock Cal-Hypo
-    "sodium_hypochlorite": 20.0,   # ml/m³ — Flüssig-Chlor
-    "cyanuric_acid": 30.0,         # g/m³  — Stabilisator
+    "dry_acid_nahso4": 20.0,       # g/m³  — pH− (Bayrol: ~15 g/m³/0.2pH)
+    "muriatic_acid_hcl": 20.0,     # ml/m³ — pH− flüssig (Bayrol: 200 ml/10m³)
+    "soda_ash_na2co3": 20.0,       # g/m³  — pH+ (Bayrol: ~15 g/m³/0.2pH)
+    "sodium_bicarbonate_nahco3": 50.0,  # g/m³ — TA+ (mild, tolerant)
+    "dichlor": 20.0,               # g/m³  — Dichlor Shock (Bayrol: 200 g/10m³)
+    "calcium_hypochlorite": 20.0,  # g/m³  — Cal-Hypo Shock
+    "sodium_hypochlorite": 20.0,   # ml/m³ — Flüssig-Chlor (Bayrol: 200 ml/10m³)
+    "cyanuric_acid": 30.0,         # g/m³  — Stabilisator (Batch-Anwendung üblich)
 }
 
 
@@ -183,7 +183,7 @@ def recommend_ph(
         if ph_minus_type == PH_MINUS_DRY_ACID:
             pure = G_DRY_ACID_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
             total = pure * (100.0 / max(1.0, ph_minus_strength_pct))
-            cap = MAX_DOSE_PER_M3.get(PH_MINUS_DRY_ACID, 30.0) * volume_m3
+            cap = MAX_DOSE_PER_M3.get(PH_MINUS_DRY_ACID, 20.0) * volume_m3
             steps = _split(total, "g", ph_minus_display, max_dose_fraction, interval_h, cap)
         elif ph_minus_type == PH_MINUS_HCL:
             pure_ml = ML_HCL_33_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
@@ -208,7 +208,7 @@ def recommend_ph(
     if ph_plus_type == PH_PLUS_SODA:
         pure = G_SODA_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
         total = pure * (100.0 / max(1.0, ph_plus_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(PH_PLUS_SODA, 30.0) * volume_m3
+        cap = MAX_DOSE_PER_M3.get(PH_PLUS_SODA, 20.0) * volume_m3
         steps = _split(total, "g", ph_plus_display, max_dose_fraction, interval_h, cap)
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
@@ -777,7 +777,7 @@ def _build_cl_dose(
     if shock_type == SHOCK_DICHLOR:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
-        cap = MAX_DOSE_PER_M3.get(SHOCK_DICHLOR, 25.0) * volume_m3
+        cap = MAX_DOSE_PER_M3.get(SHOCK_DICHLOR, 20.0) * volume_m3
         steps = _split(total, "g", shock_display, max_dose_fraction, interval_h, cap)
     elif shock_type == SHOCK_CAL_HYPO:
         pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
