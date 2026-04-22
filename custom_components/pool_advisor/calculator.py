@@ -50,12 +50,15 @@ class Recommendation:
 # Source: common pool chemistry tables. Values are for the *active* compound.
 # We then divide by product strength% to get grams/ml of the commercial product.
 
-# To raise pH by 0.1 in 10 m³: ~100 g soda ash (Na2CO3, pure)
-G_SODA_PURE_PER_M3_PER_01_PH = 10.0
-
-# To lower pH by 0.1 in 10 m³: ~100 g dry acid (NaHSO4, pure) OR ~100 ml HCl 33%
-G_DRY_ACID_PURE_PER_M3_PER_01_PH = 10.0
-ML_HCL_33_PER_M3_PER_01_PH = 10.0
+# pH-Dosierung — TA-abhängig (Puffer), Werte als Mittel aus Bayrol/TFP/Pentair
+# Literatur:
+#   Soda (Na2CO3) pH anheben:     5–7 g/m³ pro 0.1 pH  → Mittel 6.0
+#   Trockensäure pH senken:       7.5–9 g/m³ pro 0.1 pH → Mittel 8.0
+#   Salzsäure 33 % pH senken:     7–8 mL/m³ pro 0.1 pH  → Mittel 7.5
+# Advisor splittet ohnehin Dosen (max_dose_fraction=0.5), User misst zwischendurch.
+G_SODA_PURE_PER_M3_PER_01_PH = 6.0
+G_DRY_ACID_PURE_PER_M3_PER_01_PH = 8.0
+ML_HCL_33_PER_M3_PER_01_PH = 7.5
 
 # To raise TA by 10 mg/l in 10 m³: ~170 g sodium bicarb (pure)
 G_BICARB_PURE_PER_M3_PER_10_TA = 17.0

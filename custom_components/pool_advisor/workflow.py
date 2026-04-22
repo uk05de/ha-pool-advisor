@@ -312,6 +312,64 @@ def _non_swim_warnings(ctx: WorkflowContext, recs: dict[str, Recommendation]) ->
     return warnings
 
 
+def _format_steps_inline(steps) -> str:
+    """Fasst Dose-Steps als kompakte Zeile zusammen."""
+    if not steps:
+        return ""
+    parts: list[str] = []
+    for i, s in enumerate(steps, 1):
+        parts.append(f"**{s.amount:g} {s.unit}** {s.product}")
+        if s.wait_hours > 0 and i < len(steps):
+            parts.append(f"{s.wait_hours} h warten")
+    return "Dosiere " + " → ".join(parts)
+
+
+def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
+    """Konkrete Handlungsanweisungen als Info-Alert (blau).
+
+    Chlor wird bewusst ausgelassen — Dosen stehen in der Shock-Szenarien-Tabelle.
+    pH/TA/CYA mit Steps → Gramm-Empfehlung; calibrate → Text-Anweisung.
+    """
+    alerts: list[str] = []
+
+    for key, label in (
+        ("ph", "pH"),
+        ("alkalinity", "Alkalität"),
+        ("cya", "Cyanursäure"),
+    ):
+        rec = recs.get(key)
+        if rec is None or rec.action in ("ok", "no_data", "watch"):
+            continue
+        if rec.steps:
+            alerts.append(f"**{label}**: {_format_steps_inline(rec.steps)}")
+        elif rec.action == "lower" and key == "alkalinity":
+            alerts.append(
+                "**Alkalität senken**: mehrtägiger Prozess — pH gezielt auf ~7.0 senken, "
+                "kräftig belüften (Düsen nach oben / Wasserfall), täglich wiederholen und neu messen"
+            )
+        elif rec.action == "lower" and key == "cya":
+            alerts.append(
+                "**Cyanursäure senken**: chemisch nicht möglich. Ca. 30 % Wasser teiltauschen, "
+                "dann neu messen"
+            )
+
+    # Kalibrierungs-Handlungen
+    cal = recs.get("calibration")
+    if cal is not None and cal.action == "calibrate":
+        alerts.append(
+            "**pH-Elektrode kalibrieren**: mit Pufferlösungen pH 7 und pH 4 an der "
+            "Dosieranlage nachjustieren"
+        )
+    dr = recs.get("drift_redox")
+    if dr is not None and dr.action == "calibrate":
+        alerts.append(
+            "**Redox-Elektrode kalibrieren**: mit Prüflösung 468 mV an der Dosieranlage "
+            "nachjustieren"
+        )
+
+    return alerts
+
+
 # --- Tabelle ---
 
 
@@ -487,6 +545,11 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
 
     for w in _non_swim_warnings(ctx, recs):
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
+        lines.append("")
+
+    # Blaue Info-Alerts mit konkreten Handlungsanweisungen
+    for a in _action_recommendations(ctx, recs):
+        lines.append(f'<ha-alert alert-type="info">{a}</ha-alert>')
         lines.append("")
 
     # 2. Messwerte-Tabelle
