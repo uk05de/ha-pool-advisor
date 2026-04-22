@@ -78,8 +78,14 @@ from .const import (
     CONF_CYA_TYPE,
     CONF_CYA_WATCH_AT,
     CONF_REDOX_DRIFT_THRESHOLD,
+    CONF_REDOX_MAX,
+    CONF_REDOX_MIN,
+    CONF_REDOX_TARGET,
     CONF_TEST_MODE,
     DEFAULT_REDOX_DRIFT_THRESHOLD,
+    DEFAULT_REDOX_MAX,
+    DEFAULT_REDOX_MIN,
+    DEFAULT_REDOX_TARGET,
     TEST_VALUE_MAP,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
@@ -376,6 +382,9 @@ class PoolAdvisorData:
             ),
             total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
             redox=self._read_live(CONF_ENT_REDOX),
+            redox_min=float(self._cfg(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)),
+            redox_target=float(self._cfg(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)),
+            redox_max=float(self._cfg(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)),
         )
 
     async def async_unload(self) -> None:

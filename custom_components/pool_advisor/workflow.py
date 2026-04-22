@@ -85,6 +85,11 @@ class WorkflowContext:
     ph_calib_threshold: float = 0.2
     redox_drift_threshold: float = 70.0
 
+    # Redox-Ziele
+    redox_min: float = 650.0
+    redox_target: float = 700.0
+    redox_max: float = 750.0
+
     total_cl: float | None = None
     redox: float | None = None
 
@@ -239,6 +244,19 @@ def _color_tc_val(tc: float | None, ctx: WorkflowContext) -> str:
     if tc > 3.0:
         return COLOR_ORANGE
     return COLOR_GREEN
+
+
+def _color_redox_val(redox: float | None, ctx: WorkflowContext) -> str:
+    if redox is None:
+        return COLOR_GREY
+    if ctx.redox_min <= redox <= ctx.redox_max:
+        return COLOR_GREEN
+    # Größere Abweichung → rot, leichtes Abweichen → orange
+    lo_crit = ctx.redox_min - (ctx.redox_max - ctx.redox_min) * 0.3
+    hi_crit = ctx.redox_max + (ctx.redox_max - ctx.redox_min) * 0.3
+    if redox < lo_crit or redox > hi_crit:
+        return COLOR_RED
+    return COLOR_ORANGE
 
 
 def _color_cya_val(cya: float | None, ctx: WorkflowContext) -> str:
@@ -405,11 +423,18 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         "|----------|---------|------|-----|-----|",
     ]
 
-    # pH
-    ph = _eff_ph(ctx)
-    ph_str = _colored(f"{ph:.2f}", _color_ph_val(ph, ctx)) if ph is not None else "—"
+    # pH Manuell (PoolLab-Photometer)
+    ph_m = ctx.ph_manual
+    ph_m_str = _colored(f"{ph_m:.2f}", _color_ph_val(ph_m, ctx)) if ph_m is not None else "—"
     L.append(
-        f"| pH | {ph_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
+        f"| pH Manuell | {ph_m_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
+    )
+
+    # pH Dosieranlage (Bayrol-Elektrode, live)
+    ph_a = ctx.ph_auto
+    ph_a_str = _colored(f"{ph_a:.2f}", _color_ph_val(ph_a, ctx)) if ph_a is not None else "—"
+    L.append(
+        f"| pH Dosieranlage | {ph_a_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
     )
 
     # Alkalität
@@ -460,6 +485,30 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         f"| Cyanursäure (mg/l) | {cya_str} | {ctx.cya_target:.0f} | "
         f"{ctx.cya_watch_at:.0f} | {ctx.cya_critical_at:.0f} |"
     )
+
+    # Redox Dosieranlage (Bayrol-Elektrode, live)
+    redox_str = (
+        _colored(f"{ctx.redox:.0f}", _color_redox_val(ctx.redox, ctx))
+        if ctx.redox is not None
+        else "—"
+    )
+    L.append(
+        f"| Redox Dosieranlage (mV) | {redox_str} | {ctx.redox_target:.0f} | "
+        f"{ctx.redox_min:.0f} | {ctx.redox_max:.0f} |"
+    )
+
+    # Redox Berechnet (aus FC + pH + CYA)
+    redox_exp_val: float | None = None
+    ph_for_exp = _eff_ph(ctx)
+    if ctx.fc is not None and ph_for_exp is not None:
+        from .calculator import expected_redox_mv
+
+        cya_for_exp = ctx.cya if ctx.cya is not None else 30.0
+        redox_exp_val = expected_redox_mv(
+            free_cl=ctx.fc, ph=ph_for_exp, cya=cya_for_exp
+        )
+    redox_exp_str = f"{redox_exp_val:.0f}" if redox_exp_val is not None else "—"
+    L.append(f"| Redox Berechnet (mV) | {redox_exp_str} | — | — | — |")
 
     # Drift pH Sonde
     calib = recs.get("calibration")
