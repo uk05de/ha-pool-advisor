@@ -268,8 +268,7 @@
       "options": {
         "normal": "Normalbetrieb",
         "wasserwechsel": "Wasserwechsel / Inbetriebnahme",
-        "saisonstart": "Saisonstart nach Winter",
-        "schockchlorung": "Schockchlorung"
+        "saisonstart": "Saisonstart nach Winter"
       }
     }
   },

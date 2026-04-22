@@ -268,8 +268,7 @@
       "options": {
         "normal": "Normal operation",
         "wasserwechsel": "Water change / commissioning",
-        "saisonstart": "Season start after winter",
-        "schockchlorung": "Shock chlorination"
+        "saisonstart": "Season start after winter"
       }
     }
   },

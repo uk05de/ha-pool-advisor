@@ -116,13 +116,11 @@ CONF_WARTUNGSMODUS: Final = "wartungsmodus"
 MODE_NORMAL: Final = "normal"
 MODE_WASSERWECHSEL: Final = "wasserwechsel"
 MODE_SAISONSTART: Final = "saisonstart"
-MODE_SCHOCKCHLORUNG: Final = "schockchlorung"
 
 WARTUNGSMODI: Final = [
     MODE_NORMAL,
     MODE_WASSERWECHSEL,
     MODE_SAISONSTART,
-    MODE_SCHOCKCHLORUNG,
 ]
 
 # Shock-FC-Zielwerte je Szenario (mg/l absolut)

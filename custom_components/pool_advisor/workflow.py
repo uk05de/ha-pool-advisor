@@ -22,7 +22,6 @@ from .calculator import (
 from .const import (
     MODE_NORMAL,
     MODE_SAISONSTART,
-    MODE_SCHOCKCHLORUNG,
     MODE_WASSERWECHSEL,
     SHOCK_CYA_PER_PPM_CL,
     SHOCK_STABILIZED,
@@ -404,52 +403,117 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
     return L
 
 
-# --- Hauptrender ---
+# --- Shock-Szenarien-Tabelle (permanent) ---
+
+
+def _scenario_row(ctx: WorkflowContext, target_fc: float, label: str) -> str:
+    dose = _shock_dose(ctx, target_fc)
+    if dose is None:
+        return f"| {label} | {target_fc:.1f} mg/l | — | — |"
+    amount, unit = dose
+    cya_add = _cya_from_shock(ctx, target_fc)
+    cya_str = f"+{cya_add:.1f}" if cya_add > 0 else "—"
+    if amount <= 0:
+        return f"| {label} | {target_fc:.1f} mg/l | Ziel bereits erreicht | — |"
+    return f"| {label} | {target_fc:.1f} mg/l | {amount:.0f} {unit} {ctx.shock_display} | {cya_str} |"
+
+
+def _scenarios_table(ctx: WorkflowContext) -> list[str]:
+    L = [
+        "| Szenario | FC-Ziel | Dosis | CYA-Anstieg (mg/l) |",
+        "|----------|--------:|------:|-------------------:|",
+    ]
+    # Breakpoint nur wenn CC erhöht (sonst verwirrend, weil FC-Ziel < Routine)
+    if ctx.cc is not None and ctx.cc >= 0.5:
+        target = max(10.0, ctx.cc * 10.0)
+        L.append(_scenario_row(ctx, target, f"Breakpoint (10× CC = {target:.1f})"))
+    for target, label in (
+        (SHOCK_TARGET_ROUTINE, "Routine (präventiv)"),
+        (SHOCK_TARGET_ALGEN_LEICHT, "Algen leicht (grünlicher Schleier)"),
+        (SHOCK_TARGET_ALGEN_STARK, "Algen stark (grüne Brühe)"),
+        (SHOCK_TARGET_SCHWARZALGEN, "Schwarzalgen (schwarze Punkte)"),
+    ):
+        L.append(_scenario_row(ctx, target, label))
+    L.append("")
+    return L
+
+
+def _scenario_notes(ctx: WorkflowContext) -> list[str]:
+    """Statische Hinweise zur Shock-Tabelle. Keine Messwert-abhängige Info."""
+    notes: list[str] = [
+        "Nach einer Dosis: Filter 24 h dauerhaft laufen lassen, dann neu messen. "
+        "Algen-Szenarien zusätzlich Wände und Boden bürsten (2–3×); Schwarzalgen "
+        "mechanisch + ggf. mehrtägiger Prozess.",
+    ]
+    if ctx.shock_type in SHOCK_STABILIZED:
+        notes.append(
+            f"{ctx.shock_display} ist stabilisiert — jede Dosis erhöht CYA "
+            "(siehe Spalte rechts). Bei häufigem Shock steigt CYA stetig. Ab "
+            "CYA > 75 mg/l Wasserteilwechsel oder Wechsel zu Flüssig-Chlor / "
+            "Calciumhypochlorit erwägen."
+        )
+    return notes
+
+
+def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
+    """Dynamische Hinweise aus den aktiven Recommendations."""
+    notes: list[str] = []
+    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
+        rec = recs.get(key)
+        if rec and rec.note and rec.action not in ("ok", "no_data"):
+            notes.append(rec.note)
+    return notes
+
+
+# --- Hauptrender (unified) ---
 
 
 def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
-    lines: list[str] = ["## Pool-Empfehlung — Normalbetrieb", ""]
+    lines: list[str] = ["## Pool-Empfehlung", ""]
 
-    # 1. Swim-Safety-Alerts
+    # 1. Alerts
     swim_issues = _swim_safety_reasons(ctx)
     if swim_issues:
-        lines.append(
-            '<ha-alert alert-type="error">Baden aktuell nicht möglich</ha-alert>'
-        )
+        lines.append('<ha-alert alert-type="error">Baden aktuell nicht möglich</ha-alert>')
         lines.append("")
         for r in swim_issues:
             lines.append(f'<ha-alert alert-type="error">{r}</ha-alert>')
             lines.append("")
     else:
         lines.append(
-            '<ha-alert alert-type="success">✅ Badefreigabe erteilt — alles im sicheren Bereich</ha-alert>'
+            '<ha-alert alert-type="success">Badefreigabe erteilt — alles im sicheren Bereich</ha-alert>'
         )
         lines.append("")
 
-    # 2. Nicht-bade-blockierende Warnungen
     for w in _non_swim_warnings(ctx, recs):
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
         lines.append("")
 
-    # 3. Tabelle
+    # 2. Messwerte-Tabelle
     lines.append("---")
+    lines.append("")
+    lines.append(f"**Messwerte** ({ctx.volume_m3:.0f} m³):")
     lines.append("")
     lines += _values_table(ctx, recs)
 
-    # 4. Hinweise (Notes aus Recommendations)
-    notes: list[str] = []
-    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
-        rec = recs.get(key)
-        if rec and rec.note and rec.action not in ("ok", "no_data"):
-            notes.append(rec.note)
-    # Decay-Schätzung für hohes FC als Hinweis aus dem Note bereits enthalten
-    if notes:
-        lines.append("---")
+    # Hinweise unter der Messwerte-Tabelle
+    for n in _measurement_notes(recs):
+        lines.append(f"> {n}")
+        lines.append(">")
+    if _measurement_notes(recs):
         lines.append("")
-        for n in notes:
-            lines.append(f"> {n}")
-            lines.append(">")
-        lines.append("")
+
+    # 3. Shock-Szenarien-Tabelle (permanent)
+    lines.append("---")
+    lines.append("")
+    lines.append("**Shock-Szenarien** (falls gewünscht oder nötig):")
+    lines.append("")
+    lines += _scenarios_table(ctx)
+
+    # Hinweise unter der Shock-Tabelle
+    for n in _scenario_notes(ctx):
+        lines.append(f"> {n}")
+        lines.append(">")
 
     return "\n".join(lines)
 
@@ -678,112 +742,6 @@ def render_saisonstart(ctx: WorkflowContext, _recs: dict[str, Recommendation]) -
 # ---------- Schockchlorung: alle Szenarien zum Auswählen ----------
 
 
-def _shock_scenario_block(ctx: WorkflowContext, target_fc: float, label: str, note: str = "") -> list[str]:
-    dose = _shock_dose(ctx, target_fc)
-    fc_now = ctx.fc if ctx.fc is not None else 0.0
-    if dose is None:
-        return [f"### {label}", "Shock-Produkt nicht konfiguriert.", ""]
-    amount, unit = dose
-    if amount <= 0:
-        return [f"### ✅ {label}", f"FC {fc_now:.2f} bereits ≥ {target_fc:.0f}.", ""]
-    cya_add = _cya_from_shock(ctx, target_fc)
-    cya_note = f" Bringt ~{cya_add:.1f} mg/l CYA mit." if cya_add > 0 else ""
-    body = [
-        f"### {label}",
-        f"Ziel FC {target_fc:.0f} (aktuell {fc_now:.2f}). Dosiere **{amount:.0f} {unit} {ctx.shock_display}**.{cya_note}",
-    ]
-    if note:
-        body.append(note)
-    body.append("")
-    return body
-
-
-def render_schockchlorung(ctx: WorkflowContext, _recs: dict[str, Recommendation]) -> str:
-    L: list[str] = ["## Pool-Empfehlung — Schockchlorung", ""]
-
-    # Messwert-Zusammenfassung
-    ph = _eff_ph(ctx)
-    L += [
-        "**Messwerte:** "
-        f"pH {_val(ph, '')}, FC {_val(ctx.fc, 'mg/l')}, CC {_val(ctx.cc, 'mg/l')}, "
-        f"CYA {_val(ctx.cya, 'mg/l', 0)} ({ctx.volume_m3:.0f} m³ Pool)",
-        "",
-    ]
-
-    # pH-Check
-    if ph is None:
-        L += ["### ❔ pH-Check", "pH noch nicht gemessen — vor Shock bitte messen.", ""]
-    elif ph > 7.4:
-        L += [
-            "### ⚠ pH zu hoch für effektiven Shock",
-            f"pH **{ph:.2f}** — Bei pH > 7.4 sinkt der HOCl-Anteil deutlich "
-            "(pH 8.0 nur noch ~22 %). **Erst pH auf 7.0–7.2 senken**, dann schocken.",
-            "",
-        ]
-    else:
-        L += ["### ✅ pH-Check", f"pH {ph:.2f} — optimal für HOCl, sofort schocken möglich.", ""]
-
-    L += ["---", "", "### Such dir das passende Szenario:", ""]
-
-    # Breakpoint zuerst, falls CC erhöht
-    if ctx.cc is not None and ctx.cc >= 0.5:
-        target_bp = max(10.0, ctx.cc * 10.0)
-        L += [
-            f"### 🚨 Breakpoint *(empfohlen — CC {ctx.cc:.2f} erhöht!)*",
-            f"CC {ctx.cc:.2f} → 10× Regel → FC-Ziel **{target_bp:.1f} mg/l**.",
-        ]
-        dose = _shock_dose(ctx, target_bp)
-        if dose and dose[0] > 0:
-            amount, unit = dose
-            cya_add = _cya_from_shock(ctx, target_bp)
-            cya_note = f" Bringt ~{cya_add:.1f} mg/l CYA mit." if cya_add > 0 else ""
-            L += [
-                "",
-                f"Dosiere **{amount:.0f} {unit} {ctx.shock_display}**.{cya_note}",
-                "Nach 24 h CC messen — sollte < 0.2 sein.",
-                "",
-            ]
-        else:
-            L += ["", "(Produkt nicht konfiguriert oder FC bereits im Ziel)", ""]
-    elif ctx.cc is not None:
-        L += [f"### ○ Breakpoint", f"CC {ctx.cc:.2f} unauffällig — kein Breakpoint nötig.", ""]
-
-    L += _shock_scenario_block(ctx, SHOCK_TARGET_ROUTINE, "Shock Routine *(präventiv)*")
-    L += _shock_scenario_block(
-        ctx,
-        SHOCK_TARGET_ALGEN_LEICHT,
-        "Shock Algen leicht *(grünlicher Schleier)*",
-        note="Zusätzlich Wände + Boden bürsten.",
-    )
-    L += _shock_scenario_block(
-        ctx,
-        SHOCK_TARGET_ALGEN_STARK,
-        "Shock Algen stark *(grüne Brühe)*",
-        note="Kräftig bürsten + Filter dauerhaft + ggf. 2. Dosis nach 48 h.",
-    )
-    L += _shock_scenario_block(
-        ctx,
-        SHOCK_TARGET_SCHWARZALGEN,
-        "Shock Schwarzalgen *(schwarze Punkte)*",
-        note="Mechanisch bürsten, ggf. Wochen-Prozess.",
-    )
-
-    # Hinweis zu stabilisiertem Chlor
-    if ctx.shock_type in SHOCK_STABILIZED:
-        L += [
-            "---",
-            "",
-            f"> ⚠ Dein Shock-Produkt **{ctx.shock_display}** ist stabilisiert. "
-            "Bei häufigem Shocken steigt CYA. Ab CYA > 75 mg/l Wasser teiltauschen "
-            "oder auf Flüssig-Chlor / Cal-Hypo wechseln.",
-            "",
-        ]
-
-    L += ["---", ""]
-    L += _swim_ready_block(ctx)
-    return "\n".join(L)
-
-
 # ---------- Registry ----------
 
 
@@ -791,5 +749,4 @@ MODE_RENDERERS: dict[str, callable] = {
     MODE_NORMAL: render_normal,
     MODE_WASSERWECHSEL: render_wasserwechsel,
     MODE_SAISONSTART: render_saisonstart,
-    MODE_SCHOCKCHLORUNG: render_schockchlorung,
 }
