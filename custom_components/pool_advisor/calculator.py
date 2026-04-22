@@ -153,7 +153,7 @@ def recommend_ph(
         return Recommendation(
             action="ok",
             steps=(),
-            reason=f"pH {current:.2f} (Ziel {target:.2f}, Bereich {ph_min:.1f}–{ph_max:.1f})",
+            reason=f"{current:.2f} (Ziel {target:.2f}, Bereich {ph_min:.1f}–{ph_max:.1f})",
         )
 
     delta = target - current
@@ -169,8 +169,8 @@ def recommend_ph(
             action="watch",
             steps=(),
             reason=(
-                f"pH {current:.2f} leicht außerhalb {ph_min:.1f}–{ph_max:.1f} — "
-                f"Dosieranlage kann pH {direction} und sollte selbst regeln"
+                f"{current:.2f} leicht außerhalb {ph_min:.1f}–{ph_max:.1f} — "
+                f"Dosieranlage kann {direction} und sollte selbst regeln"
             ),
             delta=delta,
             note="Wenn Abweichung bestehen bleibt: Kanister, Elektrode und Sollwert der Anlage prüfen.",
@@ -195,7 +195,7 @@ def recommend_ph(
         rec = Recommendation(
             action="lower",
             steps=steps,
-            reason=f"pH {current:.2f} kritisch hoch — Ziel {target:.2f}",
+            reason=f"{current:.2f} kritisch hoch — Ziel {target:.2f}",
             delta=delta,
         )
         if ph_dosing_minus:
@@ -216,7 +216,7 @@ def recommend_ph(
     rec = Recommendation(
         action="raise",
         steps=steps,
-        reason=f"pH {current:.2f} kritisch niedrig — Ziel {target:.2f}",
+        reason=f"{current:.2f} kritisch niedrig — Ziel {target:.2f}",
         delta=delta,
     )
     if ph_dosing_plus:
@@ -255,7 +255,7 @@ def recommend_alkalinity(
             action="ok",
             steps=(),
             reason=(
-                f"Alkalität {current:.0f} mg/l "
+                f"{current:.0f} mg/l "
                 f"(Ziel {target:.0f}, Bereich {ta_min:.0f}–{ta_max:.0f})"
             ),
         )
@@ -268,7 +268,7 @@ def recommend_alkalinity(
             action="watch",
             steps=(),
             reason=(
-                f"Alkalität {current:.0f} mg/l leicht außerhalb {ta_min:.0f}–{ta_max:.0f} — beobachten"
+                f"{current:.0f} mg/l leicht außerhalb {ta_min:.0f}–{ta_max:.0f} — beobachten"
             ),
             delta=delta,
             note="Bei nächster Messung beobachten, noch kein Eingriff nötig.",
@@ -284,7 +284,7 @@ def recommend_alkalinity(
         return Recommendation(
             action="raise",
             steps=steps,
-            reason=f"Alkalität {current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
+            reason=f"{current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
             delta=delta,
         )
 
@@ -293,7 +293,7 @@ def recommend_alkalinity(
     return Recommendation(
         action="lower",
         steps=(),
-        reason=f"Alkalität {current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
+        reason=f"{current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
         delta=delta,
         note=(
             "TA senken erfolgt nicht durch einmalige Dosierung: pH gezielt auf ~7.0 senken, "
@@ -518,7 +518,7 @@ def recommend_cya(
         return Recommendation(
             action="raise",
             steps=(step,),
-            reason=f"Cyanursäure {current:.0f} mg/l unter Ziel {target:.0f}",
+            reason=f"{current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
             delta=delta,
             note=(
                 "Menge = 80 % der Rechnung als Sicherheitspuffer. "
@@ -531,7 +531,7 @@ def recommend_cya(
         return Recommendation(
             action="lower",
             steps=(),
-            reason=f"Cyanursäure {current:.0f} mg/l kritisch hoch",
+            reason=f"{current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
             delta=current - target,
             note=(
                 "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
@@ -542,7 +542,7 @@ def recommend_cya(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"Cyanursäure {current:.0f} mg/l erhöht — beobachten",
+            reason=f"{current:.0f} mg/l leicht erhöht — beobachten",
             delta=current - target,
             note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
         )
@@ -550,7 +550,7 @@ def recommend_cya(
         action="ok",
         steps=(),
         reason=(
-            f"Cyanursäure {current:.0f} mg/l "
+            f"{current:.0f} mg/l "
             f"(Ziel {target:.0f}, Watch ab {watch_at:.0f}, kritisch ab {critical_at:.0f})"
         ),
     )
