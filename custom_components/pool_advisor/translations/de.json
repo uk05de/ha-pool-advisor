@@ -36,76 +36,142 @@
         "title": "Zielwerte & Toleranzen",
         "description": "Defaults sind Richtwerte aus der Pool-Chemie-Literatur. Blöcke sind einklappbar.",
         "sections": {
-          "ph": {"name": "pH-Wert", "description": "Zielbereich und kritische Schwellen für pH"},
-          "alkalinity": {"name": "Alkalität (TA)", "description": "Karbonathärte — Puffer für stabilen pH"},
-          "cyanuric": {"name": "Cyanursäure", "description": "Stabilisator-Konzentration, Ziel und Grenzwerte"},
-          "free_chlorine": {"name": "Freies Chlor", "description": "FC-Bereich, Ziel und kritische Untergrenze"},
-          "combined_chlorine": {"name": "Gebundenes Chlor", "description": "CC-Obergrenze und Shockchlor-Auslöser"},
-          "redox": {"name": "Redox (ORP)", "description": "Sollwert und Bereich der Redox-Elektrode"},
-          "drift": {"name": "Sonden-Drift", "description": "Abweichungsschwellen pH und Redox"},
-          "stale": {"name": "Veraltet-Schwellen", "description": "Ab wann gilt eine Messung als veraltet (Tage)"}
-        },
-        "data": {
-          "ph_min": "pH min",
-          "ph_target": "pH Ziel",
-          "ph_max": "pH max",
-          "ta_min": "Alkalität min (mg/l)",
-          "ta_target": "Alkalität Ziel (mg/l)",
-          "ta_max": "Alkalität max (mg/l)",
-          "fc_min": "Freies Chlor min (mg/l)",
-          "fc_target": "Freies Chlor Ziel (mg/l)",
-          "fc_max": "Freies Chlor max (mg/l)",
-          "cc_max": "Gebundenes Chlor max (mg/l)",
-          "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)",
-          "redox_min": "Redox min (mV)",
-          "redox_target": "Redox Ziel (mV)",
-          "redox_max": "Redox max (mV)",
-          "ph_critical_low": "pH kritisch niedrig (eingreifen unterhalb)",
-          "ph_critical_high": "pH kritisch hoch (eingreifen oberhalb)",
-          "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
-          "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
-          "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
-          "cya_target": "Cyanursäure Ziel (mg/l)",
-          "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
-          "cya_critical_at": "Cyanursäure kritisch ab (mg/l)",
-          "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
-          "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
-          "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
-          "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
-          "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
-          "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
+          "ph": {
+            "name": "pH-Wert",
+            "description": "Zielbereich und kritische Schwellen für pH",
+            "data": {
+              "ph_min": "pH min",
+              "ph_target": "pH Ziel",
+              "ph_max": "pH max",
+              "ph_critical_low": "pH kritisch niedrig (eingreifen unterhalb)",
+              "ph_critical_high": "pH kritisch hoch (eingreifen oberhalb)"
+            }
+          },
+          "alkalinity": {
+            "name": "Alkalität (TA)",
+            "description": "Karbonathärte — Puffer für stabilen pH",
+            "data": {
+              "ta_min": "Alkalität min (mg/l)",
+              "ta_target": "Alkalität Ziel (mg/l)",
+              "ta_max": "Alkalität max (mg/l)",
+              "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
+              "ta_critical_high": "Alkalität kritisch hoch (mg/l)"
+            }
+          },
+          "cyanuric": {
+            "name": "Cyanursäure",
+            "description": "Stabilisator-Konzentration, Ziel und Grenzwerte",
+            "data": {
+              "cya_target": "Cyanursäure Ziel (mg/l)",
+              "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
+              "cya_critical_at": "Cyanursäure kritisch ab (mg/l)"
+            }
+          },
+          "free_chlorine": {
+            "name": "Freies Chlor",
+            "description": "FC-Bereich, Ziel und kritische Untergrenze",
+            "data": {
+              "fc_min": "Freies Chlor min (mg/l)",
+              "fc_target": "Freies Chlor Ziel (mg/l)",
+              "fc_max": "Freies Chlor max (mg/l)",
+              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)"
+            }
+          },
+          "combined_chlorine": {
+            "name": "Gebundenes Chlor",
+            "description": "CC-Obergrenze und Shockchlor-Auslöser",
+            "data": {
+              "cc_max": "Gebundenes Chlor max (mg/l)",
+              "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)"
+            }
+          },
+          "redox": {
+            "name": "Redox (ORP)",
+            "description": "Sollwert und Bereich der Redox-Elektrode",
+            "data": {
+              "redox_min": "Redox min (mV)",
+              "redox_target": "Redox Ziel (mV)",
+              "redox_max": "Redox max (mV)"
+            }
+          },
+          "drift": {
+            "name": "Sonden-Drift",
+            "description": "Abweichungsschwellen pH und Redox",
+            "data": {
+              "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
+              "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)"
+            }
+          },
+          "stale": {
+            "name": "Veraltet-Schwellen",
+            "description": "Ab wann gilt eine Messung als veraltet (Tage)",
+            "data": {
+              "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
+              "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
+              "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
+              "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
+            }
+          }
         }
       },
       "chemicals": {
         "title": "Chemikalien",
         "description": "Routine-Chlor = für kleine Nachdosierungen im Normalbetrieb (oft gleich wie Dosieranlagen-Kanister, z.B. Flüssig-Chlor NaOCl). Shock-Chlor = für Breakpoint/Algen (z.B. Chlorifix Dichlor). Beide optional — leer lassen wenn du nicht manuell dosierst.",
         "sections": {
-          "ph_minus": {"name": "pH−", "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)"},
-          "ph_plus": {"name": "pH+", "description": "Base zum pH-Anheben (Soda)"},
-          "ta_plus": {"name": "TA+", "description": "Natron zum Anheben der Alkalität"},
-          "routine_cl": {"name": "Routine-Chlor", "description": "Für kleine Nachdosierungen im Normalbetrieb — optional"},
-          "shock": {"name": "Shock-Chlor", "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor"},
-          "cya": {"name": "Cyanursäure", "description": "Stabilisator-Produkt"}
-        },
-        "data": {
-          "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
-          "ph_minus_type": "pH− Wirkstoff",
-          "ph_minus_strength": "pH− Stärke (%)",
-          "ph_plus_name": "pH+ Produktname",
-          "ph_plus_type": "pH+ Wirkstoff",
-          "ph_plus_strength": "pH+ Stärke (%)",
-          "ta_plus_name": "TA+ Produktname",
-          "ta_plus_type": "TA+ Wirkstoff",
-          "ta_plus_strength": "TA+ Stärke (%)",
-          "routine_cl_name": "Routine-Chlor Produktname",
-          "routine_cl_type": "Routine-Chlor Wirkstoff (optional)",
-          "routine_cl_strength": "Routine-Chlor Stärke (%)",
-          "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
-          "shock_type": "Shock-Chlor Wirkstoff",
-          "shock_strength": "Shock-Chlor Stärke (%)",
-          "cya_name": "Cyanursäure Produktname",
-          "cya_type": "Cyanursäure Wirkstoff",
-          "cya_strength": "Cyanursäure Stärke (%)"
+          "ph_minus": {
+            "name": "pH−",
+            "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)",
+            "data": {
+              "ph_minus_name": "Produktname (z.B. 'Bayrol pH-Minus')",
+              "ph_minus_type": "Wirkstoff",
+              "ph_minus_strength": "Stärke (%)"
+            }
+          },
+          "ph_plus": {
+            "name": "pH+",
+            "description": "Base zum pH-Anheben (Soda)",
+            "data": {
+              "ph_plus_name": "Produktname",
+              "ph_plus_type": "Wirkstoff",
+              "ph_plus_strength": "Stärke (%)"
+            }
+          },
+          "ta_plus": {
+            "name": "TA+",
+            "description": "Natron zum Anheben der Alkalität",
+            "data": {
+              "ta_plus_name": "Produktname",
+              "ta_plus_type": "Wirkstoff",
+              "ta_plus_strength": "Stärke (%)"
+            }
+          },
+          "routine_cl": {
+            "name": "Routine-Chlor",
+            "description": "Für kleine Nachdosierungen im Normalbetrieb — optional",
+            "data": {
+              "routine_cl_name": "Produktname",
+              "routine_cl_type": "Wirkstoff (optional)",
+              "routine_cl_strength": "Stärke (%)"
+            }
+          },
+          "shock": {
+            "name": "Shock-Chlor",
+            "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor",
+            "data": {
+              "shock_name": "Produktname (z.B. 'Chlorifix')",
+              "shock_type": "Wirkstoff",
+              "shock_strength": "Stärke (%)"
+            }
+          },
+          "cya": {
+            "name": "Cyanursäure",
+            "description": "Stabilisator-Produkt",
+            "data": {
+              "cya_name": "Produktname",
+              "cya_type": "Wirkstoff",
+              "cya_strength": "Stärke (%)"
+            }
+          }
         }
       },
       "testmodus": {
@@ -171,75 +237,141 @@
       "targets": {
         "title": "Zielwerte & Toleranzen",
         "sections": {
-          "ph": {"name": "pH-Wert", "description": "Zielbereich und kritische Schwellen für pH"},
-          "alkalinity": {"name": "Alkalität (TA)", "description": "Karbonathärte — Puffer für stabilen pH"},
-          "cyanuric": {"name": "Cyanursäure", "description": "Stabilisator-Konzentration, Ziel und Grenzwerte"},
-          "free_chlorine": {"name": "Freies Chlor", "description": "FC-Bereich, Ziel und kritische Untergrenze"},
-          "combined_chlorine": {"name": "Gebundenes Chlor", "description": "CC-Obergrenze und Shockchlor-Auslöser"},
-          "redox": {"name": "Redox (ORP)", "description": "Sollwert und Bereich der Redox-Elektrode"},
-          "drift": {"name": "Sonden-Drift", "description": "Abweichungsschwellen pH und Redox"},
-          "stale": {"name": "Veraltet-Schwellen", "description": "Ab wann gilt eine Messung als veraltet (Tage)"}
-        },
-        "data": {
-          "ph_min": "pH min",
-          "ph_target": "pH Ziel",
-          "ph_max": "pH max",
-          "ta_min": "Alkalität min (mg/l)",
-          "ta_target": "Alkalität Ziel (mg/l)",
-          "ta_max": "Alkalität max (mg/l)",
-          "fc_min": "Freies Chlor min (mg/l)",
-          "fc_target": "Freies Chlor Ziel (mg/l)",
-          "fc_max": "Freies Chlor max (mg/l)",
-          "cc_max": "Gebundenes Chlor max (mg/l)",
-          "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)",
-          "redox_min": "Redox min (mV)",
-          "redox_target": "Redox Ziel (mV)",
-          "redox_max": "Redox max (mV)",
-          "ph_critical_low": "pH kritisch niedrig",
-          "ph_critical_high": "pH kritisch hoch",
-          "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
-          "ta_critical_high": "Alkalität kritisch hoch (mg/l)",
-          "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
-          "cya_target": "Cyanursäure Ziel (mg/l)",
-          "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
-          "cya_critical_at": "Cyanursäure kritisch ab (mg/l)",
-          "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
-          "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
-          "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
-          "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
-          "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
-          "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
+          "ph": {
+            "name": "pH-Wert",
+            "description": "Zielbereich und kritische Schwellen für pH",
+            "data": {
+              "ph_min": "pH min",
+              "ph_target": "pH Ziel",
+              "ph_max": "pH max",
+              "ph_critical_low": "pH kritisch niedrig",
+              "ph_critical_high": "pH kritisch hoch"
+            }
+          },
+          "alkalinity": {
+            "name": "Alkalität (TA)",
+            "description": "Karbonathärte — Puffer für stabilen pH",
+            "data": {
+              "ta_min": "Alkalität min (mg/l)",
+              "ta_target": "Alkalität Ziel (mg/l)",
+              "ta_max": "Alkalität max (mg/l)",
+              "ta_critical_low": "Alkalität kritisch niedrig (mg/l)",
+              "ta_critical_high": "Alkalität kritisch hoch (mg/l)"
+            }
+          },
+          "cyanuric": {
+            "name": "Cyanursäure",
+            "description": "Stabilisator-Konzentration, Ziel und Grenzwerte",
+            "data": {
+              "cya_target": "Cyanursäure Ziel (mg/l)",
+              "cya_watch_at": "Cyanursäure beobachten ab (mg/l)",
+              "cya_critical_at": "Cyanursäure kritisch ab (mg/l)"
+            }
+          },
+          "free_chlorine": {
+            "name": "Freies Chlor",
+            "description": "FC-Bereich, Ziel und kritische Untergrenze",
+            "data": {
+              "fc_min": "Freies Chlor min (mg/l)",
+              "fc_target": "Freies Chlor Ziel (mg/l)",
+              "fc_max": "Freies Chlor max (mg/l)",
+              "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)"
+            }
+          },
+          "combined_chlorine": {
+            "name": "Gebundenes Chlor",
+            "description": "CC-Obergrenze und Shockchlor-Auslöser",
+            "data": {
+              "cc_max": "Gebundenes Chlor max (mg/l)",
+              "cc_shock_at": "Shockchlorung ab gebundenem Chlor (mg/l)"
+            }
+          },
+          "redox": {
+            "name": "Redox (ORP)",
+            "description": "Sollwert und Bereich der Redox-Elektrode",
+            "data": {
+              "redox_min": "Redox min (mV)",
+              "redox_target": "Redox Ziel (mV)",
+              "redox_max": "Redox max (mV)"
+            }
+          },
+          "drift": {
+            "name": "Sonden-Drift",
+            "description": "Abweichungsschwellen pH und Redox",
+            "data": {
+              "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
+              "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)"
+            }
+          },
+          "stale": {
+            "name": "Veraltet-Schwellen",
+            "description": "Ab wann gilt eine Messung als veraltet (Tage)",
+            "data": {
+              "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
+              "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
+              "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
+              "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
+            }
+          }
         }
       },
       "chemicals": {
         "title": "Chemikalien",
         "sections": {
-          "ph_minus": {"name": "pH−", "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)"},
-          "ph_plus": {"name": "pH+", "description": "Base zum pH-Anheben (Soda)"},
-          "ta_plus": {"name": "TA+", "description": "Natron zum Anheben der Alkalität"},
-          "routine_cl": {"name": "Routine-Chlor", "description": "Für kleine Nachdosierungen im Normalbetrieb — optional"},
-          "shock": {"name": "Shock-Chlor", "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor"},
-          "cya": {"name": "Cyanursäure", "description": "Stabilisator-Produkt"}
-        },
-        "data": {
-          "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
-          "ph_minus_type": "pH− Wirkstoff",
-          "ph_minus_strength": "pH− Stärke (%)",
-          "ph_plus_name": "pH+ Produktname",
-          "ph_plus_type": "pH+ Wirkstoff",
-          "ph_plus_strength": "pH+ Stärke (%)",
-          "ta_plus_name": "TA+ Produktname",
-          "ta_plus_type": "TA+ Wirkstoff",
-          "ta_plus_strength": "TA+ Stärke (%)",
-          "routine_cl_name": "Routine-Chlor Produktname",
-          "routine_cl_type": "Routine-Chlor Wirkstoff (optional)",
-          "routine_cl_strength": "Routine-Chlor Stärke (%)",
-          "shock_name": "Shock-Chlor Produktname (z.B. 'Chlorifix')",
-          "shock_type": "Shock-Chlor Wirkstoff",
-          "shock_strength": "Shock-Chlor Stärke (%)",
-          "cya_name": "Cyanursäure Produktname",
-          "cya_type": "Cyanursäure Wirkstoff",
-          "cya_strength": "Cyanursäure Stärke (%)"
+          "ph_minus": {
+            "name": "pH−",
+            "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)",
+            "data": {
+              "ph_minus_name": "Produktname (z.B. 'Bayrol pH-Minus')",
+              "ph_minus_type": "Wirkstoff",
+              "ph_minus_strength": "Stärke (%)"
+            }
+          },
+          "ph_plus": {
+            "name": "pH+",
+            "description": "Base zum pH-Anheben (Soda)",
+            "data": {
+              "ph_plus_name": "Produktname",
+              "ph_plus_type": "Wirkstoff",
+              "ph_plus_strength": "Stärke (%)"
+            }
+          },
+          "ta_plus": {
+            "name": "TA+",
+            "description": "Natron zum Anheben der Alkalität",
+            "data": {
+              "ta_plus_name": "Produktname",
+              "ta_plus_type": "Wirkstoff",
+              "ta_plus_strength": "Stärke (%)"
+            }
+          },
+          "routine_cl": {
+            "name": "Routine-Chlor",
+            "description": "Für kleine Nachdosierungen im Normalbetrieb — optional",
+            "data": {
+              "routine_cl_name": "Produktname",
+              "routine_cl_type": "Wirkstoff (optional)",
+              "routine_cl_strength": "Stärke (%)"
+            }
+          },
+          "shock": {
+            "name": "Shock-Chlor",
+            "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor",
+            "data": {
+              "shock_name": "Produktname (z.B. 'Chlorifix')",
+              "shock_type": "Wirkstoff",
+              "shock_strength": "Stärke (%)"
+            }
+          },
+          "cya": {
+            "name": "Cyanursäure",
+            "description": "Stabilisator-Produkt",
+            "data": {
+              "cya_name": "Produktname",
+              "cya_type": "Wirkstoff",
+              "cya_strength": "Stärke (%)"
+            }
+          }
         }
       },
       "testmodus": {

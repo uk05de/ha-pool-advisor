@@ -36,76 +36,142 @@
         "title": "Targets & tolerances",
         "description": "Defaults are common pool-chemistry guidelines. Blocks are collapsible.",
         "sections": {
-          "ph": {"name": "pH", "description": "Target range and critical thresholds for pH"},
-          "alkalinity": {"name": "Alkalinity (TA)", "description": "Carbonate hardness — buffer for stable pH"},
-          "cyanuric": {"name": "Cyanuric acid", "description": "Stabilizer concentration, target and limits"},
-          "free_chlorine": {"name": "Free chlorine", "description": "FC range, target and critical low"},
-          "combined_chlorine": {"name": "Combined chlorine", "description": "CC upper limit and shock-dose trigger"},
-          "redox": {"name": "Redox (ORP)", "description": "Setpoint and range for the redox probe"},
-          "drift": {"name": "Probe drift", "description": "Deviation thresholds for pH and redox"},
-          "stale": {"name": "Stale thresholds", "description": "When a reading counts as stale (days)"}
-        },
-        "data": {
-          "ph_min": "pH min",
-          "ph_target": "pH target",
-          "ph_max": "pH max",
-          "ta_min": "TA min (mg/l)",
-          "ta_target": "TA target (mg/l)",
-          "ta_max": "TA max (mg/l)",
-          "fc_min": "Free Cl min (mg/l)",
-          "fc_target": "Free Cl target (mg/l)",
-          "fc_max": "Free Cl max (mg/l)",
-          "cc_max": "Combined Cl max (mg/l)",
-          "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
-          "redox_min": "Redox min (mV)",
-          "redox_target": "Redox target (mV)",
-          "redox_max": "Redox max (mV)",
-          "ph_critical_low": "pH critical low (intervene below)",
-          "ph_critical_high": "pH critical high (intervene above)",
-          "ta_critical_low": "TA critical low (mg/l)",
-          "ta_critical_high": "TA critical high (mg/l)",
-          "fc_critical_low": "Free Cl critical low (mg/l)",
-          "cya_target": "Cyanuric acid target (mg/l)",
-          "cya_watch_at": "Cyanuric acid watch at (mg/l)",
-          "cya_critical_at": "Cyanuric acid critical at (mg/l)",
-          "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
-          "redox_drift_threshold": "Redox drift threshold (mV)",
-          "stale_ta_days": "Alkalinity — reading stale after (days)",
-          "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
-          "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
-          "stale_cya_days": "Cyanuric acid — reading stale after (days)"
+          "ph": {
+            "name": "pH",
+            "description": "Target range and critical thresholds for pH",
+            "data": {
+              "ph_min": "pH min",
+              "ph_target": "pH target",
+              "ph_max": "pH max",
+              "ph_critical_low": "pH critical low (intervene below)",
+              "ph_critical_high": "pH critical high (intervene above)"
+            }
+          },
+          "alkalinity": {
+            "name": "Alkalinity (TA)",
+            "description": "Carbonate hardness — buffer for stable pH",
+            "data": {
+              "ta_min": "TA min (mg/l)",
+              "ta_target": "TA target (mg/l)",
+              "ta_max": "TA max (mg/l)",
+              "ta_critical_low": "TA critical low (mg/l)",
+              "ta_critical_high": "TA critical high (mg/l)"
+            }
+          },
+          "cyanuric": {
+            "name": "Cyanuric acid",
+            "description": "Stabilizer concentration, target and limits",
+            "data": {
+              "cya_target": "Cyanuric acid target (mg/l)",
+              "cya_watch_at": "Cyanuric acid watch at (mg/l)",
+              "cya_critical_at": "Cyanuric acid critical at (mg/l)"
+            }
+          },
+          "free_chlorine": {
+            "name": "Free chlorine",
+            "description": "FC range, target and critical low",
+            "data": {
+              "fc_min": "Free Cl min (mg/l)",
+              "fc_target": "Free Cl target (mg/l)",
+              "fc_max": "Free Cl max (mg/l)",
+              "fc_critical_low": "Free Cl critical low (mg/l)"
+            }
+          },
+          "combined_chlorine": {
+            "name": "Combined chlorine",
+            "description": "CC upper limit and shock-dose trigger",
+            "data": {
+              "cc_max": "Combined Cl max (mg/l)",
+              "cc_shock_at": "Shock when combined Cl ≥ (mg/l)"
+            }
+          },
+          "redox": {
+            "name": "Redox (ORP)",
+            "description": "Setpoint and range for the redox probe",
+            "data": {
+              "redox_min": "Redox min (mV)",
+              "redox_target": "Redox target (mV)",
+              "redox_max": "Redox max (mV)"
+            }
+          },
+          "drift": {
+            "name": "Probe drift",
+            "description": "Deviation thresholds for pH and redox",
+            "data": {
+              "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
+              "redox_drift_threshold": "Redox drift threshold (mV)"
+            }
+          },
+          "stale": {
+            "name": "Stale thresholds",
+            "description": "When a reading counts as stale (days)",
+            "data": {
+              "stale_ta_days": "Alkalinity — reading stale after (days)",
+              "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
+              "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
+              "stale_cya_days": "Cyanuric acid — reading stale after (days)"
+            }
+          }
         }
       },
       "chemicals": {
         "title": "Chemicals",
         "description": "Routine chlorine = small top-ups during normal operation (often same as dosing canister, e.g. NaOCl liquid). Shock chlorine = breakpoint/algae events (e.g. dichlor granulate). Both optional — leave empty if you never dose manually.",
         "sections": {
-          "ph_minus": {"name": "pH−", "description": "Acid to lower pH (dry acid or muriatic acid)"},
-          "ph_plus": {"name": "pH+", "description": "Base to raise pH (soda ash)"},
-          "ta_plus": {"name": "TA+", "description": "Baking soda to raise alkalinity"},
-          "routine_cl": {"name": "Routine chlorine", "description": "For small top-ups during normal operation — optional"},
-          "shock": {"name": "Shock chlorine", "description": "For breakpoint/algae events — granulate or liquid chlorine"},
-          "cya": {"name": "Cyanuric acid", "description": "Stabilizer product"}
-        },
-        "data": {
-          "ph_minus_name": "pH− product name",
-          "ph_minus_type": "pH− active compound",
-          "ph_minus_strength": "pH− strength (%)",
-          "ph_plus_name": "pH+ product name",
-          "ph_plus_type": "pH+ active compound",
-          "ph_plus_strength": "pH+ strength (%)",
-          "ta_plus_name": "TA+ product name",
-          "ta_plus_type": "TA+ active compound",
-          "ta_plus_strength": "TA+ strength (%)",
-          "routine_cl_name": "Routine chlorine product name",
-          "routine_cl_type": "Routine chlorine active compound (optional)",
-          "routine_cl_strength": "Routine chlorine strength (%)",
-          "shock_name": "Shock chlorine product name",
-          "shock_type": "Shock chlorine active compound",
-          "shock_strength": "Shock chlorine strength (%)",
-          "cya_name": "Cyanuric acid product name",
-          "cya_type": "Cyanuric acid active compound",
-          "cya_strength": "Cyanuric acid strength (%)"
+          "ph_minus": {
+            "name": "pH−",
+            "description": "Acid to lower pH (dry acid or muriatic acid)",
+            "data": {
+              "ph_minus_name": "Product name",
+              "ph_minus_type": "Active compound",
+              "ph_minus_strength": "Strength (%)"
+            }
+          },
+          "ph_plus": {
+            "name": "pH+",
+            "description": "Base to raise pH (soda ash)",
+            "data": {
+              "ph_plus_name": "Product name",
+              "ph_plus_type": "Active compound",
+              "ph_plus_strength": "Strength (%)"
+            }
+          },
+          "ta_plus": {
+            "name": "TA+",
+            "description": "Baking soda to raise alkalinity",
+            "data": {
+              "ta_plus_name": "Product name",
+              "ta_plus_type": "Active compound",
+              "ta_plus_strength": "Strength (%)"
+            }
+          },
+          "routine_cl": {
+            "name": "Routine chlorine",
+            "description": "For small top-ups during normal operation — optional",
+            "data": {
+              "routine_cl_name": "Product name",
+              "routine_cl_type": "Active compound (optional)",
+              "routine_cl_strength": "Strength (%)"
+            }
+          },
+          "shock": {
+            "name": "Shock chlorine",
+            "description": "For breakpoint/algae events — granulate or liquid chlorine",
+            "data": {
+              "shock_name": "Product name",
+              "shock_type": "Active compound",
+              "shock_strength": "Strength (%)"
+            }
+          },
+          "cya": {
+            "name": "Cyanuric acid",
+            "description": "Stabilizer product",
+            "data": {
+              "cya_name": "Product name",
+              "cya_type": "Active compound",
+              "cya_strength": "Strength (%)"
+            }
+          }
         }
       },
       "testmodus": {
@@ -171,75 +237,141 @@
       "targets": {
         "title": "Targets & tolerances",
         "sections": {
-          "ph": {"name": "pH", "description": "Target range and critical thresholds for pH"},
-          "alkalinity": {"name": "Alkalinity (TA)", "description": "Carbonate hardness — buffer for stable pH"},
-          "cyanuric": {"name": "Cyanuric acid", "description": "Stabilizer concentration, target and limits"},
-          "free_chlorine": {"name": "Free chlorine", "description": "FC range, target and critical low"},
-          "combined_chlorine": {"name": "Combined chlorine", "description": "CC upper limit and shock-dose trigger"},
-          "redox": {"name": "Redox (ORP)", "description": "Setpoint and range for the redox probe"},
-          "drift": {"name": "Probe drift", "description": "Deviation thresholds for pH and redox"},
-          "stale": {"name": "Stale thresholds", "description": "When a reading counts as stale (days)"}
-        },
-        "data": {
-          "ph_min": "pH min",
-          "ph_target": "pH target",
-          "ph_max": "pH max",
-          "ta_min": "TA min (mg/l)",
-          "ta_target": "TA target (mg/l)",
-          "ta_max": "TA max (mg/l)",
-          "fc_min": "Free Cl min (mg/l)",
-          "fc_target": "Free Cl target (mg/l)",
-          "fc_max": "Free Cl max (mg/l)",
-          "cc_max": "Combined Cl max (mg/l)",
-          "cc_shock_at": "Shock when combined Cl ≥ (mg/l)",
-          "redox_min": "Redox min (mV)",
-          "redox_target": "Redox target (mV)",
-          "redox_max": "Redox max (mV)",
-          "ph_critical_low": "pH critical low",
-          "ph_critical_high": "pH critical high",
-          "ta_critical_low": "TA critical low (mg/l)",
-          "ta_critical_high": "TA critical high (mg/l)",
-          "fc_critical_low": "Free Cl critical low (mg/l)",
-          "cya_target": "Cyanuric acid target (mg/l)",
-          "cya_watch_at": "Cyanuric acid watch at (mg/l)",
-          "cya_critical_at": "Cyanuric acid critical at (mg/l)",
-          "ph_calibration_threshold": "pH drift threshold",
-          "redox_drift_threshold": "Redox drift threshold (mV)",
-          "stale_ta_days": "Alkalinity — reading stale after (days)",
-          "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
-          "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
-          "stale_cya_days": "Cyanuric acid — reading stale after (days)"
+          "ph": {
+            "name": "pH",
+            "description": "Target range and critical thresholds for pH",
+            "data": {
+              "ph_min": "pH min",
+              "ph_target": "pH target",
+              "ph_max": "pH max",
+              "ph_critical_low": "pH critical low",
+              "ph_critical_high": "pH critical high"
+            }
+          },
+          "alkalinity": {
+            "name": "Alkalinity (TA)",
+            "description": "Carbonate hardness — buffer for stable pH",
+            "data": {
+              "ta_min": "TA min (mg/l)",
+              "ta_target": "TA target (mg/l)",
+              "ta_max": "TA max (mg/l)",
+              "ta_critical_low": "TA critical low (mg/l)",
+              "ta_critical_high": "TA critical high (mg/l)"
+            }
+          },
+          "cyanuric": {
+            "name": "Cyanuric acid",
+            "description": "Stabilizer concentration, target and limits",
+            "data": {
+              "cya_target": "Cyanuric acid target (mg/l)",
+              "cya_watch_at": "Cyanuric acid watch at (mg/l)",
+              "cya_critical_at": "Cyanuric acid critical at (mg/l)"
+            }
+          },
+          "free_chlorine": {
+            "name": "Free chlorine",
+            "description": "FC range, target and critical low",
+            "data": {
+              "fc_min": "Free Cl min (mg/l)",
+              "fc_target": "Free Cl target (mg/l)",
+              "fc_max": "Free Cl max (mg/l)",
+              "fc_critical_low": "Free Cl critical low (mg/l)"
+            }
+          },
+          "combined_chlorine": {
+            "name": "Combined chlorine",
+            "description": "CC upper limit and shock-dose trigger",
+            "data": {
+              "cc_max": "Combined Cl max (mg/l)",
+              "cc_shock_at": "Shock when combined Cl ≥ (mg/l)"
+            }
+          },
+          "redox": {
+            "name": "Redox (ORP)",
+            "description": "Setpoint and range for the redox probe",
+            "data": {
+              "redox_min": "Redox min (mV)",
+              "redox_target": "Redox target (mV)",
+              "redox_max": "Redox max (mV)"
+            }
+          },
+          "drift": {
+            "name": "Probe drift",
+            "description": "Deviation thresholds for pH and redox",
+            "data": {
+              "ph_calibration_threshold": "pH drift threshold",
+              "redox_drift_threshold": "Redox drift threshold (mV)"
+            }
+          },
+          "stale": {
+            "name": "Stale thresholds",
+            "description": "When a reading counts as stale (days)",
+            "data": {
+              "stale_ta_days": "Alkalinity — reading stale after (days)",
+              "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
+              "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
+              "stale_cya_days": "Cyanuric acid — reading stale after (days)"
+            }
+          }
         }
       },
       "chemicals": {
         "title": "Chemicals",
         "sections": {
-          "ph_minus": {"name": "pH−", "description": "Acid to lower pH (dry acid or muriatic acid)"},
-          "ph_plus": {"name": "pH+", "description": "Base to raise pH (soda ash)"},
-          "ta_plus": {"name": "TA+", "description": "Baking soda to raise alkalinity"},
-          "routine_cl": {"name": "Routine chlorine", "description": "For small top-ups during normal operation — optional"},
-          "shock": {"name": "Shock chlorine", "description": "For breakpoint/algae events — granulate or liquid chlorine"},
-          "cya": {"name": "Cyanuric acid", "description": "Stabilizer product"}
-        },
-        "data": {
-          "ph_minus_name": "pH− product name",
-          "ph_minus_type": "pH− active compound",
-          "ph_minus_strength": "pH− strength (%)",
-          "ph_plus_name": "pH+ product name",
-          "ph_plus_type": "pH+ active compound",
-          "ph_plus_strength": "pH+ strength (%)",
-          "ta_plus_name": "TA+ product name",
-          "ta_plus_type": "TA+ active compound",
-          "ta_plus_strength": "TA+ strength (%)",
-          "routine_cl_name": "Routine chlorine product name",
-          "routine_cl_type": "Routine chlorine active compound (optional)",
-          "routine_cl_strength": "Routine chlorine strength (%)",
-          "shock_name": "Shock chlorine product name",
-          "shock_type": "Shock chlorine active compound",
-          "shock_strength": "Shock chlorine strength (%)",
-          "cya_name": "Cyanuric acid product name",
-          "cya_type": "Cyanuric acid active compound",
-          "cya_strength": "Cyanuric acid strength (%)"
+          "ph_minus": {
+            "name": "pH−",
+            "description": "Acid to lower pH (dry acid or muriatic acid)",
+            "data": {
+              "ph_minus_name": "Product name",
+              "ph_minus_type": "Active compound",
+              "ph_minus_strength": "Strength (%)"
+            }
+          },
+          "ph_plus": {
+            "name": "pH+",
+            "description": "Base to raise pH (soda ash)",
+            "data": {
+              "ph_plus_name": "Product name",
+              "ph_plus_type": "Active compound",
+              "ph_plus_strength": "Strength (%)"
+            }
+          },
+          "ta_plus": {
+            "name": "TA+",
+            "description": "Baking soda to raise alkalinity",
+            "data": {
+              "ta_plus_name": "Product name",
+              "ta_plus_type": "Active compound",
+              "ta_plus_strength": "Strength (%)"
+            }
+          },
+          "routine_cl": {
+            "name": "Routine chlorine",
+            "description": "For small top-ups during normal operation — optional",
+            "data": {
+              "routine_cl_name": "Product name",
+              "routine_cl_type": "Active compound (optional)",
+              "routine_cl_strength": "Strength (%)"
+            }
+          },
+          "shock": {
+            "name": "Shock chlorine",
+            "description": "For breakpoint/algae events — granulate or liquid chlorine",
+            "data": {
+              "shock_name": "Product name",
+              "shock_type": "Active compound",
+              "shock_strength": "Strength (%)"
+            }
+          },
+          "cya": {
+            "name": "Cyanuric acid",
+            "description": "Stabilizer product",
+            "data": {
+              "cya_name": "Product name",
+              "cya_type": "Active compound",
+              "cya_strength": "Strength (%)"
+            }
+          }
         }
       },
       "testmodus": {
