@@ -6,7 +6,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 
 from .const import (
@@ -130,6 +130,23 @@ from .const import (
 )
 
 
+def _flatten(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Section-geschachtelte Eingaben auf flache Keys reduzieren.
+
+    In HA ≥ 2024.8 liefert data_entry_flow.section() die Felder zwar meist
+    schon flach zurück, manche Flows sehen jedoch `{"section_key": {...}}`.
+    Wir ziehen alle dict-Werte eine Ebene hoch, damit self._data immer die
+    gleichen Keys hat wie die Entry-Options.
+    """
+    out: dict[str, Any] = {}
+    for k, v in user_input.items():
+        if isinstance(v, dict):
+            out.update(v)
+        else:
+            out[k] = v
+    return out
+
+
 def _sensor_selector() -> selector.EntitySelector:
     return selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor", "number", "input_number"]))
 
@@ -186,106 +203,103 @@ def _schema_entities_manual(defaults: dict[str, Any]) -> vol.Schema:
 
 
 def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
+    def _dv(key, fallback):
+        return defaults.get(key, fallback)
+
+    ph_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_PH_MIN, default=_dv(CONF_PH_MIN, DEFAULT_PH_MIN)): _number(6.0, 8.0, 0.05),
+                vol.Required(CONF_PH_TARGET, default=_dv(CONF_PH_TARGET, DEFAULT_PH_TARGET)): _number(6.0, 8.0, 0.05),
+                vol.Required(CONF_PH_MAX, default=_dv(CONF_PH_MAX, DEFAULT_PH_MAX)): _number(6.0, 8.0, 0.05),
+                vol.Required(CONF_PH_CRITICAL_LOW, default=_dv(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)): _number(5.5, 8.0, 0.05),
+                vol.Required(CONF_PH_CRITICAL_HIGH, default=_dv(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)): _number(6.5, 9.0, 0.05),
+            }
+        ),
+        {"collapsed": False},
+    )
+    ta_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_TA_MIN, default=_dv(CONF_TA_MIN, DEFAULT_TA_MIN)): _number(20, 250, 5),
+                vol.Required(CONF_TA_TARGET, default=_dv(CONF_TA_TARGET, DEFAULT_TA_TARGET)): _number(20, 250, 5),
+                vol.Required(CONF_TA_MAX, default=_dv(CONF_TA_MAX, DEFAULT_TA_MAX)): _number(20, 250, 5),
+                vol.Required(CONF_TA_CRITICAL_LOW, default=_dv(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)): _number(20, 250, 5),
+                vol.Required(CONF_TA_CRITICAL_HIGH, default=_dv(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)): _number(20, 300, 5),
+            }
+        ),
+        {"collapsed": True},
+    )
+    cya_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_CYA_TARGET, default=_dv(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)): _number(10, 100, 5),
+                vol.Required(CONF_CYA_WATCH_AT, default=_dv(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)): _number(20, 200, 5),
+                vol.Required(CONF_CYA_CRITICAL_AT, default=_dv(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)): _number(30, 200, 5),
+            }
+        ),
+        {"collapsed": True},
+    )
+    fc_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_FC_MIN, default=_dv(CONF_FC_MIN, DEFAULT_FC_MIN_SALT)): _number(0.0, 10.0, 0.1),
+                vol.Required(CONF_FC_TARGET, default=_dv(CONF_FC_TARGET, DEFAULT_FC_TARGET_SALT)): _number(0.0, 10.0, 0.1),
+                vol.Required(CONF_FC_MAX, default=_dv(CONF_FC_MAX, DEFAULT_FC_MAX_SALT)): _number(0.0, 10.0, 0.1),
+                vol.Required(CONF_FC_CRITICAL_LOW, default=_dv(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)): _number(0.0, 5.0, 0.05),
+            }
+        ),
+        {"collapsed": True},
+    )
+    cc_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_CC_MAX, default=_dv(CONF_CC_MAX, DEFAULT_CC_MAX)): _number(0.0, 5.0, 0.05),
+                vol.Required(CONF_CC_SHOCK_AT, default=_dv(CONF_CC_SHOCK_AT, DEFAULT_CC_SHOCK_AT)): _number(0.0, 5.0, 0.05),
+            }
+        ),
+        {"collapsed": True},
+    )
+    redox_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_REDOX_MIN, default=_dv(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)): _number(400, 900, 5),
+                vol.Required(CONF_REDOX_TARGET, default=_dv(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)): _number(400, 900, 5),
+                vol.Required(CONF_REDOX_MAX, default=_dv(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)): _number(400, 900, 5),
+            }
+        ),
+        {"collapsed": True},
+    )
+    drift_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_PH_CALIB_THRESHOLD, default=_dv(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD)): _number(0.05, 1.0, 0.05),
+                vol.Required(CONF_REDOX_DRIFT_THRESHOLD, default=_dv(CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD)): _number(20, 200, 5),
+            }
+        ),
+        {"collapsed": True},
+    )
+    stale_section = section(
+        vol.Schema(
+            {
+                vol.Required(CONF_STALE_TA_DAYS, default=_dv(CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS)): _number(1, 365, 1),
+                vol.Required(CONF_STALE_PH_MANUAL_DAYS, default=_dv(CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS)): _number(1, 365, 1),
+                vol.Required(CONF_STALE_FC_DAYS, default=_dv(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)): _number(1, 365, 1),
+                vol.Required(CONF_STALE_CYA_DAYS, default=_dv(CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS)): _number(1, 365, 1),
+            }
+        ),
+        {"collapsed": True},
+    )
     return vol.Schema(
         {
-            vol.Required(CONF_PH_MIN, default=defaults.get(CONF_PH_MIN, DEFAULT_PH_MIN)): _number(
-                6.0, 8.0, 0.05
-            ),
-            vol.Required(
-                CONF_PH_TARGET, default=defaults.get(CONF_PH_TARGET, DEFAULT_PH_TARGET)
-            ): _number(6.0, 8.0, 0.05),
-            vol.Required(CONF_PH_MAX, default=defaults.get(CONF_PH_MAX, DEFAULT_PH_MAX)): _number(
-                6.0, 8.0, 0.05
-            ),
-            vol.Required(CONF_TA_MIN, default=defaults.get(CONF_TA_MIN, DEFAULT_TA_MIN)): _number(
-                20, 250, 5
-            ),
-            vol.Required(
-                CONF_TA_TARGET, default=defaults.get(CONF_TA_TARGET, DEFAULT_TA_TARGET)
-            ): _number(20, 250, 5),
-            vol.Required(CONF_TA_MAX, default=defaults.get(CONF_TA_MAX, DEFAULT_TA_MAX)): _number(
-                20, 250, 5
-            ),
-            vol.Required(
-                CONF_FC_MIN, default=defaults.get(CONF_FC_MIN, DEFAULT_FC_MIN_SALT)
-            ): _number(0.0, 10.0, 0.1),
-            vol.Required(
-                CONF_FC_TARGET, default=defaults.get(CONF_FC_TARGET, DEFAULT_FC_TARGET_SALT)
-            ): _number(0.0, 10.0, 0.1),
-            vol.Required(
-                CONF_FC_MAX, default=defaults.get(CONF_FC_MAX, DEFAULT_FC_MAX_SALT)
-            ): _number(0.0, 10.0, 0.1),
-            vol.Required(CONF_CC_MAX, default=defaults.get(CONF_CC_MAX, DEFAULT_CC_MAX)): _number(
-                0.0, 5.0, 0.05
-            ),
-            vol.Required(
-                CONF_CC_SHOCK_AT, default=defaults.get(CONF_CC_SHOCK_AT, DEFAULT_CC_SHOCK_AT)
-            ): _number(0.0, 5.0, 0.05),
-            vol.Required(
-                CONF_REDOX_MIN, default=defaults.get(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)
-            ): _number(400, 900, 5),
-            vol.Required(
-                CONF_REDOX_TARGET, default=defaults.get(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)
-            ): _number(400, 900, 5),
-            vol.Required(
-                CONF_REDOX_MAX, default=defaults.get(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)
-            ): _number(400, 900, 5),
-            vol.Required(
-                CONF_PH_CRITICAL_LOW,
-                default=defaults.get(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW),
-            ): _number(5.5, 8.0, 0.05),
-            vol.Required(
-                CONF_PH_CRITICAL_HIGH,
-                default=defaults.get(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH),
-            ): _number(6.5, 9.0, 0.05),
-            vol.Required(
-                CONF_TA_CRITICAL_LOW,
-                default=defaults.get(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW),
-            ): _number(20, 250, 5),
-            vol.Required(
-                CONF_TA_CRITICAL_HIGH,
-                default=defaults.get(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH),
-            ): _number(20, 300, 5),
-            vol.Required(
-                CONF_FC_CRITICAL_LOW,
-                default=defaults.get(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW),
-            ): _number(0.0, 5.0, 0.05),
-            vol.Required(
-                CONF_CYA_TARGET, default=defaults.get(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)
-            ): _number(10, 100, 5),
-            vol.Required(
-                CONF_CYA_WATCH_AT, default=defaults.get(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)
-            ): _number(20, 200, 5),
-            vol.Required(
-                CONF_CYA_CRITICAL_AT,
-                default=defaults.get(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT),
-            ): _number(30, 200, 5),
-            vol.Required(
-                CONF_PH_CALIB_THRESHOLD,
-                default=defaults.get(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD),
-            ): _number(0.05, 1.0, 0.05),
-            vol.Required(
-                CONF_REDOX_DRIFT_THRESHOLD,
-                default=defaults.get(
-                    CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD
-                ),
-            ): _number(20, 200, 5),
-            vol.Required(
-                CONF_STALE_TA_DAYS,
-                default=defaults.get(CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS),
-            ): _number(1, 365, 1),
-            vol.Required(
-                CONF_STALE_PH_MANUAL_DAYS,
-                default=defaults.get(CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS),
-            ): _number(1, 365, 1),
-            vol.Required(
-                CONF_STALE_FC_DAYS,
-                default=defaults.get(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
-            ): _number(1, 365, 1),
-            vol.Required(
-                CONF_STALE_CYA_DAYS,
-                default=defaults.get(CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS),
-            ): _number(1, 365, 1),
+            vol.Required("ph"): ph_section,
+            vol.Required("alkalinity"): ta_section,
+            vol.Required("cyanuric"): cya_section,
+            vol.Required("free_chlorine"): fc_section,
+            vol.Required("combined_chlorine"): cc_section,
+            vol.Required("redox"): redox_section,
+            vol.Required("drift"): drift_section,
+            vol.Required("stale"): stale_section,
         }
     )
 
@@ -297,60 +311,108 @@ def _opt_text(key: str, defaults: dict[str, Any]) -> dict[str, Any]:
 
 
 def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
+    ph_minus_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_PH_MINUS_NAME, **_opt_text(CONF_PH_MINUS_NAME, defaults)): str,
+                vol.Required(
+                    CONF_PH_MINUS_TYPE, default=defaults.get(CONF_PH_MINUS_TYPE, PH_MINUS_DRY_ACID)
+                ): _select(PH_MINUS_CHOICES, "ph_minus"),
+                vol.Required(
+                    CONF_PH_MINUS_STRENGTH,
+                    default=defaults.get(CONF_PH_MINUS_STRENGTH, DEFAULT_STRENGTH[PH_MINUS_DRY_ACID]),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": False},
+    )
+    ph_plus_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_PH_PLUS_NAME, **_opt_text(CONF_PH_PLUS_NAME, defaults)): str,
+                vol.Required(
+                    CONF_PH_PLUS_TYPE, default=defaults.get(CONF_PH_PLUS_TYPE, PH_PLUS_SODA)
+                ): _select(PH_PLUS_CHOICES, "ph_plus"),
+                vol.Required(
+                    CONF_PH_PLUS_STRENGTH,
+                    default=defaults.get(CONF_PH_PLUS_STRENGTH, DEFAULT_STRENGTH[PH_PLUS_SODA]),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
+    ta_plus_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_TA_PLUS_NAME, **_opt_text(CONF_TA_PLUS_NAME, defaults)): str,
+                vol.Required(
+                    CONF_TA_PLUS_TYPE, default=defaults.get(CONF_TA_PLUS_TYPE, TA_PLUS_BICARB)
+                ): _select(TA_PLUS_CHOICES, "ta_plus"),
+                vol.Required(
+                    CONF_TA_PLUS_STRENGTH,
+                    default=defaults.get(CONF_TA_PLUS_STRENGTH, DEFAULT_STRENGTH[TA_PLUS_BICARB]),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
+    routine_cl_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_ROUTINE_CL_NAME, **_opt_text(CONF_ROUTINE_CL_NAME, defaults)): str,
+                **(
+                    {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
+                    if defaults.get(CONF_ROUTINE_CL_TYPE)
+                    else {vol.Optional(CONF_ROUTINE_CL_TYPE): _select(SHOCK_CHOICES, "shock")}
+                ),
+                vol.Optional(
+                    CONF_ROUTINE_CL_STRENGTH,
+                    default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
+    shock_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_SHOCK_NAME, **_opt_text(CONF_SHOCK_NAME, defaults)): str,
+                **(
+                    {vol.Optional(CONF_SHOCK_TYPE, default=defaults[CONF_SHOCK_TYPE]): _select(SHOCK_CHOICES, "shock")}
+                    if defaults.get(CONF_SHOCK_TYPE)
+                    else {vol.Optional(CONF_SHOCK_TYPE): _select(SHOCK_CHOICES, "shock")}
+                ),
+                vol.Optional(
+                    CONF_SHOCK_STRENGTH,
+                    default=defaults.get(CONF_SHOCK_STRENGTH, 0),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
+    cya_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_CYA_NAME, **_opt_text(CONF_CYA_NAME, defaults)): str,
+                vol.Optional(
+                    CONF_CYA_TYPE, default=defaults.get(CONF_CYA_TYPE, CYA_PURE)
+                ): _select(CYA_CHOICES, "cya"),
+                vol.Optional(
+                    CONF_CYA_STRENGTH,
+                    default=defaults.get(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
     return vol.Schema(
         {
-            vol.Optional(CONF_PH_MINUS_NAME, **_opt_text(CONF_PH_MINUS_NAME, defaults)): str,
-            vol.Required(
-                CONF_PH_MINUS_TYPE, default=defaults.get(CONF_PH_MINUS_TYPE, PH_MINUS_DRY_ACID)
-            ): _select(PH_MINUS_CHOICES, "ph_minus"),
-            vol.Required(
-                CONF_PH_MINUS_STRENGTH,
-                default=defaults.get(CONF_PH_MINUS_STRENGTH, DEFAULT_STRENGTH[PH_MINUS_DRY_ACID]),
-            ): _pct_number(),
-            vol.Optional(CONF_PH_PLUS_NAME, **_opt_text(CONF_PH_PLUS_NAME, defaults)): str,
-            vol.Required(
-                CONF_PH_PLUS_TYPE, default=defaults.get(CONF_PH_PLUS_TYPE, PH_PLUS_SODA)
-            ): _select(PH_PLUS_CHOICES, "ph_plus"),
-            vol.Required(
-                CONF_PH_PLUS_STRENGTH,
-                default=defaults.get(CONF_PH_PLUS_STRENGTH, DEFAULT_STRENGTH[PH_PLUS_SODA]),
-            ): _pct_number(),
-            vol.Optional(CONF_TA_PLUS_NAME, **_opt_text(CONF_TA_PLUS_NAME, defaults)): str,
-            vol.Required(
-                CONF_TA_PLUS_TYPE, default=defaults.get(CONF_TA_PLUS_TYPE, TA_PLUS_BICARB)
-            ): _select(TA_PLUS_CHOICES, "ta_plus"),
-            vol.Required(
-                CONF_TA_PLUS_STRENGTH,
-                default=defaults.get(CONF_TA_PLUS_STRENGTH, DEFAULT_STRENGTH[TA_PLUS_BICARB]),
-            ): _pct_number(),
-            vol.Optional(CONF_ROUTINE_CL_NAME, **_opt_text(CONF_ROUTINE_CL_NAME, defaults)): str,
-            **(
-                {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
-                if defaults.get(CONF_ROUTINE_CL_TYPE)
-                else {vol.Optional(CONF_ROUTINE_CL_TYPE): _select(SHOCK_CHOICES, "shock")}
-            ),
-            vol.Optional(
-                CONF_ROUTINE_CL_STRENGTH,
-                default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
-            ): _pct_number(),
-            vol.Optional(CONF_SHOCK_NAME, **_opt_text(CONF_SHOCK_NAME, defaults)): str,
-            **(
-                {vol.Optional(CONF_SHOCK_TYPE, default=defaults[CONF_SHOCK_TYPE]): _select(SHOCK_CHOICES, "shock")}
-                if defaults.get(CONF_SHOCK_TYPE)
-                else {vol.Optional(CONF_SHOCK_TYPE): _select(SHOCK_CHOICES, "shock")}
-            ),
-            vol.Optional(
-                CONF_SHOCK_STRENGTH,
-                default=defaults.get(CONF_SHOCK_STRENGTH, 0),
-            ): _pct_number(),
-            vol.Optional(CONF_CYA_NAME, **_opt_text(CONF_CYA_NAME, defaults)): str,
-            vol.Optional(
-                CONF_CYA_TYPE, default=defaults.get(CONF_CYA_TYPE, CYA_PURE)
-            ): _select(CYA_CHOICES, "cya"),
-            vol.Optional(
-                CONF_CYA_STRENGTH,
-                default=defaults.get(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH),
-            ): _pct_number(),
+            vol.Required("ph_minus"): ph_minus_section,
+            vol.Required("ph_plus"): ph_plus_section,
+            vol.Required("ta_plus"): ta_plus_section,
+            vol.Required("routine_cl"): routine_cl_section,
+            vol.Required("shock"): shock_section,
+            vol.Required("cya"): cya_section,
         }
     )
 
@@ -420,7 +482,7 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_targets(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            self._data.update(_flatten(user_input))
             return await self.async_step_chemicals()
 
         is_salt = self._data.get(CONF_CHLORINATION) == CHLORINATION_SALT
@@ -433,7 +495,7 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_chemicals(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            self._data.update(_flatten(user_input))
             return await self.async_step_testmodus()
         return self.async_show_form(step_id="chemicals", data_schema=_schema_chemicals({}))
 
@@ -539,7 +601,7 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_targets(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            self._data.update(_flatten(user_input))
             if self._chain:
                 return await self.async_step_chemicals()
             return self._save()
@@ -547,7 +609,7 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_chemicals(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            self._data.update(_flatten(user_input))
             if self._chain:
                 return await self.async_step_testmodus()
             return self._save()

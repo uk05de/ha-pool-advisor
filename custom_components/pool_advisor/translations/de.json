@@ -34,7 +34,17 @@
       },
       "targets": {
         "title": "Zielwerte & Toleranzen",
-        "description": "Defaults sind Richtwerte aus der Pool-Chemie-Literatur.",
+        "description": "Defaults sind Richtwerte aus der Pool-Chemie-Literatur. Blöcke sind einklappbar.",
+        "sections": {
+          "ph": {"name": "pH-Wert", "description": "Zielbereich und kritische Schwellen für pH"},
+          "alkalinity": {"name": "Alkalität (TA)", "description": "Karbonathärte — Puffer für stabilen pH"},
+          "cyanuric": {"name": "Cyanursäure", "description": "Stabilisator-Konzentration, Ziel und Grenzwerte"},
+          "free_chlorine": {"name": "Freies Chlor", "description": "FC-Bereich, Ziel und kritische Untergrenze"},
+          "combined_chlorine": {"name": "Gebundenes Chlor", "description": "CC-Obergrenze und Shockchlor-Auslöser"},
+          "redox": {"name": "Redox (ORP)", "description": "Sollwert und Bereich der Redox-Elektrode"},
+          "drift": {"name": "Sonden-Drift", "description": "Abweichungsschwellen pH und Redox"},
+          "stale": {"name": "Veraltet-Schwellen", "description": "Ab wann gilt eine Messung als veraltet (Tage)"}
+        },
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH Ziel",
@@ -69,6 +79,14 @@
       "chemicals": {
         "title": "Chemikalien",
         "description": "Routine-Chlor = für kleine Nachdosierungen im Normalbetrieb (oft gleich wie Dosieranlagen-Kanister, z.B. Flüssig-Chlor NaOCl). Shock-Chlor = für Breakpoint/Algen (z.B. Chlorifix Dichlor). Beide optional — leer lassen wenn du nicht manuell dosierst.",
+        "sections": {
+          "ph_minus": {"name": "pH−", "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)"},
+          "ph_plus": {"name": "pH+", "description": "Base zum pH-Anheben (Soda)"},
+          "ta_plus": {"name": "TA+", "description": "Natron zum Anheben der Alkalität"},
+          "routine_cl": {"name": "Routine-Chlor", "description": "Für kleine Nachdosierungen im Normalbetrieb — optional"},
+          "shock": {"name": "Shock-Chlor", "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor"},
+          "cya": {"name": "Cyanursäure", "description": "Stabilisator-Produkt"}
+        },
         "data": {
           "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
           "ph_minus_type": "pH− Wirkstoff",
@@ -152,6 +170,16 @@
       },
       "targets": {
         "title": "Zielwerte & Toleranzen",
+        "sections": {
+          "ph": {"name": "pH-Wert", "description": "Zielbereich und kritische Schwellen für pH"},
+          "alkalinity": {"name": "Alkalität (TA)", "description": "Karbonathärte — Puffer für stabilen pH"},
+          "cyanuric": {"name": "Cyanursäure", "description": "Stabilisator-Konzentration, Ziel und Grenzwerte"},
+          "free_chlorine": {"name": "Freies Chlor", "description": "FC-Bereich, Ziel und kritische Untergrenze"},
+          "combined_chlorine": {"name": "Gebundenes Chlor", "description": "CC-Obergrenze und Shockchlor-Auslöser"},
+          "redox": {"name": "Redox (ORP)", "description": "Sollwert und Bereich der Redox-Elektrode"},
+          "drift": {"name": "Sonden-Drift", "description": "Abweichungsschwellen pH und Redox"},
+          "stale": {"name": "Veraltet-Schwellen", "description": "Ab wann gilt eine Messung als veraltet (Tage)"}
+        },
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH Ziel",
@@ -185,6 +213,14 @@
       },
       "chemicals": {
         "title": "Chemikalien",
+        "sections": {
+          "ph_minus": {"name": "pH−", "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)"},
+          "ph_plus": {"name": "pH+", "description": "Base zum pH-Anheben (Soda)"},
+          "ta_plus": {"name": "TA+", "description": "Natron zum Anheben der Alkalität"},
+          "routine_cl": {"name": "Routine-Chlor", "description": "Für kleine Nachdosierungen im Normalbetrieb — optional"},
+          "shock": {"name": "Shock-Chlor", "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor"},
+          "cya": {"name": "Cyanursäure", "description": "Stabilisator-Produkt"}
+        },
         "data": {
           "ph_minus_name": "pH− Produktname (z.B. 'Bayrol pH-Minus')",
           "ph_minus_type": "pH− Wirkstoff",

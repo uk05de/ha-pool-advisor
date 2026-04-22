@@ -34,7 +34,17 @@
       },
       "targets": {
         "title": "Targets & tolerances",
-        "description": "Defaults are common pool-chemistry guidelines.",
+        "description": "Defaults are common pool-chemistry guidelines. Blocks are collapsible.",
+        "sections": {
+          "ph": {"name": "pH", "description": "Target range and critical thresholds for pH"},
+          "alkalinity": {"name": "Alkalinity (TA)", "description": "Carbonate hardness — buffer for stable pH"},
+          "cyanuric": {"name": "Cyanuric acid", "description": "Stabilizer concentration, target and limits"},
+          "free_chlorine": {"name": "Free chlorine", "description": "FC range, target and critical low"},
+          "combined_chlorine": {"name": "Combined chlorine", "description": "CC upper limit and shock-dose trigger"},
+          "redox": {"name": "Redox (ORP)", "description": "Setpoint and range for the redox probe"},
+          "drift": {"name": "Probe drift", "description": "Deviation thresholds for pH and redox"},
+          "stale": {"name": "Stale thresholds", "description": "When a reading counts as stale (days)"}
+        },
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH target",
@@ -69,6 +79,14 @@
       "chemicals": {
         "title": "Chemicals",
         "description": "Routine chlorine = small top-ups during normal operation (often same as dosing canister, e.g. NaOCl liquid). Shock chlorine = breakpoint/algae events (e.g. dichlor granulate). Both optional — leave empty if you never dose manually.",
+        "sections": {
+          "ph_minus": {"name": "pH−", "description": "Acid to lower pH (dry acid or muriatic acid)"},
+          "ph_plus": {"name": "pH+", "description": "Base to raise pH (soda ash)"},
+          "ta_plus": {"name": "TA+", "description": "Baking soda to raise alkalinity"},
+          "routine_cl": {"name": "Routine chlorine", "description": "For small top-ups during normal operation — optional"},
+          "shock": {"name": "Shock chlorine", "description": "For breakpoint/algae events — granulate or liquid chlorine"},
+          "cya": {"name": "Cyanuric acid", "description": "Stabilizer product"}
+        },
         "data": {
           "ph_minus_name": "pH− product name",
           "ph_minus_type": "pH− active compound",
@@ -152,6 +170,16 @@
       },
       "targets": {
         "title": "Targets & tolerances",
+        "sections": {
+          "ph": {"name": "pH", "description": "Target range and critical thresholds for pH"},
+          "alkalinity": {"name": "Alkalinity (TA)", "description": "Carbonate hardness — buffer for stable pH"},
+          "cyanuric": {"name": "Cyanuric acid", "description": "Stabilizer concentration, target and limits"},
+          "free_chlorine": {"name": "Free chlorine", "description": "FC range, target and critical low"},
+          "combined_chlorine": {"name": "Combined chlorine", "description": "CC upper limit and shock-dose trigger"},
+          "redox": {"name": "Redox (ORP)", "description": "Setpoint and range for the redox probe"},
+          "drift": {"name": "Probe drift", "description": "Deviation thresholds for pH and redox"},
+          "stale": {"name": "Stale thresholds", "description": "When a reading counts as stale (days)"}
+        },
         "data": {
           "ph_min": "pH min",
           "ph_target": "pH target",
@@ -185,6 +213,14 @@
       },
       "chemicals": {
         "title": "Chemicals",
+        "sections": {
+          "ph_minus": {"name": "pH−", "description": "Acid to lower pH (dry acid or muriatic acid)"},
+          "ph_plus": {"name": "pH+", "description": "Base to raise pH (soda ash)"},
+          "ta_plus": {"name": "TA+", "description": "Baking soda to raise alkalinity"},
+          "routine_cl": {"name": "Routine chlorine", "description": "For small top-ups during normal operation — optional"},
+          "shock": {"name": "Shock chlorine", "description": "For breakpoint/algae events — granulate or liquid chlorine"},
+          "cya": {"name": "Cyanuric acid", "description": "Stabilizer product"}
+        },
         "data": {
           "ph_minus_name": "pH− product name",
           "ph_minus_type": "pH− active compound",
