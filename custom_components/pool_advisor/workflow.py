@@ -382,10 +382,28 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
                 "kräftig belüften (Düsen nach oben / Wasserfall), täglich wiederholen und neu messen"
             )
         elif rec.action == "lower" and key == "cya":
-            alerts.append(
-                "**Cyanursäure senken**: chemisch nicht möglich. Ca. 30 % Wasser teiltauschen, "
-                "dann neu messen"
-            )
+            # CYA nur durch Verdünnung senkbar: f = 1 − target/current
+            if ctx.cya is not None and ctx.cya > ctx.cya_target:
+                f = 1.0 - (ctx.cya_target / ctx.cya)
+                percent = f * 100
+                liters = ctx.volume_m3 * f * 1000
+                msg = (
+                    f"**Cyanursäure senken**: chemisch nicht möglich, nur durch Verdünnung. "
+                    f"Ca. **{percent:.0f} % Wasser teiltauschen** "
+                    f"(≈ {liters:.0f} L bei {ctx.volume_m3:.0f} m³ Pool) um auf Ziel "
+                    f"{ctx.cya_target:.0f} mg/l zu kommen, dann neu messen."
+                )
+                if percent > 50:
+                    msg += (
+                        " Achtung großer Austausch — besser in 2–3 Etappen über mehrere Tage "
+                        "splitten, nicht auf einmal."
+                    )
+                alerts.append(msg)
+            else:
+                alerts.append(
+                    "**Cyanursäure senken**: chemisch nicht möglich, nur durch Wasser-Teiltausch. "
+                    "Messung erneuern, dann Verdünnungs-Menge berechnen."
+                )
 
     # Chlor-Aktionen: Breakpoint bei hohem CC, oder Routine-Dosis bei niedrigem FC.
     # Konkrete Dosen stehen in der Shock-Szenarien-Tabelle unten — hier nur

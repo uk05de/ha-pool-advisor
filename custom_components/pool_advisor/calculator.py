@@ -534,9 +534,8 @@ def recommend_cya(
             reason=f"Cyanursäure {current:.0f} mg/l kritisch hoch",
             delta=current - target,
             note=(
-                "CYA lässt sich chemisch nicht senken. Ca. 30 % Wasser teiltauschen und "
-                "danach neu messen. Häufige Schocks mit Dichlor vermeiden — auf Flüssig-Chlor "
-                "(NaOCl) oder Calciumhypochlorit umstellen."
+                "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
+                "auf Flüssig-Chlor (NaOCl) oder Calciumhypochlorit umstellen."
             ),
         )
     if current >= watch_at:
