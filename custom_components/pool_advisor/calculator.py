@@ -164,13 +164,14 @@ def recommend_ph(
     can_auto_correct = (needs_lowering and ph_dosing_minus) or (not needs_lowering and ph_dosing_plus)
 
     if not is_critical and can_auto_correct:
-        direction = "senken" if needs_lowering else "anheben"
+        direction_word = "hoch" if needs_lowering else "niedrig"
+        direction_verb = "senken" if needs_lowering else "anheben"
         return Recommendation(
             action="watch",
             steps=(),
             reason=(
-                f"{current:.2f} leicht außerhalb {ph_min:.1f}–{ph_max:.1f} — "
-                f"Dosieranlage kann {direction} und sollte selbst regeln"
+                f"{current:.2f} {direction_word} — "
+                f"Dosieranlage kann {direction_verb} und sollte selbst regeln"
             ),
             delta=delta,
             note="Wenn Abweichung bestehen bleibt: Kanister, Elektrode und Sollwert der Anlage prüfen.",
@@ -195,7 +196,7 @@ def recommend_ph(
         rec = Recommendation(
             action="lower",
             steps=steps,
-            reason=f"{current:.2f} kritisch hoch — Ziel {target:.2f}",
+            reason=f"{current:.2f} zu hoch — Ziel {target:.2f}",
             delta=delta,
         )
         if ph_dosing_minus:
@@ -216,7 +217,7 @@ def recommend_ph(
     rec = Recommendation(
         action="raise",
         steps=steps,
-        reason=f"{current:.2f} kritisch niedrig — Ziel {target:.2f}",
+        reason=f"{current:.2f} zu niedrig — Ziel {target:.2f}",
         delta=delta,
     )
     if ph_dosing_plus:
@@ -264,12 +265,11 @@ def recommend_alkalinity(
     is_critical = current < ta_critical_low or current > ta_critical_high
 
     if not is_critical:
+        direction = "hoch" if delta < 0 else "niedrig"
         return Recommendation(
             action="watch",
             steps=(),
-            reason=(
-                f"{current:.0f} mg/l leicht außerhalb {ta_min:.0f}–{ta_max:.0f} — beobachten"
-            ),
+            reason=f"{current:.0f} mg/l {direction} — beobachten",
             delta=delta,
             note="Bei nächster Messung beobachten, noch kein Eingriff nötig.",
         )
@@ -284,7 +284,7 @@ def recommend_alkalinity(
         return Recommendation(
             action="raise",
             steps=steps,
-            reason=f"{current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
+            reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
         )
 
@@ -293,7 +293,7 @@ def recommend_alkalinity(
     return Recommendation(
         action="lower",
         steps=(),
-        reason=f"{current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
+        reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
         delta=delta,
         note=(
             "TA senken erfolgt nicht durch einmalige Dosierung: pH gezielt auf ~7.0 senken, "
@@ -386,13 +386,13 @@ def recommend_shock(
                 max_dose_fraction=max_dose_fraction,
                 interval_h=interval_h,
                 action="raise",
-                reason=f"{values} — FC kritisch niedrig (Ziel {fc_target:.2f})",
+                reason=f"{values} — FC zu niedrig (Ziel {fc_target:.2f})",
             )
         else:
             rec = Recommendation(
                 action="raise",
                 steps=(),
-                reason=f"{values} — FC kritisch niedrig (Ziel {fc_target:.2f})",
+                reason=f"{values} — FC zu niedrig (Ziel {fc_target:.2f})",
                 delta=fc_target - free_cl,
                 note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
             )
@@ -415,7 +415,7 @@ def recommend_shock(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"{values} — FC leicht unter {fc_min:.2f}, beobachten",
+            reason=f"{values} — FC niedrig — beobachten",
             delta=fc_target - free_cl,
             note=(
                 "Dosieranlage sollte selbst nachregeln." if (chlorination_is_salt or has_auto_dosing)
@@ -451,14 +451,14 @@ def recommend_shock(
             return Recommendation(
                 action="watch",
                 steps=(),
-                reason=f"{values} — FC deutlich überdosiert, nicht baden",
+                reason=f"{values} — FC zu hoch — nicht baden",
                 delta=free_cl - fc_max,
                 note=("Anlage pausiert Dosierung. Filter + UV + Zeit." + decay_note),
             )
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"{values} — FC leicht über {fc_max:.2f}, Anlage pausiert, klingt ab",
+            reason=f"{values} — FC hoch — Anlage pausiert, klingt ab",
             delta=free_cl - fc_max,
         )
 
@@ -467,7 +467,7 @@ def recommend_shock(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"{values} — CC über {cc_max:.2f}, beobachten",
+            reason=f"{values} — CC hoch — beobachten",
             delta=combined_cl - cc_max,
             note=(
                 f"Wenn CC nicht unter {cc_max:.2f} fällt: Breakpoint-Modus erwägen."
@@ -518,7 +518,7 @@ def recommend_cya(
         return Recommendation(
             action="raise",
             steps=(step,),
-            reason=f"{current:.0f} mg/l kritisch niedrig — Ziel {target:.0f}",
+            reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
             note=(
                 "Menge = 80 % der Rechnung als Sicherheitspuffer. "
@@ -531,7 +531,7 @@ def recommend_cya(
         return Recommendation(
             action="lower",
             steps=(),
-            reason=f"{current:.0f} mg/l kritisch hoch — Ziel {target:.0f}",
+            reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
             delta=current - target,
             note=(
                 "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
@@ -542,7 +542,7 @@ def recommend_cya(
         return Recommendation(
             action="watch",
             steps=(),
-            reason=f"{current:.0f} mg/l leicht erhöht — beobachten",
+            reason=f"{current:.0f} mg/l hoch — beobachten",
             delta=current - target,
             note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
         )
