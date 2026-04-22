@@ -57,7 +57,10 @@
           "fc_critical_low": "Free Cl critical low (mg/l)",
           "ph_calibration_threshold": "pH drift threshold (auto↔manual delta)",
           "redox_drift_threshold": "Redox drift threshold (mV)",
-          "manual_max_age_hours": "Max age of manual reading (h)"
+          "stale_ta_days": "Alkalinity — reading stale after (days)",
+          "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
+          "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
+          "stale_cya_days": "Cyanuric acid — reading stale after (days)"
         }
       },
       "chemicals": {
@@ -174,7 +177,10 @@
           "fc_critical_low": "Free Cl critical low (mg/l)",
           "ph_calibration_threshold": "pH drift threshold",
           "redox_drift_threshold": "Redox drift threshold (mV)",
-          "manual_max_age_hours": "Max age of manual reading (h)"
+          "stale_ta_days": "Alkalinity — reading stale after (days)",
+          "stale_ph_manual_days": "pH (manual) — reading stale after (days)",
+          "stale_fc_days": "Chlorine (free/comb./total) — reading stale after (days)",
+          "stale_cya_days": "Cyanuric acid — reading stale after (days)"
         }
       },
       "chemicals": {
@@ -267,20 +273,12 @@
   },
   "entity": {
     "sensor": {
-      "ph_recommendation": {"name": "pH recommendation"},
-      "alkalinity_recommendation": {"name": "Alkalinity recommendation"},
-      "chlorine_recommendation": {"name": "Chlorine recommendation"},
-      "cya_recommendation": {"name": "Cyanuric acid recommendation"},
       "drift_ph": {"name": "pH electrode drift"},
       "drift_redox": {"name": "Redox electrode drift"},
-      "status": {"name": "Pool status"},
       "markdown": {"name": "Recommendation"}
     },
     "binary_sensor": {
       "attention": {"name": "Attention needed"}
-    },
-    "button": {
-      "analyze": {"name": "Run analysis"}
     }
   }
 }

@@ -57,7 +57,10 @@
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
           "ph_calibration_threshold": "Drift-Schwelle pH Sonde (Abweichung Auto↔Manuell)",
           "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
-          "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
+          "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
+          "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
+          "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
+          "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
         }
       },
       "chemicals": {
@@ -174,7 +177,10 @@
           "fc_critical_low": "Freies Chlor kritisch niedrig (mg/l)",
           "ph_calibration_threshold": "Drift-Schwelle pH Sonde",
           "redox_drift_threshold": "Drift-Schwelle Redox Sonde (mV)",
-          "manual_max_age_hours": "Max. Alter Manuell-Messung (h)"
+          "stale_ta_days": "Alkalität — Messung veraltet nach (Tage)",
+          "stale_ph_manual_days": "pH (Manuell) — Messung veraltet nach (Tage)",
+          "stale_fc_days": "Chlor (frei/geb./gesamt) — Messung veraltet nach (Tage)",
+          "stale_cya_days": "Cyanursäure — Messung veraltet nach (Tage)"
         }
       },
       "chemicals": {
@@ -267,20 +273,12 @@
   },
   "entity": {
     "sensor": {
-      "ph_recommendation": {"name": "Empfehlung pH"},
-      "alkalinity_recommendation": {"name": "Empfehlung Alkalität"},
-      "chlorine_recommendation": {"name": "Empfehlung Chlor"},
-      "cya_recommendation": {"name": "Empfehlung Cyanursäure"},
       "drift_ph": {"name": "Drift pH Sonde"},
       "drift_redox": {"name": "Drift Redox Sonde"},
-      "status": {"name": "Pool Status"},
       "markdown": {"name": "Empfehlung"}
     },
     "binary_sensor": {
       "attention": {"name": "Aufmerksamkeit nötig"}
-    },
-    "button": {
-      "analyze": {"name": "Analyse durchführen"}
     }
   }
 }

@@ -11,7 +11,8 @@ Zusammenfassung — keine Dosis-Empfehlung.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 
 from .calculator import (
     Recommendation,
@@ -88,6 +89,11 @@ class WorkflowContext:
     total_cl: float | None = None
     redox: float | None = None
 
+    # Stale-Tracking je Parameter — Keys: ph_manual, ta, fc, cc, tc, cya
+    stale: dict[str, bool] = field(default_factory=dict)
+    measured_at: dict[str, datetime | None] = field(default_factory=dict)
+    stale_days: dict[str, int] = field(default_factory=dict)
+
 
 # ---------- Hilfsfunktionen ----------
 
@@ -139,6 +145,20 @@ COLOR_GREEN = "#81c784"
 COLOR_ORANGE = "#f0ad4e"
 COLOR_RED = "#d9534f"
 COLOR_GREY = "#999999"
+COLOR_YELLOW_STALE = "#d9a441"  # Veraltet-Hinweis, deutlich gegen Orange abgesetzt
+
+
+# --- Stale-Mapping ---
+
+# Logisches Parameter-Key → Label-Anzeige in Warnung und Tabelle
+_STALE_LABELS: dict[str, str] = {
+    "ta": "Alkalität",
+    "ph_manual": "pH (Photometer)",
+    "fc": "Chlor frei",
+    "cc": "Chlor gebunden",
+    "tc": "Chlor gesamt",
+    "cya": "Cyanursäure",
+}
 
 
 # --- Color-Helper pro Parameter ---
@@ -255,6 +275,33 @@ def _swim_safety_check(ctx: WorkflowContext) -> bool:
     if ctx.cya is not None and ctx.cya > 100:
         return False
     return True
+
+
+def _stale_warnings(ctx: WorkflowContext) -> list[str]:
+    """Konsolidierter gelber Alert pro veraltetem Parameter.
+
+    Zeigt Label + Alter in Tagen + konfiguriertes Limit. Wenn keine Messung
+    vorhanden ist (kein `measured_at`), entsteht kein Warning — das ist
+    Normalzustand vor dem ersten Testen.
+    """
+    parts: list[str] = []
+    now = datetime.now().astimezone()
+    for key, label in _STALE_LABELS.items():
+        if not ctx.stale.get(key):
+            continue
+        measured = ctx.measured_at.get(key)
+        if measured is None:
+            continue
+        age_days = (now - measured).total_seconds() / 86400.0
+        limit = ctx.stale_days.get(key, 0)
+        parts.append(
+            f"**{label}**: Messung vor {age_days:.0f} Tagen "
+            f"(Schwelle {limit} d) — neu messen empfohlen"
+        )
+    if not parts:
+        return []
+    body = "<br>".join(parts)
+    return [f'<ha-alert alert-type="warning">Veraltete Messwerte<br>{body}</ha-alert>']
 
 
 def _param_warnings(
@@ -395,30 +442,42 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         "|----------|---------|------|-----|-----|",
     ]
 
+    def _row(label: str, actual: str, ziel: str, mn: str, mx: str, stale_key: str | None) -> str:
+        # Aktuell-Zelle behält ihre Status-Farbe; restliche Zellen und das Label
+        # werden gelb, wenn der Messwert als veraltet markiert ist.
+        if stale_key is not None and ctx.stale.get(stale_key):
+            label = _colored(label, COLOR_YELLOW_STALE)
+            ziel = _colored(ziel, COLOR_YELLOW_STALE) if ziel != "—" else ziel
+            mn = _colored(mn, COLOR_YELLOW_STALE) if mn != "—" else mn
+            mx = _colored(mx, COLOR_YELLOW_STALE) if mx != "—" else mx
+        return f"| {label} | {actual} | {ziel} | {mn} | {mx} |"
+
     # Alkalität (Puffer — kommt zuerst in der Chemie-Reihenfolge)
     ta_str = (
         _colored(f"{ctx.ta:.0f}", _color_ta_val(ctx.ta, ctx))
         if ctx.ta is not None
         else "—"
     )
-    L.append(
-        f"| Alkalität (mg/l) | {ta_str} | {ctx.ta_target:.0f} | "
-        f"{ctx.ta_min:.0f} | {ctx.ta_max:.0f} |"
-    )
+    L.append(_row(
+        "Alkalität (mg/l)", ta_str, f"{ctx.ta_target:.0f}",
+        f"{ctx.ta_min:.0f}", f"{ctx.ta_max:.0f}", "ta",
+    ))
 
     # pH Manuell (PoolLab-Photometer)
     ph_m = ctx.ph_manual
     ph_m_str = _colored(f"{ph_m:.2f}", _color_ph_val(ph_m, ctx)) if ph_m is not None else "—"
-    L.append(
-        f"| pH Manuell | {ph_m_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
-    )
+    L.append(_row(
+        "pH Manuell", ph_m_str, f"{ctx.ph_target:.2f}",
+        f"{ctx.ph_min:.1f}", f"{ctx.ph_max:.1f}", "ph_manual",
+    ))
 
-    # pH Dosieranlage (Bayrol-Elektrode, live)
+    # pH Dosieranlage (Bayrol-Elektrode, live — kein Stale-Check, ist ohnehin live)
     ph_a = ctx.ph_auto
     ph_a_str = _colored(f"{ph_a:.2f}", _color_ph_val(ph_a, ctx)) if ph_a is not None else "—"
-    L.append(
-        f"| pH Dosieranlage | {ph_a_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
-    )
+    L.append(_row(
+        "pH Dosieranlage", ph_a_str, f"{ctx.ph_target:.2f}",
+        f"{ctx.ph_min:.1f}", f"{ctx.ph_max:.1f}", None,
+    ))
 
     # Cyanursäure
     cya_str = (
@@ -426,10 +485,10 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         if ctx.cya is not None
         else "—"
     )
-    L.append(
-        f"| Cyanursäure (mg/l) | {cya_str} | {ctx.cya_target:.0f} | "
-        f"{ctx.cya_watch_at:.0f} | {ctx.cya_critical_at:.0f} |"
-    )
+    L.append(_row(
+        "Cyanursäure (mg/l)", cya_str, f"{ctx.cya_target:.0f}",
+        f"{ctx.cya_watch_at:.0f}", f"{ctx.cya_critical_at:.0f}", "cya",
+    ))
 
     # Chlor frei (FC)
     fc_str = (
@@ -437,10 +496,10 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         if ctx.fc is not None
         else "—"
     )
-    L.append(
-        f"| Chlor frei (mg/l) | {fc_str} | {ctx.fc_target:.2f} | "
-        f"{ctx.fc_min_val:.2f} | {ctx.fc_max:.2f} |"
-    )
+    L.append(_row(
+        "Chlor frei (mg/l)", fc_str, f"{ctx.fc_target:.2f}",
+        f"{ctx.fc_min_val:.2f}", f"{ctx.fc_max:.2f}", "fc",
+    ))
 
     # Chlor gebunden (CC)
     cc_str = (
@@ -448,7 +507,7 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         if ctx.cc is not None
         else "—"
     )
-    L.append(f"| Chlor geb. (mg/l) | {cc_str} | — | — | {ctx.cc_max:.2f} |")
+    L.append(_row("Chlor geb. (mg/l)", cc_str, "—", "—", f"{ctx.cc_max:.2f}", "cc"))
 
     # Chlor gesamt (TC)
     tc_str = (
@@ -456,7 +515,7 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         if ctx.total_cl is not None
         else "—"
     )
-    L.append(f"| Chlor gesamt (mg/l) | {tc_str} | — | — | — |")
+    L.append(_row("Chlor gesamt (mg/l)", tc_str, "—", "—", "—", "tc"))
 
     # Redox Dosieranlage (Bayrol-Elektrode, live)
     redox_str = (
@@ -604,6 +663,11 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         lines.append(
             '<ha-alert alert-type="success">Badefreigabe erteilt — alles im sicheren Bereich</ha-alert>'
         )
+        lines.append("")
+
+    # Konsolidierte Stale-Warnung (ein gelber Alert für alle veralteten Werte)
+    for a in _stale_warnings(ctx):
+        lines.append(a)
         lines.append("")
 
     # Gelbe Parameter-Warnungen für alle nicht-OK-Parameter

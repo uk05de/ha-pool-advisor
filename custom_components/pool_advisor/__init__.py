@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -46,7 +46,6 @@ from .const import (
     CONF_FC_MAX,
     CONF_FC_MIN,
     CONF_FC_TARGET,
-    CONF_MANUAL_MAX_AGE_H,
     CONF_MAX_DOSE_FRACTION,
     CONF_PH_CALIB_THRESHOLD,
     CONF_PH_CRITICAL_HIGH,
@@ -67,6 +66,10 @@ from .const import (
     CONF_SHOCK_NAME,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
+    CONF_STALE_CYA_DAYS,
+    CONF_STALE_FC_DAYS,
+    CONF_STALE_PH_MANUAL_DAYS,
+    CONF_STALE_TA_DAYS,
     CONF_TA_CRITICAL_HIGH,
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
@@ -86,13 +89,16 @@ from .const import (
     DEFAULT_REDOX_MAX,
     DEFAULT_REDOX_MIN,
     DEFAULT_REDOX_TARGET,
+    DEFAULT_STALE_CYA_DAYS,
+    DEFAULT_STALE_FC_DAYS,
+    DEFAULT_STALE_PH_MANUAL_DAYS,
+    DEFAULT_STALE_TA_DAYS,
     TEST_VALUE_MAP,
     CONF_TA_PLUS_NAME,
     CONF_TA_PLUS_STRENGTH,
     CONF_TA_PLUS_TYPE,
     CONF_TA_TARGET,
     DEFAULT_FC_CRITICAL_LOW,
-    DEFAULT_MANUAL_MAX_AGE_H,
     DEFAULT_PH_CALIB_THRESHOLD,
     DEFAULT_PH_CRITICAL_HIGH,
     DEFAULT_PH_CRITICAL_LOW,
@@ -112,7 +118,6 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
-    Platform.BUTTON,
 ]
 
 MANUAL_KEYS: tuple[str, ...] = (
@@ -129,6 +134,17 @@ AUTO_KEYS: tuple[str, ...] = (
     CONF_ENT_REDOX,
     CONF_ENT_TEMPERATURE,
 )
+
+# Maps a manual-entity config key → (stale-threshold config key, default days).
+# Used for "veraltet" warnings in the UI; the value itself is still used.
+STALE_DAYS_MAP: dict[str, tuple[str, int]] = {
+    CONF_ENT_PH_MANUAL: (CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS),
+    CONF_ENT_ALKALINITY: (CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS),
+    CONF_ENT_FREE_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
+    CONF_ENT_COMBINED_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
+    CONF_ENT_TOTAL_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
+    CONF_ENT_CYANURIC: (CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS),
+}
 
 # Plausibility bounds — values outside are treated as "sensor offline / no data"
 # to avoid wild recommendations when a dosing controller reports 0 while idle.
@@ -164,21 +180,16 @@ def _within_bounds(key: str, value: float | None) -> float | None:
 class PoolAdvisorData:
     """Runtime state for a single config entry.
 
-    Analysis model:
-      - AUTO entities (pH-Auto, Redox, Temperatur) update live.
-      - MANUAL entities are captured into a *snapshot* when the user presses
-        the "Analyse durchführen" button (or on setup). Each snapshot entry
-        respects `measured_at` attribute of the source entity; if it's older
-        than the configured window, the value is marked `included: False` and
-        treated as missing in the recommendations.
+    All readings — AUTO (Bayrol live) and MANUAL (PoolLab spot checks) — are
+    read live from HA state on every recalculation. A per-parameter stale
+    threshold (in days) drives a UI warning; the value itself is still used
+    for dose math so recommendations remain visible after the latest test.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
         self.recommendations: dict[str, Recommendation] = {}
-        self.manual_snapshot: dict[str, dict[str, Any]] = {}
-        self.analysis_at: datetime | None = None
         self._unsub = None
 
     # --- config helpers ---
@@ -224,61 +235,27 @@ class PoolAdvisorData:
             return None
         return _within_bounds(entity_key, value)
 
-    # --- snapshot capture (manual) ---
-    def _capture_manual(self, entity_key: str, window_h: float) -> dict[str, Any]:
-        out: dict[str, Any] = {
-            "entity_id": None,
-            "value": None,
-            "measured_at": None,
-            "measured_at_source": None,
-            "age_hours": None,
-            "included": False,
-        }
-        # Test mode: use static config value, always fresh
-        if self._cfg(CONF_TEST_MODE, False):
-            test_key = TEST_VALUE_MAP.get(entity_key)
-            if test_key is None:
-                return out
-            raw = self._cfg(test_key)
-            if raw is None or raw == "":
-                return out
-            try:
-                value = _within_bounds(entity_key, float(raw))
-            except (TypeError, ValueError):
-                return out
-            if value is None:
-                return out
-            now = dt_util.utcnow()
-            out.update(
-                {
-                    "entity_id": f"test:{test_key}",
-                    "value": value,
-                    "measured_at": now.isoformat(),
-                    "measured_at_source": "test_mode",
-                    "age_hours": 0.0,
-                    "included": True,
-                }
-            )
-            return out
+    # --- live read (manual) ---
+    def _manual_value(self, key: str) -> float | None:
+        """Read the most recent manual (photometer) value, regardless of age.
+        Age-based gating happens separately via `_is_stale` so the UI can warn
+        while calculations still use the last known reading.
+        """
+        return self._read_live(key)
 
-        entity_id = self._cfg(entity_key)
-        out["entity_id"] = entity_id
+    def _measured_at_for(self, key: str) -> datetime | None:
+        """Timestamp of the reading (UTC). Prefers the PoolLab `measured_at`
+        attribute; falls back to entity `last_updated`. Test mode returns now.
+        """
+        if self._cfg(CONF_TEST_MODE, False):
+            return dt_util.utcnow()
+        entity_id = self._cfg(key)
         if not entity_id:
-            return out
+            return None
         state = self.hass.states.get(entity_id)
         if state is None or state.state in (None, "", "unknown", "unavailable"):
-            return out
-        try:
-            value = float(state.state)
-        except (TypeError, ValueError):
-            return out
-        value = _within_bounds(entity_key, value)
-        if value is None:
-            return out
-
-        # Prefer `measured_at` attribute (PoolLab etc.); fall back to last_updated.
+            return None
         measured_at: datetime | None = None
-        source = "measured_at"
         raw = state.attributes.get("measured_at")
         if isinstance(raw, datetime):
             measured_at = raw
@@ -286,36 +263,35 @@ class PoolAdvisorData:
             measured_at = dt_util.parse_datetime(raw)
         if measured_at is None:
             measured_at = state.last_updated
-            source = "last_updated"
+        if measured_at is None:
+            return None
         if measured_at.tzinfo is None:
-            # Treat naive timestamps as local time (HA convention).
             measured_at = dt_util.as_utc(
                 measured_at.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
             )
         else:
             measured_at = dt_util.as_utc(measured_at)
+        return measured_at
 
-        age_h = (dt_util.utcnow() - measured_at).total_seconds() / 3600.0
-        out.update(
-            {
-                "value": value,
-                "measured_at": measured_at.isoformat(),
-                "measured_at_source": source,
-                "age_hours": round(age_h, 2),
-                "included": age_h <= window_h,
-            }
-        )
-        return out
-
-    def _manual_value(self, key: str) -> float | None:
-        snap = self.manual_snapshot.get(key)
-        if not snap or not snap.get("included"):
-            return None
-        return snap.get("value")
+    def _is_stale(self, key: str) -> bool:
+        """True if reading is older than configured per-parameter threshold."""
+        if self._cfg(CONF_TEST_MODE, False):
+            return False
+        measured_at = self._measured_at_for(key)
+        if measured_at is None:
+            return False
+        mapping = STALE_DAYS_MAP.get(key)
+        if mapping is None:
+            return False
+        conf_key, default_days = mapping
+        days = float(self._cfg(conf_key, default_days))
+        return (dt_util.utcnow() - measured_at) > timedelta(days=days)
 
     # --- lifecycle ---
     async def async_setup(self) -> None:
-        tracked = [self._cfg(k) for k in AUTO_KEYS if self._cfg(k)]
+        tracked = [
+            self._cfg(k) for k in (*AUTO_KEYS, *MANUAL_KEYS) if self._cfg(k)
+        ]
 
         @callback
         def _on_change(event: Event[EventStateChangedData]) -> None:
@@ -324,9 +300,33 @@ class PoolAdvisorData:
         if tracked:
             self._unsub = async_track_state_change_event(self.hass, tracked, _on_change)
 
-        self.run_analysis()
+        self.recalculate()
 
     def build_workflow_context(self) -> WorkflowContext:
+        stale_map = {
+            "ph_manual": self._is_stale(CONF_ENT_PH_MANUAL),
+            "ta": self._is_stale(CONF_ENT_ALKALINITY),
+            "fc": self._is_stale(CONF_ENT_FREE_CL),
+            "cc": self._is_stale(CONF_ENT_COMBINED_CL),
+            "tc": self._is_stale(CONF_ENT_TOTAL_CL),
+            "cya": self._is_stale(CONF_ENT_CYANURIC),
+        }
+        measured_at_map = {
+            "ph_manual": self._measured_at_for(CONF_ENT_PH_MANUAL),
+            "ta": self._measured_at_for(CONF_ENT_ALKALINITY),
+            "fc": self._measured_at_for(CONF_ENT_FREE_CL),
+            "cc": self._measured_at_for(CONF_ENT_COMBINED_CL),
+            "tc": self._measured_at_for(CONF_ENT_TOTAL_CL),
+            "cya": self._measured_at_for(CONF_ENT_CYANURIC),
+        }
+        stale_days_map = {
+            "ph_manual": int(self._cfg(CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS)),
+            "ta": int(self._cfg(CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS)),
+            "fc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
+            "cc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
+            "tc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
+            "cya": int(self._cfg(CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS)),
+        }
         return WorkflowContext(
             volume_m3=float(self._cfg(CONF_POOL_VOLUME_M3, 30.0)),
             ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
@@ -374,6 +374,9 @@ class PoolAdvisorData:
             redox_min=float(self._cfg(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)),
             redox_target=float(self._cfg(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)),
             redox_max=float(self._cfg(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)),
+            stale=stale_map,
+            measured_at=measured_at_map,
+            stale_days=stale_days_map,
         )
 
     async def async_unload(self) -> None:
@@ -382,13 +385,6 @@ class PoolAdvisorData:
             self._unsub = None
 
     # --- the actual work ---
-    def run_analysis(self) -> None:
-        """Capture a fresh manual snapshot, then recompute recommendations."""
-        window_h = float(self._cfg(CONF_MANUAL_MAX_AGE_H, DEFAULT_MANUAL_MAX_AGE_H))
-        self.manual_snapshot = {k: self._capture_manual(k, window_h) for k in MANUAL_KEYS}
-        self.analysis_at = dt_util.utcnow()
-        self.recalculate()
-
     def recalculate(self) -> None:
         volume = float(self._cfg(CONF_POOL_VOLUME_M3, 30.0))
         chlorination_is_salt = self._cfg(CONF_CHLORINATION) == CHLORINATION_SALT
@@ -401,7 +397,7 @@ class PoolAdvisorData:
         ph_auto = self._read_live(CONF_ENT_PH_AUTO)
         ph_manual = self._manual_value(CONF_ENT_PH_MANUAL)
 
-        # Prefer manual (photometer) if the snapshot included it; else auto.
+        # Prefer manual (photometer) if present; else the Bayrol auto reading.
         ph_for_dosing = ph_manual if ph_manual is not None else ph_auto
 
         ph_dosing = self._cfg(CONF_PH_DOSING, DEFAULT_PH_DOSING)

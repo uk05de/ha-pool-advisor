@@ -32,7 +32,6 @@ from .const import (
     CONF_FC_MAX,
     CONF_FC_MIN,
     CONF_FC_TARGET,
-    CONF_MANUAL_MAX_AGE_H,
     CONF_MAX_DOSE_FRACTION,
     CONF_NAME,
     CONF_PH_CALIB_THRESHOLD,
@@ -57,6 +56,10 @@ from .const import (
     CONF_SHOCK_NAME,
     CONF_SHOCK_STRENGTH,
     CONF_SHOCK_TYPE,
+    CONF_STALE_CYA_DAYS,
+    CONF_STALE_FC_DAYS,
+    CONF_STALE_PH_MANUAL_DAYS,
+    CONF_STALE_TA_DAYS,
     CONF_TA_CRITICAL_HIGH,
     CONF_TA_CRITICAL_LOW,
     CONF_TA_MAX,
@@ -92,7 +95,6 @@ from .const import (
     DEFAULT_FC_MIN_SALT,
     DEFAULT_FC_TARGET_CLASSIC,
     DEFAULT_FC_TARGET_SALT,
-    DEFAULT_MANUAL_MAX_AGE_H,
     DEFAULT_MAX_DOSE_FRACTION,
     DEFAULT_PH_CALIB_THRESHOLD,
     DEFAULT_PH_CRITICAL_HIGH,
@@ -103,6 +105,10 @@ from .const import (
     DEFAULT_REDOX_MAX,
     DEFAULT_REDOX_MIN,
     DEFAULT_REDOX_TARGET,
+    DEFAULT_STALE_CYA_DAYS,
+    DEFAULT_STALE_FC_DAYS,
+    DEFAULT_STALE_PH_MANUAL_DAYS,
+    DEFAULT_STALE_TA_DAYS,
     DEFAULT_STRENGTH,
     CYA_CHOICES,
     CYA_PURE,
@@ -269,9 +275,21 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
                 ),
             ): _number(20, 200, 5),
             vol.Required(
-                CONF_MANUAL_MAX_AGE_H,
-                default=defaults.get(CONF_MANUAL_MAX_AGE_H, DEFAULT_MANUAL_MAX_AGE_H),
-            ): _number(1, 168, 1),
+                CONF_STALE_TA_DAYS,
+                default=defaults.get(CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS),
+            ): _number(1, 365, 1),
+            vol.Required(
+                CONF_STALE_PH_MANUAL_DAYS,
+                default=defaults.get(CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS),
+            ): _number(1, 365, 1),
+            vol.Required(
+                CONF_STALE_FC_DAYS,
+                default=defaults.get(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
+            ): _number(1, 365, 1),
+            vol.Required(
+                CONF_STALE_CYA_DAYS,
+                default=defaults.get(CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS),
+            ): _number(1, 365, 1),
         }
     )
 

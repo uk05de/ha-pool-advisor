@@ -38,9 +38,22 @@ CONF_ENT_CYANURIC: Final = "entity_cyanuric_acid"
 
 # Calibration
 CONF_PH_CALIB_THRESHOLD: Final = "ph_calibration_threshold"
-CONF_MANUAL_MAX_AGE_H: Final = "manual_max_age_hours"
 DEFAULT_PH_CALIB_THRESHOLD = 0.2
-DEFAULT_MANUAL_MAX_AGE_H = 24
+
+# Stale-Schwellen je Parameter (in Tagen). Realistischer Rhythmus basierend
+# auf Pool-Chemie-Dynamik:
+#   CYA  — stabil, baut nicht ab, Änderung nur durch Wasseraustausch
+#   TA   — stabil, sinkt leicht über Monate
+#   pH   — Drift-Check der Anlage-Elektrode
+#   FC/CC/TC — dynamisch aber Anlage regelt autonom; Messung bei Anlass
+CONF_STALE_TA_DAYS: Final = "stale_ta_days"
+CONF_STALE_PH_MANUAL_DAYS: Final = "stale_ph_manual_days"
+CONF_STALE_FC_DAYS: Final = "stale_fc_days"
+CONF_STALE_CYA_DAYS: Final = "stale_cya_days"
+DEFAULT_STALE_TA_DAYS: Final = 28
+DEFAULT_STALE_PH_MANUAL_DAYS: Final = 14
+DEFAULT_STALE_FC_DAYS: Final = 14
+DEFAULT_STALE_CYA_DAYS: Final = 56
 
 # Targets
 CONF_PH_MIN: Final = "ph_min"
