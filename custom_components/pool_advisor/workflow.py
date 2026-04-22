@@ -71,6 +71,24 @@ class WorkflowContext:
     ta_max: float = 120.0
     water_temp: float | None = None
 
+    # Thresholds für Color-Coding und Swim-Check
+    ph_critical_low: float = 6.8
+    ph_critical_high: float = 7.7
+    ta_critical_low: float = 60.0
+    ta_critical_high: float = 150.0
+    fc_critical_low: float = 0.2
+    fc_min_val: float = 0.5
+    fc_max: float = 1.5
+    cc_max: float = 0.2
+    cc_shock_at: float = 0.5
+    cya_watch_at: float = 50.0
+    cya_critical_at: float = 75.0
+    ph_calib_threshold: float = 0.2
+    redox_drift_threshold: float = 70.0
+
+    total_cl: float | None = None
+    redox: float | None = None
+
 
 # ---------- Hilfsfunktionen ----------
 
@@ -161,40 +179,278 @@ ACTION_ICONS = {
     "no_data": "❔",
 }
 
-
-def _render_rec(title: str, rec: Recommendation | None) -> list[str]:
-    if rec is None:
-        return []
-    icon = ACTION_ICONS.get(rec.action, "")
-    lines: list[str] = [f"### {icon} {title}", rec.reason]
-    if rec.steps:
-        lines.append("")
-        for i, s in enumerate(rec.steps, 1):
-            lines.append(f"{i}. **{s.amount:g} {s.unit}** {s.product}")
-            if s.wait_hours > 0 and i < len(rec.steps):
-                lines.append(f"   ⏳ dann **{s.wait_hours} h warten**, Filter an")
-    if rec.note:
-        lines.append("")
-        lines.append(f"> {rec.note}")
-    lines.append("")
-    return lines
+# Farbpalette (moderat gesättigt, Light-/Dark-Theme-tauglich)
+COLOR_GREEN = "#81c784"
+COLOR_ORANGE = "#f0ad4e"
+COLOR_RED = "#d9534f"
+COLOR_GREY = "#999999"
 
 
-def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
-    lines: list[str] = ["## Pool-Empfehlung — Normalbetrieb", ""]
-    for key, title in (
-        ("ph", "pH"),
+# --- Color-Helper pro Parameter ---
+
+
+def _color_ph_val(ph: float | None, ctx: WorkflowContext) -> str:
+    if ph is None:
+        return COLOR_GREY
+    if ph < ctx.ph_critical_low or ph > ctx.ph_critical_high:
+        return COLOR_RED
+    if ph < ctx.ph_min or ph > ctx.ph_max:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_ta_val(ta: float | None, ctx: WorkflowContext) -> str:
+    if ta is None:
+        return COLOR_GREY
+    if ta < ctx.ta_critical_low or ta > ctx.ta_critical_high:
+        return COLOR_RED
+    if ta < ctx.ta_min or ta > ctx.ta_max:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_fc_val(fc: float | None, ctx: WorkflowContext) -> str:
+    if fc is None:
+        return COLOR_GREY
+    if fc < ctx.fc_critical_low or fc > 10.0:
+        return COLOR_RED
+    if fc < ctx.fc_min_val or fc > 3.0:
+        return COLOR_RED if fc > 3.0 else COLOR_ORANGE
+    if fc > ctx.fc_max:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_cc_val(cc: float | None, ctx: WorkflowContext) -> str:
+    if cc is None:
+        return COLOR_GREY
+    if cc >= ctx.cc_shock_at:
+        return COLOR_RED
+    if cc > ctx.cc_max:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_tc_val(tc: float | None, ctx: WorkflowContext) -> str:
+    if tc is None:
+        return COLOR_GREY
+    # TC = FC + CC; hohe TC = meistens hohe FC
+    if tc > 10.0:
+        return COLOR_RED
+    if tc > 3.0:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_cya_val(cya: float | None, ctx: WorkflowContext) -> str:
+    if cya is None:
+        return COLOR_GREY
+    if cya >= ctx.cya_critical_at:
+        return COLOR_RED
+    if cya >= ctx.cya_watch_at:
+        return COLOR_ORANGE
+    if cya < ctx.cya_target * 0.6:
+        return COLOR_RED
+    if cya < ctx.cya_target * 0.9:
+        return COLOR_ORANGE
+    return COLOR_GREEN
+
+
+def _color_from_action(action: str | None) -> str:
+    if action == "ok":
+        return COLOR_GREEN
+    if action == "watch":
+        return COLOR_ORANGE
+    if action in ("raise", "lower", "shock", "calibrate"):
+        return COLOR_RED
+    return COLOR_GREY  # no_data / unknown
+
+
+def _colored(value: str, color: str) -> str:
+    return f'<font color="{color}">{value}</font>'
+
+
+# --- Swim-Safety ---
+
+
+def _swim_safety_reasons(ctx: WorkflowContext) -> list[str]:
+    """Liste aller Gründe warum Baden aktuell nicht möglich. Leer = alles OK."""
+    reasons: list[str] = []
+    ph = _eff_ph(ctx)
+    if ctx.fc is not None:
+        if ctx.fc > 3.0:
+            reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l) — reizt Augen/Haut")
+        elif ctx.fc < 0.3:
+            reasons.append(f"FC **{ctx.fc:.2f}** zu niedrig (mind. 0.3 mg/l) — keine Desinfektion")
+    if ctx.cc is not None and ctx.cc > 0.5:
+        reasons.append(f"CC **{ctx.cc:.2f}** zu hoch — Chloramine, Reizung")
+    if ph is not None and (ph < 6.8 or ph > 7.8):
+        reasons.append(f"pH **{ph:.2f}** außerhalb 6.8–7.8 — Augen/Haut-Reizung")
+    if ctx.cya is not None and ctx.cya > 100:
+        reasons.append(
+            f"CYA **{ctx.cya:.0f}** mg/l zu hoch — Chlorine-Lock, Chlor wirkt nicht mehr"
+        )
+    return reasons
+
+
+def _non_swim_warnings(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
+    """Sammelt Nicht-Bade-blockierende Baustellen (TA, CYA moderat, Drift etc.)."""
+    warnings: list[str] = []
+    for key, label in (
         ("alkalinity", "Alkalität"),
-        ("chlorine", "Chlor"),
         ("cya", "Cyanursäure"),
         ("calibration", "Drift pH Sonde"),
         ("drift_redox", "Drift Redox Sonde"),
     ):
-        lines.extend(_render_rec(title, recs.get(key)))
-    # Badebetrieb-Freigabe als finale Sektion
+        rec = recs.get(key)
+        if rec is None or rec.action in ("ok", "no_data"):
+            continue
+        warnings.append(f"**{label}**: {rec.reason}")
+    # pH watch (wenn nicht swim-blocking)
+    ph_rec = recs.get("ph")
+    if ph_rec and ph_rec.action == "watch":
+        warnings.append(f"**pH**: {ph_rec.reason}")
+    return warnings
+
+
+# --- Tabelle ---
+
+
+def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
+    L: list[str] = [
+        "| Messwert | Aktuell | Ziel | Min | Max |",
+        "|----------|---------|------|-----|-----|",
+    ]
+
+    # pH
+    ph = _eff_ph(ctx)
+    ph_str = _colored(f"{ph:.2f}", _color_ph_val(ph, ctx)) if ph is not None else "—"
+    L.append(
+        f"| pH | {ph_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
+    )
+
+    # Alkalität
+    ta_str = (
+        _colored(f"{ctx.ta:.0f}", _color_ta_val(ctx.ta, ctx))
+        if ctx.ta is not None
+        else "—"
+    )
+    L.append(
+        f"| Alkalität (mg/l) | {ta_str} | {ctx.ta_target:.0f} | "
+        f"{ctx.ta_min:.0f} | {ctx.ta_max:.0f} |"
+    )
+
+    # Chlor frei (FC)
+    fc_str = (
+        _colored(f"{ctx.fc:.2f}", _color_fc_val(ctx.fc, ctx))
+        if ctx.fc is not None
+        else "—"
+    )
+    L.append(
+        f"| Chlor frei (mg/l) | {fc_str} | {ctx.fc_target:.2f} | "
+        f"{ctx.fc_min_val:.2f} | {ctx.fc_max:.2f} |"
+    )
+
+    # Chlor gebunden (CC)
+    cc_str = (
+        _colored(f"{ctx.cc:.2f}", _color_cc_val(ctx.cc, ctx))
+        if ctx.cc is not None
+        else "—"
+    )
+    L.append(f"| Chlor geb. (mg/l) | {cc_str} | — | — | {ctx.cc_max:.2f} |")
+
+    # Chlor gesamt (TC)
+    tc_str = (
+        _colored(f"{ctx.total_cl:.2f}", _color_tc_val(ctx.total_cl, ctx))
+        if ctx.total_cl is not None
+        else "—"
+    )
+    L.append(f"| Chlor gesamt (mg/l) | {tc_str} | — | — | — |")
+
+    # Cyanursäure
+    cya_str = (
+        _colored(f"{ctx.cya:.0f}", _color_cya_val(ctx.cya, ctx))
+        if ctx.cya is not None
+        else "—"
+    )
+    L.append(
+        f"| Cyanursäure (mg/l) | {cya_str} | {ctx.cya_target:.0f} | "
+        f"{ctx.cya_watch_at:.0f} | {ctx.cya_critical_at:.0f} |"
+    )
+
+    # Drift pH Sonde
+    calib = recs.get("calibration")
+    if calib is not None and calib.delta is not None:
+        color = _color_from_action(calib.action)
+        delta_str = _colored(f"{calib.delta:+.2f}", color)
+    else:
+        delta_str = "—"
+    L.append(
+        f"| Drift pH Sonde | {delta_str} | 0.00 | — | ±{ctx.ph_calib_threshold:.2f} |"
+    )
+
+    # Drift Redox Sonde
+    dr = recs.get("drift_redox")
+    if dr is not None and dr.delta is not None:
+        color = _color_from_action(dr.action)
+        delta_str = _colored(f"{dr.delta:+.0f} mV", color)
+    else:
+        delta_str = "—"
+    L.append(
+        f"| Drift Redox Sonde | {delta_str} | 0 mV | — | ±{ctx.redox_drift_threshold:.0f} mV |"
+    )
+
+    L.append("")
+    return L
+
+
+# --- Hauptrender ---
+
+
+def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
+    lines: list[str] = ["## Pool-Empfehlung — Normalbetrieb", ""]
+
+    # 1. Swim-Safety-Alerts
+    swim_issues = _swim_safety_reasons(ctx)
+    if swim_issues:
+        lines.append(
+            '<ha-alert alert-type="error">Baden aktuell nicht möglich</ha-alert>'
+        )
+        lines.append("")
+        for r in swim_issues:
+            lines.append(f'<ha-alert alert-type="error">{r}</ha-alert>')
+            lines.append("")
+    else:
+        lines.append(
+            '<ha-alert alert-type="success">✅ Badefreigabe erteilt — alles im sicheren Bereich</ha-alert>'
+        )
+        lines.append("")
+
+    # 2. Nicht-bade-blockierende Warnungen
+    for w in _non_swim_warnings(ctx, recs):
+        lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
+        lines.append("")
+
+    # 3. Tabelle
     lines.append("---")
     lines.append("")
-    lines.extend(_swim_ready_block(ctx))
+    lines += _values_table(ctx, recs)
+
+    # 4. Hinweise (Notes aus Recommendations)
+    notes: list[str] = []
+    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
+        rec = recs.get(key)
+        if rec and rec.note and rec.action not in ("ok", "no_data"):
+            notes.append(rec.note)
+    # Decay-Schätzung für hohes FC als Hinweis aus dem Note bereits enthalten
+    if notes:
+        lines.append("---")
+        lines.append("")
+        for n in notes:
+            lines.append(f"> {n}")
+            lines.append(">")
+        lines.append("")
+
     return "\n".join(lines)
 
 

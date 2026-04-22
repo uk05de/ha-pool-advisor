@@ -358,6 +358,24 @@ class PoolAdvisorData:
             ph_max=float(self._cfg(CONF_PH_MAX)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
+            # Thresholds für Color-Coding
+            ph_critical_low=float(self._cfg(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)),
+            ph_critical_high=float(self._cfg(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)),
+            ta_critical_low=float(self._cfg(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)),
+            ta_critical_high=float(self._cfg(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)),
+            fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
+            fc_min_val=float(self._cfg(CONF_FC_MIN)),
+            fc_max=float(self._cfg(CONF_FC_MAX)),
+            cc_max=float(self._cfg(CONF_CC_MAX)),
+            cc_shock_at=float(self._cfg(CONF_CC_SHOCK_AT)),
+            cya_watch_at=float(self._cfg(CONF_CYA_WATCH_AT, DEFAULT_CYA_WATCH_AT)),
+            cya_critical_at=float(self._cfg(CONF_CYA_CRITICAL_AT, DEFAULT_CYA_CRITICAL_AT)),
+            ph_calib_threshold=float(self._cfg(CONF_PH_CALIB_THRESHOLD, DEFAULT_PH_CALIB_THRESHOLD)),
+            redox_drift_threshold=float(
+                self._cfg(CONF_REDOX_DRIFT_THRESHOLD, DEFAULT_REDOX_DRIFT_THRESHOLD)
+            ),
+            total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
+            redox=self._read_live(CONF_ENT_REDOX),
         )
 
     async def async_unload(self) -> None:
