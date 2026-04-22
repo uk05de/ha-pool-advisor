@@ -272,34 +272,25 @@ def _colored(value: str, color: str) -> str:
 # --- Swim-Safety ---
 
 
-def _swim_safety_check(ctx: WorkflowContext) -> tuple[list[str], set[str]]:
-    """Returns (bade-blockierende Gründe, keys die schon abgedeckt sind).
+def _swim_safety_check(ctx: WorkflowContext) -> tuple[bool, set[str]]:
+    """Returns (is_safe, keys_that_are_swim_blocking).
 
     Die claimed-Keys werden von _non_swim_warnings ausgeschlossen, damit
-    nichts doppelt als rot UND gelb angezeigt wird.
+    nichts doppelt als Bade-Alert UND Warning-Alert angezeigt wird. Die
+    genauen Gründe stehen ohnehin als Farbe in der Messwerte-Tabelle und
+    als blauer Action-Alert.
     """
-    reasons: list[str] = []
     claimed: set[str] = set()
     ph = _eff_ph(ctx)
-    if ctx.fc is not None:
-        if ctx.fc > 3.0:
-            reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l) — reizt Augen/Haut")
-            claimed.add("chlorine")
-        elif ctx.fc < 0.3:
-            reasons.append(f"FC **{ctx.fc:.2f}** zu niedrig (mind. 0.3 mg/l) — keine Desinfektion")
-            claimed.add("chlorine")
+    if ctx.fc is not None and (ctx.fc > 3.0 or ctx.fc < 0.3):
+        claimed.add("chlorine")
     if ctx.cc is not None and ctx.cc > 0.5:
-        reasons.append(f"CC **{ctx.cc:.2f}** zu hoch — Chloramine, Reizung")
         claimed.add("chlorine")
     if ph is not None and (ph < 6.8 or ph > 7.8):
-        reasons.append(f"pH **{ph:.2f}** außerhalb 6.8–7.8 — Augen/Haut-Reizung")
         claimed.add("ph")
     if ctx.cya is not None and ctx.cya > 100:
-        reasons.append(
-            f"CYA **{ctx.cya:.0f}** mg/l zu hoch — Chlorine-Lock, Chlor wirkt nicht mehr"
-        )
         claimed.add("cya")
-    return reasons, claimed
+    return len(claimed) == 0, claimed
 
 
 def _non_swim_warnings(
@@ -557,14 +548,15 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
 def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     lines: list[str] = ["## Pool-Empfehlung", ""]
 
-    # 1. Alerts
-    swim_issues, claimed = _swim_safety_check(ctx)
-    if swim_issues:
-        lines.append('<ha-alert alert-type="error">Baden aktuell nicht möglich</ha-alert>')
+    # 1. Alerts — Bade-Status als einziger roter Alert (Details siehe Tabelle)
+    is_safe, claimed = _swim_safety_check(ctx)
+    if not is_safe:
+        lines.append(
+            '<ha-alert alert-type="error">'
+            'Nicht baden — Werte außerhalb Bade-Bereich, Details siehe Tabelle und Hinweise'
+            '</ha-alert>'
+        )
         lines.append("")
-        for r in swim_issues:
-            lines.append(f'<ha-alert alert-type="error">{r}</ha-alert>')
-            lines.append("")
     else:
         lines.append(
             '<ha-alert alert-type="success">Badefreigabe erteilt — alles im sicheren Bereich</ha-alert>'
