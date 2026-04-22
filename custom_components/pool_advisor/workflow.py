@@ -540,12 +540,21 @@ def _scenario_notes(ctx: WorkflowContext) -> list[str]:
 
 
 def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
-    """Dynamische Hinweise aus den aktiven Recommendations."""
+    """Dynamische Hinweise aus den aktiven Recommendations.
+
+    Chlor-Notes bei action=shock/raise werden übersprungen — die CYA-Warnung
+    steht schon unter der Shock-Szenarien-Tabelle (via _scenario_notes).
+    Nur Chlor-watch-Notes (z.B. Decay-Schätzung bei FC-Überdosis) bleiben,
+    weil die sich auf die Wartezeit beziehen, nicht auf Dosieren.
+    """
     notes: list[str] = []
     for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
         rec = recs.get(key)
-        if rec and rec.note and rec.action not in ("ok", "no_data"):
-            notes.append(rec.note)
+        if rec is None or rec.note is None or rec.action in ("ok", "no_data"):
+            continue
+        if key == "chlorine" and rec.action in ("shock", "raise"):
+            continue
+        notes.append(rec.note)
     return notes
 
 

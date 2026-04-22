@@ -200,7 +200,7 @@ def recommend_ph(
         )
         if ph_dosing_minus:
             rec = _append_note(
-                rec, "Alternative: pH-Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
+                rec, "**pH-Alternative**: Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
             )
         return rec
 
@@ -221,7 +221,7 @@ def recommend_ph(
     )
     if ph_dosing_plus:
         rec = _append_note(
-            rec, "Alternative: pH-Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
+            rec, "**pH-Alternative**: Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
         )
     elif ph_dosing_minus:
         rec = _append_note(
