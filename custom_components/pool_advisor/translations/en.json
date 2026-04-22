@@ -263,13 +263,6 @@
         "plus_only": "pH+ only",
         "both": "Both pH+ and pH−"
       }
-    },
-    "wartungsmodus": {
-      "options": {
-        "normal": "Normal operation",
-        "wasserwechsel": "Water change / commissioning",
-        "saisonstart": "Season start after winter"
-      }
     }
   },
   "entity": {
@@ -288,9 +281,6 @@
     },
     "button": {
       "analyze": {"name": "Run analysis"}
-    },
-    "select": {
-      "wartungsmodus": {"name": "Maintenance mode"}
     }
   }
 }

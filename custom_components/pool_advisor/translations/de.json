@@ -263,13 +263,6 @@
         "plus_only": "Nur pH+",
         "both": "pH+ und pH−"
       }
-    },
-    "wartungsmodus": {
-      "options": {
-        "normal": "Normalbetrieb",
-        "wasserwechsel": "Wasserwechsel / Inbetriebnahme",
-        "saisonstart": "Saisonstart nach Winter"
-      }
     }
   },
   "entity": {
@@ -288,9 +281,6 @@
     },
     "button": {
       "analyze": {"name": "Analyse durchführen"}
-    },
-    "select": {
-      "wartungsmodus": {"name": "Wartungsmodus"}
     }
   }
 }

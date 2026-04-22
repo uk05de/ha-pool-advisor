@@ -103,10 +103,8 @@ from .const import (
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
     DOMAIN,
-    MODE_NORMAL,
     PRODUCT_LABELS,
     SIGNAL_UPDATE,
-    WARTUNGSMODI,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,7 +113,6 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
-    Platform.SELECT,
 ]
 
 MANUAL_KEYS: tuple[str, ...] = (
@@ -183,8 +180,6 @@ class PoolAdvisorData:
         self.manual_snapshot: dict[str, dict[str, Any]] = {}
         self.analysis_at: datetime | None = None
         self._unsub = None
-        # Kontextmodus (Normalbetrieb / Wasserwechsel / Saisonstart / Schockchlorung)
-        self.mode: str = MODE_NORMAL
 
     # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
@@ -330,12 +325,6 @@ class PoolAdvisorData:
             self._unsub = async_track_state_change_event(self.hass, tracked, _on_change)
 
         self.run_analysis()
-
-    async def async_set_mode(self, mode: str) -> None:
-        if mode not in WARTUNGSMODI:
-            return
-        self.mode = mode
-        async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
 
     def build_workflow_context(self) -> WorkflowContext:
         return WorkflowContext(

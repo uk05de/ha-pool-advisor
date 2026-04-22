@@ -184,8 +184,7 @@ class DriftPhSensor(_BaseSensor):
         return attrs
 
 
-from .const import MODE_NORMAL
-from .workflow import MODE_RENDERERS
+from .workflow import render as _workflow_render
 
 
 class DriftRedoxSensor(_BaseSensor):
@@ -235,24 +234,20 @@ ACTION_ICONS = {
 
 
 def _build_workflow_markdown(data: "PoolAdvisorData") -> str:
-    """Render die passende Markdown-Liste für den aktuellen Modus."""
     ctx = data.build_workflow_context()
-    renderer = MODE_RENDERERS.get(data.mode)
-    if renderer is None:
-        renderer = MODE_RENDERERS[MODE_NORMAL]
-    return renderer(ctx, data.recommendations)
+    return _workflow_render(ctx, data.recommendations)
 
 
 def _build_markdown(data: "PoolAdvisorData") -> str:
-    """Renders the full markdown summary via the mode-specific renderer."""
-    body = _build_workflow_markdown(data)
+    """Vollständige Markdown-Empfehlung ohne Haupttitel (Card liefert den).
+
+    Zeitstempel steht als eigener Blockquote am Anfang.
+    """
+    body = _workflow_render(data.build_workflow_context(), data.recommendations)
     if data.analysis_at is not None:
         local = data.analysis_at.astimezone()
-        header = f"*Stand: {local.strftime('%d.%m.%Y %H:%M')}*\n\n"
-        # Insert after the first heading line
-        parts = body.split("\n", 1)
-        if len(parts) == 2:
-            return parts[0] + "\n\n" + header + parts[1]
+        header = f"> Stand: {local.strftime('%d.%m.%Y %H:%M')}\n\n"
+        return header + body
     return body
 
 

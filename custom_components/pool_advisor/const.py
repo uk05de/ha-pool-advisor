@@ -110,19 +110,6 @@ DEFAULT_CYA_TARGET: Final = 30.0
 DEFAULT_CYA_WATCH_AT: Final = 50.0
 DEFAULT_CYA_CRITICAL_AT: Final = 75.0
 
-# Wartungs-/Kontextmodus
-CONF_WARTUNGSMODUS: Final = "wartungsmodus"
-
-MODE_NORMAL: Final = "normal"
-MODE_WASSERWECHSEL: Final = "wasserwechsel"
-MODE_SAISONSTART: Final = "saisonstart"
-
-WARTUNGSMODI: Final = [
-    MODE_NORMAL,
-    MODE_WASSERWECHSEL,
-    MODE_SAISONSTART,
-]
-
 # Shock-FC-Zielwerte je Szenario (mg/l absolut)
 SHOCK_TARGET_ROUTINE: Final = 10.0
 SHOCK_TARGET_ALGEN_LEICHT: Final = 15.0

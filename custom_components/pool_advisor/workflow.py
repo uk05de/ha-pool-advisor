@@ -15,14 +15,9 @@ from dataclasses import dataclass
 
 from .calculator import (
     Recommendation,
-    cya_pre_dose_grams,
-    estimate_fc_decay_hours,
     shock_dose_grams_or_ml,
 )
 from .const import (
-    MODE_NORMAL,
-    MODE_SAISONSTART,
-    MODE_WASSERWECHSEL,
     SHOCK_CYA_PER_PPM_CL,
     SHOCK_STABILIZED,
     SHOCK_TARGET_ALGEN_LEICHT,
@@ -99,50 +94,6 @@ class WorkflowContext:
 
 def _eff_ph(ctx: WorkflowContext) -> float | None:
     return ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
-
-
-def _ta_dose_g(ctx: WorkflowContext) -> float | None:
-    from .calculator import G_BICARB_PURE_PER_M3_PER_10_TA
-
-    if ctx.ta is None:
-        return None
-    delta = ctx.ta_target - ctx.ta
-    if delta <= 0:
-        return 0.0
-    return G_BICARB_PURE_PER_M3_PER_10_TA * ctx.volume_m3 * (delta / 10.0)
-
-
-def _ph_dose(ctx: WorkflowContext) -> tuple[str, float] | None:
-    """Returns (direction, grams) or None if no action. direction is 'up' or 'down'."""
-    from .calculator import (
-        G_DRY_ACID_PURE_PER_M3_PER_01_PH,
-        G_SODA_PURE_PER_M3_PER_01_PH,
-    )
-
-    ph = _eff_ph(ctx)
-    if ph is None:
-        return None
-    if ctx.ph_min <= ph <= ctx.ph_max:
-        return None
-    delta = ctx.ph_target - ph
-    units = abs(delta) / 0.1
-    if delta > 0:
-        return ("up", G_SODA_PURE_PER_M3_PER_01_PH * ctx.volume_m3 * units)
-    return ("down", G_DRY_ACID_PURE_PER_M3_PER_01_PH * ctx.volume_m3 * units)
-
-
-def _cya_predose_g(ctx: WorkflowContext, shock_target_fc: float) -> float:
-    current = ctx.cya if ctx.cya is not None else 0.0
-    shock_increase = max(0.0, shock_target_fc - (ctx.fc or 0.0))
-    g = cya_pre_dose_grams(
-        current_cya=current,
-        target_cya=ctx.cya_target,
-        shock_fc_increase=shock_increase,
-        shock_type=ctx.shock_type,
-        volume_m3=ctx.volume_m3,
-        cya_strength_pct=ctx.cya_strength_pct,
-    )
-    return g * 0.8  # 80 % Sicherheitspuffer
 
 
 def _shock_dose(ctx: WorkflowContext, target_fc: float) -> tuple[float, str] | None:
@@ -318,10 +269,10 @@ def _param_warnings(
     """
     warnings: list[str] = []
     for key, label in (
-        ("ph", "pH"),
         ("alkalinity", "Alkalität"),
-        ("chlorine", "Chlor"),
+        ("ph", "pH"),
         ("cya", "Cyanursäure"),
+        ("chlorine", "Chlor"),
         ("calibration", "Drift pH Sonde"),
         ("drift_redox", "Drift Redox Sonde"),
     ):
@@ -364,8 +315,8 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
     alerts: list[str] = []
 
     for key, label in (
-        ("ph", "pH"),
         ("alkalinity", "Alkalität"),
+        ("ph", "pH"),
         ("cya", "Cyanursäure"),
     ):
         rec = recs.get(key)
@@ -438,6 +389,17 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         "|----------|---------|------|-----|-----|",
     ]
 
+    # Alkalität (Puffer — kommt zuerst in der Chemie-Reihenfolge)
+    ta_str = (
+        _colored(f"{ctx.ta:.0f}", _color_ta_val(ctx.ta, ctx))
+        if ctx.ta is not None
+        else "—"
+    )
+    L.append(
+        f"| Alkalität (mg/l) | {ta_str} | {ctx.ta_target:.0f} | "
+        f"{ctx.ta_min:.0f} | {ctx.ta_max:.0f} |"
+    )
+
     # pH Manuell (PoolLab-Photometer)
     ph_m = ctx.ph_manual
     ph_m_str = _colored(f"{ph_m:.2f}", _color_ph_val(ph_m, ctx)) if ph_m is not None else "—"
@@ -452,15 +414,15 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         f"| pH Dosieranlage | {ph_a_str} | {ctx.ph_target:.2f} | {ctx.ph_min:.1f} | {ctx.ph_max:.1f} |"
     )
 
-    # Alkalität
-    ta_str = (
-        _colored(f"{ctx.ta:.0f}", _color_ta_val(ctx.ta, ctx))
-        if ctx.ta is not None
+    # Cyanursäure
+    cya_str = (
+        _colored(f"{ctx.cya:.0f}", _color_cya_val(ctx.cya, ctx))
+        if ctx.cya is not None
         else "—"
     )
     L.append(
-        f"| Alkalität (mg/l) | {ta_str} | {ctx.ta_target:.0f} | "
-        f"{ctx.ta_min:.0f} | {ctx.ta_max:.0f} |"
+        f"| Cyanursäure (mg/l) | {cya_str} | {ctx.cya_target:.0f} | "
+        f"{ctx.cya_watch_at:.0f} | {ctx.cya_critical_at:.0f} |"
     )
 
     # Chlor frei (FC)
@@ -489,17 +451,6 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         else "—"
     )
     L.append(f"| Chlor gesamt (mg/l) | {tc_str} | — | — | — |")
-
-    # Cyanursäure
-    cya_str = (
-        _colored(f"{ctx.cya:.0f}", _color_cya_val(ctx.cya, ctx))
-        if ctx.cya is not None
-        else "—"
-    )
-    L.append(
-        f"| Cyanursäure (mg/l) | {cya_str} | {ctx.cya_target:.0f} | "
-        f"{ctx.cya_watch_at:.0f} | {ctx.cya_critical_at:.0f} |"
-    )
 
     # Redox Dosieranlage (Bayrol-Elektrode, live)
     redox_str = (
@@ -612,7 +563,7 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
     weil die sich auf die Wartezeit beziehen, nicht auf Dosieren.
     """
     notes: list[str] = []
-    for key in ("ph", "alkalinity", "chlorine", "cya", "calibration", "drift_redox"):
+    for key in ("alkalinity", "ph", "cya", "chlorine", "calibration", "drift_redox"):
         rec = recs.get(key)
         if rec is None or rec.note is None or rec.action in ("ok", "no_data"):
             continue
@@ -626,7 +577,8 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
 
 
 def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
-    lines: list[str] = ["## Pool-Empfehlung", ""]
+    # Kein Haupttitel — die HA-Markdown-Card hat ohnehin eine Überschrift.
+    lines: list[str] = []
 
     # 1. Alerts — Bade-Status als einziger roter Alert
     is_safe = _swim_safety_check(ctx)
@@ -680,235 +632,6 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     return "\n".join(lines)
 
 
-# ---------- Inbetriebnahme-Listen (Wasserwechsel / Saisonstart) ----------
-
-
-def _inbetriebnahme_list(ctx: WorkflowContext, shock_target_fc: float, shock_label: str, include_brush: bool) -> list[str]:
-    L: list[str] = []
-
-    # 1. TA
-    if ctx.ta is None:
-        L += ["### ❔ 1. Alkalität", "TA noch nicht gemessen.", ""]
-    elif ctx.ta_min <= ctx.ta <= ctx.ta_max:
-        L += [f"### ✅ 1. Alkalität", f"TA **{ctx.ta:.0f} mg/l** (Ziel {ctx.ta_target:.0f}, Bereich {ctx.ta_min:.0f}–{ctx.ta_max:.0f}).", ""]
-    else:
-        dose = _ta_dose_g(ctx)
-        if dose and dose > 0:
-            L += [
-                f"### ⚠ 1. Alkalität anheben",
-                f"TA **{ctx.ta:.0f} mg/l** — Ziel {ctx.ta_target:.0f}.",
-                "",
-                f"Dosiere **{dose:.0f} g {ctx.ta_plus_display}** (in Eimer auflösen, verteilen).",
-                "Filter 12–24 h durchlaufen, dann neu messen.",
-                "",
-            ]
-        else:
-            L += [
-                f"### ⚠ 1. Alkalität senken",
-                f"TA **{ctx.ta:.0f} mg/l** — Ziel {ctx.ta_target:.0f}.",
-                "",
-                "Mehrtägiger Prozess: pH auf ~7.0 senken, kräftig belüften, wiederholen.",
-                "",
-            ]
-
-    # 2. pH grob
-    ph = _eff_ph(ctx)
-    if ph is None:
-        L += ["### ❔ 2. pH grob", "pH noch nicht gemessen.", ""]
-    elif ctx.ph_min <= ph <= ctx.ph_max:
-        L += [f"### ✅ 2. pH grob", f"pH **{ph:.2f}** (Ziel {ctx.ph_target:.2f}, Bereich {ctx.ph_min:.1f}–{ctx.ph_max:.1f}).", ""]
-    else:
-        dose = _ph_dose(ctx)
-        if dose:
-            direction, grams = dose
-            if direction == "up":
-                L += [
-                    f"### ⚠ 2. pH anheben",
-                    f"pH **{ph:.2f}** — Ziel {ctx.ph_target:.2f}.",
-                    "",
-                    f"Dosiere **{grams:.0f} g {ctx.ph_plus_display}**. Filter 4–6 h, neu messen.",
-                    "",
-                ]
-            else:
-                L += [
-                    f"### ⚠ 2. pH senken",
-                    f"pH **{ph:.2f}** — Ziel {ctx.ph_target:.2f}.",
-                    "",
-                    f"Dosiere **{grams:.0f} g {ctx.ph_minus_display}**. Filter 4–6 h, neu messen.",
-                    "",
-                    "> Hinweis: erst pH grob einstellen, **dann** Dosierung aktivieren.",
-                    "",
-                ]
-
-    # 3. pH-System
-    L += [
-        "### ○ 3. pH-Dosierung in Betrieb",
-        "- Elektrode in Pufferlösungen **pH 7 + pH 4** kalibrieren",
-        f"- Sollwert **{ctx.ph_target:.1f}** setzen",
-        "- Dosierung einschalten",
-        "",
-    ]
-
-    # 4. CYA
-    if ctx.cya is None:
-        L += ["### ❔ 4. Cyanursäure", "CYA noch nicht gemessen.", ""]
-    elif ctx.cya >= ctx.cya_target * 0.9:
-        L += [f"### ✅ 4. Cyanursäure", f"CYA **{ctx.cya:.0f} mg/l** (Ziel {ctx.cya_target:.0f}).", ""]
-    else:
-        pre_g = _cya_predose_g(ctx, shock_target_fc)
-        if pre_g <= 0:
-            L += [
-                "### ✅ 4. Cyanursäure",
-                f"CYA **{ctx.cya:.0f} mg/l** — Shock bringt genug nach, keine Vor-Dosierung nötig.",
-                "",
-            ]
-        else:
-            L += [
-                "### ⚠ 4. Cyanursäure vor-dosieren",
-                f"CYA **{ctx.cya:.0f} mg/l** — Ziel {ctx.cya_target:.0f}.",
-                "",
-                f"Dosiere **ca. {pre_g:.0f} g {ctx.cya_display}** (80 % Sicherheitspuffer).",
-                "In Skimmer-Sockel/Socke geben — langsam löslich. Filter 24–48 h.",
-                "",
-                f"> Der nachfolgende Shock bringt zusätzlich ~{_cya_from_shock(ctx, shock_target_fc):.0f} mg/l CYA mit.",
-                "",
-            ]
-
-    # 5. Chlor-System
-    L += [
-        "### ○ 5. Chlor-Dosierung in Betrieb",
-        "- Redox-Elektrode mit **468 mV Prüflösung** kalibrieren",
-        "- Redox-Sollwert **700 mV**",
-        "- Kanister prüfen, Dosierung einschalten",
-        "",
-    ]
-
-    # 6. Shock
-    dose = _shock_dose(ctx, shock_target_fc)
-    fc_now = ctx.fc if ctx.fc is not None else 0.0
-    if fc_now >= shock_target_fc * 0.8:
-        L += [
-            f"### ✅ 6. {shock_label}",
-            f"FC **{fc_now:.2f} mg/l** — Ziel {shock_target_fc:.0f} bereits erreicht.",
-            "",
-        ]
-    elif dose is not None and dose[0] > 0:
-        amount, unit = dose
-        extra = ""
-        if ctx.shock_type in SHOCK_STABILIZED:
-            extra = f"\n⚠ Bringt ~{_cya_from_shock(ctx, shock_target_fc):.0f} mg/l CYA mit."
-        brush_line = "\nZusätzlich Wände und Boden bürsten (2–3×)." if include_brush else ""
-        L += [
-            f"### ⚠ 6. {shock_label}",
-            f"FC **{fc_now:.2f} mg/l** — Ziel {shock_target_fc:.0f}.",
-            "",
-            f"Dosiere **{amount:.0f} {unit} {ctx.shock_display}**. Filter 24 h durchlaufen.{brush_line}{extra}",
-            "",
-        ]
-    else:
-        L += [f"### ❔ 6. {shock_label}", "Shock-Produkt nicht konfiguriert.", ""]
-
-    # 7. Badebetrieb-Freigabe
-    L += _swim_ready_block(ctx, nr=7)
-
-    return L
-
-
-def _swim_ready_block(ctx: WorkflowContext, nr: int | None = None) -> list[str]:
-    prefix = f"{nr}. " if nr is not None else ""
-    if ctx.fc is None:
-        return [f"### ❔ {prefix}Badebetrieb-Freigabe", "FC noch nicht gemessen.", ""]
-    reasons: list[str] = []
-    # Direkte Reizungsfaktoren
-    if ctx.fc > 3.0:
-        reasons.append(f"FC **{ctx.fc:.2f}** zu hoch (Ziel ≤ 3.0 mg/l) — reizt Augen/Haut")
-    if ctx.fc < 0.3:
-        reasons.append(f"FC **{ctx.fc:.2f}** zu niedrig (mind. 0.3 mg/l) — keine Desinfektion")
-    if ctx.cc is not None and ctx.cc > 0.5:
-        reasons.append(f"CC **{ctx.cc:.2f}** zu hoch (Chloramin-Belastung, reizt)")
-    ph = _eff_ph(ctx)
-    if ph is not None and (ph < 6.8 or ph > 7.8):
-        reasons.append(f"pH **{ph:.2f}** außerhalb 6.8–7.8 — reizt Augen/Haut")
-    # Indirekte Sicherheit: CYA-Lock
-    if ctx.cya is not None and ctx.cya > 100:
-        reasons.append(
-            f"CYA **{ctx.cya:.0f}** mg/l zu hoch — Chlorine-Lock, Chlor wirkt nicht mehr "
-            "richtig (Wassertausch nötig)"
-        )
-    elif ctx.cya is not None and ctx.cya > 75 and ctx.fc < 2.0:
-        reasons.append(
-            f"CYA {ctx.cya:.0f} reduziert Chlor-Wirksamkeit — FC {ctx.fc:.2f} "
-            "evtl. zu niedrig für sichere Desinfektion"
-        )
-    if not reasons:
-        return [
-            f"### ✅ {prefix}Badebetrieb-Freigabe",
-            f"FC {ctx.fc:.2f}, CC {_val(ctx.cc, 'mg/l')}, pH {_val(ph, '')}, "
-            f"CYA {_val(ctx.cya, 'mg/l', 0)} — alles im sicheren Bereich. Pool nutzbar.",
-            "",
-        ]
-    # FC-Abklingzeit-Schätzung wenn FC das Hauptproblem ist
-    extra = ""
-    if ctx.fc > 3.0:
-        hours = estimate_fc_decay_hours(
-            fc_current=ctx.fc,
-            fc_target=3.0,
-            cya=ctx.cya,
-            water_temp_c=ctx.water_temp,
-        )
-        if hours is not None and hours > 0:
-            lo_d = hours * 0.75 / 24
-            hi_d = hours * 1.25 / 24
-            if hi_d < 1.5:
-                range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
-            else:
-                range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
-            extra = f"\n⏳ Geschätzt **~{range_str}** bis FC ≤ 3 (Filter an, Abdeckung ab)."
-    return [
-        f"### ⚠ {prefix}Badebetrieb-Freigabe",
-        "Noch nicht badetauglich:",
-        *(f"- {r}" for r in reasons),
-        f"{extra}",
-        "> Aktives Senken nicht nötig — Filter + UV + Zeit reichen.",
-        "",
-    ]
-
-
-def render_wasserwechsel(ctx: WorkflowContext, _recs: dict[str, Recommendation]) -> str:
-    L = [
-        "## Pool-Empfehlung — Wasserwechsel / Inbetriebnahme",
-        "",
-        "**Voraussetzungen:** Pool befüllt → Filter 2–4 h gelaufen → PoolLab-Messung übertragen.",
-        "",
-        "---",
-        "",
-    ]
-    L += _inbetriebnahme_list(ctx, SHOCK_TARGET_ROUTINE, "Routine-Shock", include_brush=False)
-    return "\n".join(L)
-
-
-def render_saisonstart(ctx: WorkflowContext, _recs: dict[str, Recommendation]) -> str:
-    L = [
-        "## Pool-Empfehlung — Saisonstart nach Winter",
-        "",
-        "**Voraussetzungen:** Abdeckung ab → inspizieren → **gründlich rückspülen** "
-        "(1–3 m³ Verlust, TA/CYA checken) → Filter 2–4 h → messen.",
-        "",
-        "---",
-        "",
-    ]
-    L += _inbetriebnahme_list(ctx, SHOCK_TARGET_ALGEN_LEICHT, "Shock gegen Bio-Last", include_brush=True)
-    return "\n".join(L)
-
-
-# ---------- Schockchlorung: alle Szenarien zum Auswählen ----------
-
-
-# ---------- Registry ----------
-
-
-MODE_RENDERERS: dict[str, callable] = {
-    MODE_NORMAL: render_normal,
-    MODE_WASSERWECHSEL: render_wasserwechsel,
-    MODE_SAISONSTART: render_saisonstart,
-}
+# render_normal ist die einzige öffentliche Render-Funktion; für
+# Rückwärts-Kompatibilität einfach als `render` aliased.
+render = render_normal
