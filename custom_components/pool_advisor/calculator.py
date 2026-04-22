@@ -648,26 +648,29 @@ def recommend_drift_redox(
     effective_cya = cya if cya is not None else 30.0
     expected = expected_redox_mv(free_cl=free_cl, ph=ph, cya=effective_cya)
     delta = redox_live - expected
-    reason_core = (
-        f"Anlage {redox_live:.0f} mV vs Erwartung {expected:.0f} mV "
-        f"(FC {free_cl:.2f}, pH {ph:.2f}, CYA {effective_cya:.0f})"
-    )
     if abs(delta) <= threshold_mv:
         return Recommendation(
             action="ok",
             steps=(),
-            reason=f"{reason_core} — Abweichung {delta:+.0f} mV im Toleranzbereich",
+            reason=(
+                f"{redox_live:.0f} mV vs {expected:.0f} mV "
+                f"(abw. {delta:+.0f} mV, Toleranz ±{threshold_mv:.0f} mV)"
+            ),
             delta=delta,
         )
     return Recommendation(
         action="calibrate",
         steps=(),
-        reason=f"{reason_core} — Abweichung {delta:+.0f} mV > Schwelle {threshold_mv:.0f} mV",
+        reason=(
+            f"{redox_live:.0f} mV vs {expected:.0f} mV "
+            f"(abw. {delta:+.0f} mV > ±{threshold_mv:.0f} mV)"
+        ),
         delta=delta,
         note=(
-            "Redox-Elektrode prüfen: mit Prüflösung 468 mV kalibrieren, "
-            "ggf. reinigen (Alkohol) oder tauschen. Präzision dieser Schätzung "
-            "ist ±30 mV — bei einmaliger Abweichung einfach 1–2 Tage beobachten."
+            f"Berechnet aus FC {free_cl:.2f}, pH {ph:.2f}, CYA {effective_cya:.0f}. "
+            "Redox-Elektrode prüfen: mit Prüflösung 468 mV kalibrieren, ggf. reinigen "
+            "(Alkohol) oder tauschen. Präzision dieser Schätzung ist ±30 mV — bei "
+            "einmaliger Abweichung einfach 1–2 Tage beobachten."
         ),
     )
 
@@ -744,16 +747,13 @@ def recommend_calibration(
         return Recommendation(
             action="ok",
             steps=(),
-            reason=f"Auto {ph_auto:.2f} vs Manuell {ph_manual:.2f} — Abweichung {delta:+.2f} im Toleranzbereich",
+            reason=f"{ph_auto:.2f} vs {ph_manual:.2f} (abw. {delta:+.2f}, Toleranz ±{threshold:.2f})",
             delta=delta,
         )
     return Recommendation(
         action="calibrate",
         steps=(),
-        reason=(
-            f"Auto {ph_auto:.2f} vs Manuell {ph_manual:.2f} — Abweichung {delta:+.2f} "
-            f"> Schwelle {threshold:.2f}"
-        ),
+        reason=f"{ph_auto:.2f} vs {ph_manual:.2f} (abw. {delta:+.2f} > ±{threshold:.2f})",
         delta=delta,
         note=(
             "Elektrode der Dosieranlage gegen Referenz kalibrieren (Pufferlösung pH 7 / pH 4). "
