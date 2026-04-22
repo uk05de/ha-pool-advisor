@@ -346,6 +346,12 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
                         " Achtung großer Austausch — besser in 2–3 Etappen über mehrere Tage "
                         "splitten, nicht auf einmal."
                     )
+                # Frischwasser bringt FC=0 mit — Sanitation muss neu aufgebaut werden
+                if percent >= 30:
+                    msg += (
+                        " Nach dem Austausch **Routine-Shock empfohlen** (siehe Shock-Tabelle), "
+                        "da Frischwasser FC=0 mitbringt und die Dosieranlage Zeit braucht."
+                    )
                 alerts.append(msg)
             else:
                 alerts.append(
@@ -527,8 +533,8 @@ def _scenarios_table(ctx: WorkflowContext) -> list[str]:
         target = ctx.cc * 10.0
         L.append(_scenario_row(ctx, target, f"Breakpoint (10× CC = {target:.1f})"))
     for target, label in (
-        (SHOCK_TARGET_ROUTINE, "Routine (präventiv)"),
-        (SHOCK_TARGET_ALGEN_LEICHT, "Algen leicht (grünlicher Schleier)"),
+        (SHOCK_TARGET_ROUTINE, "Routine (präventiv, Wasserwechsel / Inbetriebnahme)"),
+        (SHOCK_TARGET_ALGEN_LEICHT, "Algen leicht (grünlicher Schleier, Saisonstart)"),
         (SHOCK_TARGET_ALGEN_STARK, "Algen stark (grüne Brühe)"),
         (SHOCK_TARGET_SCHWARZALGEN, "Schwarzalgen (schwarze Punkte)"),
     ):
