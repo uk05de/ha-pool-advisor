@@ -226,7 +226,7 @@ def recommend_ph(
     elif ph_dosing_minus:
         rec = _append_note(
             rec,
-            "Hinweis: deine Dosieranlage kann nur pH− dosieren, nicht pH+. "
+            "Deine Dosieranlage kann nur pH− dosieren, nicht pH+. "
             "pH steigt über Tage meist natürlich wieder (CO₂-Ausgasung, Chlor-Dosierung). "
             "Wenn du nicht warten willst: manuell wie oben dosieren.",
         )

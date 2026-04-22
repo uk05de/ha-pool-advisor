@@ -569,13 +569,20 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
     weil die sich auf die Wartezeit beziehen, nicht auf Dosieren.
     """
     notes: list[str] = []
-    for key in ("alkalinity", "ph", "cya", "chlorine", "calibration", "drift_redox"):
+    for key, label in (
+        ("alkalinity", "Alkalität"),
+        ("ph", "pH"),
+        ("cya", "Cyanursäure"),
+        ("chlorine", "Chlor"),
+        ("calibration", "Drift pH Sonde"),
+        ("drift_redox", "Drift Redox Sonde"),
+    ):
         rec = recs.get(key)
         if rec is None or rec.note is None or rec.action in ("ok", "no_data"):
             continue
         if key == "chlorine" and rec.action in ("shock", "raise"):
             continue
-        notes.append(rec.note)
+        notes.append(f"**{label}**: {rec.note}")
     return notes
 
 
