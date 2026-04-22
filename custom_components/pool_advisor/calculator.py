@@ -60,10 +60,11 @@ ML_HCL_33_PER_M3_PER_01_PH = 10.0
 # To raise TA by 10 mg/l in 10 m³: ~170 g sodium bicarb (pure)
 G_BICARB_PURE_PER_M3_PER_10_TA = 17.0
 
-# To raise free Cl by 1 mg/l in 10 m³:
-G_DICHLOR_PURE_PER_M3_PER_1_FC = 1.67   # ~16.7 g active Cl per m³ for 1 mg/l
-G_CAL_HYPO_PURE_PER_M3_PER_1_FC = 1.5
-ML_NAOCL_PURE_PER_M3_PER_1_FC = 12.0    # liquid 12.5% gives ~1 mg/l per 10 m³ with ~120 ml
+# Chemische Basis: um FC um 1 mg/l in 1 m³ Wasser (1000 L) zu erhöhen,
+# braucht man 1 g aktives Chlor. Produktmenge dann × (100 / Stärke %).
+# Flüssig-Chlor NaOCl bei 12.5 % Verfügbar-Chlor: 8 mL pro m³ pro 1 mg/l FC.
+G_ACTIVE_CL_PER_M3_PER_1_FC = 1.0
+ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 = 8.0
 
 # Shock multiplier on combined chlorine (breakpoint chlorination)
 SHOCK_FC_MULTIPLIER = 10.0
@@ -560,13 +561,13 @@ def shock_dose_grams_or_ml(
     if increase <= 0:
         return 0.0, "g"
     if shock_type == SHOCK_DICHLOR:
-        pure = G_DICHLOR_PURE_PER_M3_PER_1_FC * volume_m3 * increase * 10.0
+        pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * increase
         return pure * (100.0 / max(1.0, shock_strength_pct)), "g"
     if shock_type == SHOCK_CAL_HYPO:
-        pure = G_CAL_HYPO_PURE_PER_M3_PER_1_FC * volume_m3 * increase * 10.0
+        pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * increase
         return pure * (100.0 / max(1.0, shock_strength_pct)), "g"
     if shock_type == SHOCK_NAOCL_LIQUID:
-        pure_ml = ML_NAOCL_PURE_PER_M3_PER_1_FC * volume_m3 * increase
+        pure_ml = ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 * volume_m3 * increase
         return pure_ml * (12.5 / max(1.0, shock_strength_pct)), "ml"
     return None
 
@@ -735,15 +736,15 @@ def _build_cl_dose(
     reason: str,
 ) -> Recommendation:
     if shock_type == SHOCK_DICHLOR:
-        pure = G_DICHLOR_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase * 10.0
+        pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
         steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
     elif shock_type == SHOCK_CAL_HYPO:
-        pure = G_CAL_HYPO_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase * 10.0
+        pure = G_ACTIVE_CL_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
         total = pure * (100.0 / max(1.0, shock_strength_pct))
         steps = _split(total, "g", shock_display, max_dose_fraction, interval_h)
     elif shock_type == SHOCK_NAOCL_LIQUID:
-        pure_ml = ML_NAOCL_PURE_PER_M3_PER_1_FC * volume_m3 * target_fc_increase
+        pure_ml = ML_NAOCL_PER_M3_PER_1_FC_AT_12_5 * volume_m3 * target_fc_increase
         total = pure_ml * (12.5 / max(1.0, shock_strength_pct))
         steps = _split(total, "ml", shock_display, max_dose_fraction, interval_h)
     else:
