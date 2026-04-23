@@ -418,7 +418,13 @@ def recommend_shock(
             action="shock",
             reason=f"{values} — Breakpoint-Dosierung (CC ≥ {cc_critical_high:.2f})",
         )
-        rec = dataclasses.replace(rec, is_critical=True)
+        why = (
+            f"**Warum Breakpoint-Chlorung**: Chloramine (CC = {combined_cl:.2f} mg/l) "
+            f"haben die kritische Schwelle ({cc_critical_high:.2f}) überschritten. "
+            f"Breakpoint bricht sie chemisch auf — FC kurzzeitig auf ~10× CC drücken "
+            f"(≈ {need_fc_mg_per_l:.1f} mg/l). Details in der Shock-Tabelle."
+        )
+        rec = dataclasses.replace(rec, is_critical=True, note=_prefix_note(rec.note, why))
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -448,7 +454,14 @@ def recommend_shock(
                 delta=fc_target - free_cl,
                 note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
             )
-        rec = dataclasses.replace(rec, is_critical=True)
+        why = (
+            f"**Warum Routine-Shock**: FC ({free_cl:.2f} mg/l) liegt unter der "
+            f"kritischen Untergrenze ({fc_critical_low:.2f}). Das bedeutet praktisch "
+            "keine aktive Sanitation mehr — Routine-Shock bringt FC schnell auf Ziel "
+            f"({fc_target:.2f} mg/l) zurück, bevor Bakterien und Algen Oberhand gewinnen. "
+            "Details in der Shock-Tabelle."
+        )
+        rec = dataclasses.replace(rec, is_critical=True, note=_prefix_note(rec.note, why))
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -539,6 +552,13 @@ def recommend_shock(
 def _append_note(rec: Recommendation, extra: str) -> Recommendation:
     combined = f"{rec.note} {extra}".strip() if rec.note else extra
     return dataclasses.replace(rec, note=combined)
+
+
+def _prefix_note(existing: str | None, prefix: str) -> str:
+    """Stellt einen Text vor eine evtl. vorhandene Note — mit Leerzeichen dazwischen."""
+    if not existing:
+        return prefix
+    return f"{prefix} {existing}"
 
 
 def recommend_cya(

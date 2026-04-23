@@ -416,7 +416,8 @@ def _format_steps_inline(steps) -> str:
     """Fasst Dose-Steps als kompakte Zeile zusammen.
 
     Bei ≥ 3 gleich großen Teildosen: "Dosiere N × X Einheit Produkt,
-    alle Y h (gesamt Z)" statt langer Aufzählung.
+    alle Y h (gesamt Z, ~M h bis Kontroll-Messung)" statt langer Aufzählung.
+    Gesamtzeit = n × wait (letzte Dosis + nochmal wait bis nachmessen).
     """
     if not steps:
         return ""
@@ -427,15 +428,20 @@ def _format_steps_inline(steps) -> str:
         wait = steps[0].wait_hours or 0
         total = s.amount * n
         wait_str = f" alle {wait} h" if wait > 0 else ""
+        total_h = n * wait
         return (
             f"Dosiere **{n}× {s.amount:g} {s.unit}** {s.product}"
-            f"{wait_str} (gesamt ~{total:g} {s.unit}, ~{(n - 1) * wait} h Gesamtdauer)"
+            f"{wait_str} (gesamt ~{total:g} {s.unit}, ~{total_h} h bis Kontroll-Messung)"
         )
     parts: list[str] = []
     for i, s in enumerate(steps, 1):
         parts.append(f"**{s.amount:g} {s.unit}** {s.product}")
         if s.wait_hours > 0 and i < len(steps):
             parts.append(f"{s.wait_hours} h warten")
+    # Letzter Step hat wait_hours=0; aber User muss nach letzter Dosis nochmal
+    # Wartezeit abwarten bis Messung Sinn ergibt — also interval addieren.
+    if len(steps) >= 2 and steps[0].wait_hours > 0:
+        parts.append(f"dann {steps[0].wait_hours} h bis Kontroll-Messung")
     return "Dosiere " + " → ".join(parts)
 
 
@@ -488,16 +494,17 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
                     "Messung erneuern, dann Verdünnungs-Menge berechnen."
                 )
 
-    # Chlor-Aktionen: konkrete Dosis inline zeigen (nicht nur "siehe Tabelle").
+    # Chlor-Aktionen: WAS im Banner, WIE in der Shock-Tabelle, WARUM unter Chem-Tabelle.
     cl_rec = recs.get("chlorine")
     if cl_rec is not None and cl_rec.steps:
         if cl_rec.action == "shock":
-            label = "**Chlor (Breakpoint)**"
+            alerts.append(
+                "**Chlor**: Breakpoint-Chlorung durchführen — siehe Shock-Tabelle unten."
+            )
         elif cl_rec.action == "raise":
-            label = "**Chlor (Routine-Shock)**"
-        else:
-            label = "**Chlor**"
-        alerts.append(f"{label}: {_format_steps_inline(cl_rec.steps)}")
+            alerts.append(
+                "**Chlor**: Routine-Shock durchführen — siehe Shock-Tabelle unten."
+            )
 
     # Kalibrierungs-Handlungen
     cal = recs.get("calibration")
