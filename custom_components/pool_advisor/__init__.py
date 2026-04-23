@@ -311,6 +311,7 @@ class PoolAdvisorData:
         self.recalculate()
 
     def build_workflow_context(self) -> WorkflowContext:
+        fc_b = self._effective_fc_bounds()
         stale_map = {
             "ph_manual": self._is_stale(CONF_ENT_PH_MANUAL),
             "ta": self._is_stale(CONF_ENT_ALKALINITY),
@@ -357,7 +358,7 @@ class PoolAdvisorData:
             water_temp=self._read_live(CONF_ENT_TEMPERATURE),
             ph_target=float(self._cfg(CONF_PH_TARGET)),
             ta_target=float(self._cfg(CONF_TA_TARGET)),
-            fc_target=float(self._cfg(CONF_FC_TARGET)),
+            fc_target=fc_b["fc_target"],
             cya_target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
             ph_min=float(self._cfg(CONF_PH_MIN)),
             ph_max=float(self._cfg(CONF_PH_MAX)),
@@ -368,10 +369,10 @@ class PoolAdvisorData:
             ph_critical_high=float(self._cfg(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)),
             ta_critical_low=float(self._cfg(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)),
             ta_critical_high=float(self._cfg(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)),
-            fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
-            fc_critical_high=float(self._cfg(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH)),
-            fc_min_val=float(self._cfg(CONF_FC_MIN)),
-            fc_max=float(self._cfg(CONF_FC_MAX)),
+            fc_critical_low=fc_b["fc_critical_low"],
+            fc_critical_high=fc_b["fc_critical_high"],
+            fc_min_val=fc_b["fc_min"],
+            fc_max=fc_b["fc_max"],
             cc_max=float(self._cfg(CONF_CC_MAX)),
             cc_critical_high=float(self._cfg(CONF_CC_CRITICAL_HIGH)),
             cya_min=float(self._cfg(CONF_CYA_MIN, DEFAULT_CYA_MIN)),
@@ -398,6 +399,33 @@ class PoolAdvisorData:
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+
+    # --- effective FC-Bounds (dynamisch aus CYA wenn frisch, sonst config) ---
+    def _effective_fc_bounds(self) -> dict:
+        cya_now = self._manual_value(CONF_ENT_CYANURIC)
+        cya_stale = self._is_stale(CONF_ENT_CYANURIC)
+        fc_min_cfg = float(self._cfg(CONF_FC_MIN))
+        fc_target_cfg = float(self._cfg(CONF_FC_TARGET))
+        fc_max_cfg = float(self._cfg(CONF_FC_MAX))
+        fc_crit_low_cfg = float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW))
+        fc_crit_high_cfg = float(self._cfg(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH))
+        if cya_now is not None and not cya_stale:
+            return {
+                "fc_min": max(fc_min_cfg, cya_now * 0.05),
+                "fc_target": max(fc_target_cfg, cya_now * 0.075),
+                "fc_max": max(fc_max_cfg, cya_now * 0.15),
+                "fc_critical_low": fc_crit_low_cfg,
+                "fc_critical_high": max(fc_crit_high_cfg, cya_now * 0.40),
+                "dynamic": True,
+            }
+        return {
+            "fc_min": fc_min_cfg,
+            "fc_target": fc_target_cfg,
+            "fc_max": fc_max_cfg,
+            "fc_critical_low": fc_crit_low_cfg,
+            "fc_critical_high": fc_crit_high_cfg,
+            "dynamic": False,
+        }
 
     # --- the actual work ---
     def recalculate(self) -> None:
@@ -450,16 +478,17 @@ class PoolAdvisorData:
             ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH) or 0),
             ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
         )
+        fc_b = self._effective_fc_bounds()
         routine_strength_raw = self._cfg(CONF_ROUTINE_CL_STRENGTH)
         cl_rec = recommend_shock(
             combined_cl=self._manual_value(CONF_ENT_COMBINED_CL),
             free_cl=self._manual_value(CONF_ENT_FREE_CL),
             total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
-            fc_min=float(self._cfg(CONF_FC_MIN)),
-            fc_max=float(self._cfg(CONF_FC_MAX)),
-            fc_target=float(self._cfg(CONF_FC_TARGET)),
-            fc_critical_low=float(self._cfg(CONF_FC_CRITICAL_LOW, DEFAULT_FC_CRITICAL_LOW)),
-            fc_critical_high=float(self._cfg(CONF_FC_CRITICAL_HIGH, DEFAULT_FC_CRITICAL_HIGH)),
+            fc_min=fc_b["fc_min"],
+            fc_max=fc_b["fc_max"],
+            fc_target=fc_b["fc_target"],
+            fc_critical_low=fc_b["fc_critical_low"],
+            fc_critical_high=fc_b["fc_critical_high"],
             cc_max=float(self._cfg(CONF_CC_MAX)),
             cc_critical_high=float(self._cfg(CONF_CC_CRITICAL_HIGH)),
             volume_m3=volume,

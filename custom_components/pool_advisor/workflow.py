@@ -351,14 +351,134 @@ def _swim_safety_check(ctx: WorkflowContext) -> bool:
     return True
 
 
-def _stale_warnings(ctx: WorkflowContext) -> list[str]:
-    """Konsolidierter gelber Alert pro veraltetem Parameter.
+def _status_short(reason: str | None) -> str:
+    """Extrahiert den Status-Teil (vor dem ersten em-Dash) aus rec.reason."""
+    if not reason:
+        return ""
+    return reason.split(" — ")[0].strip()
 
-    Zeigt Label + Alter in Tagen + konfiguriertes Limit. Wenn keine Messung
-    vorhanden ist (kein `measured_at`), entsteht kein Warning — das ist
-    Normalzustand vor dem ersten Testen.
-    """
-    parts: list[str] = []
+
+# --- Per-Parameter Banner-Composer (jeder liefert (severity, text) oder None) ---
+
+
+def _banner_ta(rec: Recommendation, ctx: WorkflowContext) -> tuple[str, str] | None:
+    if rec is None or rec.action in ("ok", "no_data"):
+        return None
+    status = _status_short(rec.reason)
+    if rec.action == "watch":
+        return "info", f"**Alkalität**: {status} — beobachten"
+    if rec.action == "raise" and rec.steps:
+        return (
+            "critical" if rec.is_critical else "warning",
+            f"**Alkalität**: {status} — Dosiere {format_steps_short(rec.steps)}",
+        )
+    if rec.action == "lower":
+        return (
+            "critical" if rec.is_critical else "warning",
+            f"**Alkalität**: {status} — TA-Senkung starten",
+        )
+    return None
+
+
+def _banner_ph(rec: Recommendation, ctx: WorkflowContext) -> tuple[str, str] | None:
+    if rec is None or rec.action in ("ok", "no_data"):
+        return None
+    status = _status_short(rec.reason)
+    if rec.action == "watch":
+        return "info", f"**pH**: {status} — Dosieranlage regelt, beobachten"
+    if rec.steps:
+        return (
+            "critical" if rec.is_critical else "warning",
+            f"**pH**: {status} — Dosiere {format_steps_short(rec.steps)}",
+        )
+    return None
+
+
+def _banner_cya(rec: Recommendation, ctx: WorkflowContext) -> tuple[str, str] | None:
+    if rec is None or rec.action in ("ok", "no_data"):
+        return None
+    status = _status_short(rec.reason)
+    severity = "critical" if rec.is_critical else "warning"
+    if rec.action == "raise" and rec.steps:
+        return severity, f"**Cyanursäure**: {status} — Dosiere {format_steps_short(rec.steps)}"
+    if rec.action == "lower":
+        return severity, f"**Cyanursäure**: {status} — Wasserteilwechsel"
+    return None
+
+
+def _banner_chlorine(rec: Recommendation, ctx: WorkflowContext) -> tuple[str, str] | None:
+    if rec is None or rec.action in ("ok", "no_data"):
+        return None
+    status = _status_short(rec.reason)
+    if rec.action == "shock" and rec.steps:
+        return "critical", (
+            f"**Chlor**: {status} — Breakpoint-Shock: {format_steps_short(rec.steps)}"
+        )
+    if rec.action == "raise" and rec.steps:
+        return (
+            "critical" if rec.is_critical else "warning",
+            f"**Chlor**: {status} — Routine-Shock: {format_steps_short(rec.steps)}",
+        )
+    if rec.action == "lower":
+        return "critical", f"**Chlor**: {status} — nicht baden, abwarten"
+    if rec.action == "watch":
+        # rec.reason enthält bereits Status + Tail ("niedrig — beobachten" etc.)
+        return "info", f"**Chlor**: {rec.reason}"
+    return None
+
+
+def _banner_ratio(ctx: WorkflowContext) -> tuple[str, str] | None:
+    """FC/CYA-Verhältnis — nur wenn CYA frisch."""
+    if ctx.stale.get("cya"):
+        return None
+    issue = _fc_cya_ratio_issue(ctx)
+    if issue is None:
+        return None
+    if issue["direction"] == "low":
+        text = (
+            f"**FC/CYA**: {issue['reason']} — Sollwert auf "
+            f"~{issue['fc_suggested']:.2f} mg/l anheben oder CYA senken"
+        )
+    else:
+        text = f"**FC/CYA**: {issue['reason']} — abwarten, Chlor klingt ab"
+    return "warning", text
+
+
+def _banner_redox_level(ctx: WorkflowContext) -> tuple[str, str] | None:
+    """Redox Level — kritisch rot oder mild blau."""
+    if ctx.redox is None:
+        return None
+    if ctx.redox < ctx.redox_critical_low:
+        return "critical", (
+            f"**Redox**: {ctx.redox:.0f} mV zu niedrig "
+            f"(kritisch < {ctx.redox_critical_low:.0f}) — Kanister / Produktion / Elektrode prüfen"
+        )
+    if ctx.redox > ctx.redox_critical_high:
+        return "critical", (
+            f"**Redox**: {ctx.redox:.0f} mV zu hoch "
+            f"(kritisch > {ctx.redox_critical_high:.0f}) — FC manuell prüfen, Elektrode ggf. kalibrieren"
+        )
+    if ctx.redox_critical_low <= ctx.redox < ctx.redox_min:
+        return "info", (
+            f"**Redox**: {ctx.redox:.0f} mV leicht niedrig — Dosieranlage regelt, beobachten"
+        )
+    if ctx.redox_max < ctx.redox <= ctx.redox_critical_high:
+        return "info", (
+            f"**Redox**: {ctx.redox:.0f} mV leicht hoch — Anlage pausiert, beobachten"
+        )
+    return None
+
+
+def _banner_drift(rec: Recommendation, label: str) -> tuple[str, str] | None:
+    if rec is None or rec.action != "calibrate":
+        return None
+    return "warning", f"**{label}**: {rec.reason} — Elektrode kalibrieren"
+
+
+def _banner_stale_list(ctx: WorkflowContext) -> list[tuple[str, str]]:
+    """Pro stalem Parameter ein eigener Banner — Severity nach
+    Überschreitungs-% (> 50 % → rot, sonst gelb)."""
+    out: list[tuple[str, str]] = []
     now = datetime.now().astimezone()
     for key, label in _STALE_LABELS.items():
         if not ctx.stale.get(key):
@@ -368,68 +488,50 @@ def _stale_warnings(ctx: WorkflowContext) -> list[str]:
             continue
         age_days = (now - measured).total_seconds() / 86400.0
         limit = ctx.stale_days.get(key, 0)
-        parts.append(
-            f"**{label}**: Messung vor {age_days:.0f} Tagen "
-            f"(Schwelle {limit} d) — neu messen empfohlen"
-        )
-    if not parts:
-        return []
-    body = "<br>".join(parts)
-    return [f'<ha-alert alert-type="warning">Veraltete Messwerte<br>{body}</ha-alert>']
+        if limit <= 0:
+            continue
+        overdue_days = age_days - limit
+        overdue_pct = overdue_days / limit
+        if overdue_pct > 0.5:
+            severity = "critical"
+            tail = "— **dringend** neu messen"
+        else:
+            severity = "warning"
+            tail = "— neu messen"
+        out.append((
+            severity,
+            f"**{label}**: Messung {overdue_days:.0f} Tage überfällig "
+            f"(Schwelle {limit} d) {tail}",
+        ))
+    return out
 
 
-def _param_warnings(
-    ctx: WorkflowContext,
-    recs: dict[str, Recommendation],
-) -> tuple[list[str], list[str]]:
-    """Splitet Parameter-Warnungen in (rot=critical, gelb=warning).
+def _build_banners(
+    ctx: WorkflowContext, recs: dict[str, Recommendation]
+) -> list[tuple[str, str]]:
+    """Liefert alle Parameter-Banner als (severity, text)-Liste.
 
-    Reihenfolge TA → pH → CYA → Chlor → FC/CYA-Ratio → Redox → Drifts,
-    so dass der User von oben nach unten abarbeiten kann.
+    Reihenfolge innerhalb einer Severity: TA → pH → CYA → Chlor → Ratio →
+    Redox → Drifts → Stale. Severity-Sortierung macht render_normal.
     """
-    critical: list[str] = []
-    warning: list[str] = []
+    banners: list[tuple[str, str]] = []
 
-    def _push(label: str, rec: Recommendation) -> None:
-        line = f"**{label}**: {rec.reason}"
-        (critical if rec.is_critical else warning).append(line)
-
-    for key, label in (
-        ("alkalinity", "Alkalität"),
-        ("ph", "pH"),
-        ("cya", "Cyanursäure"),
-        ("chlorine", "Chlor"),
+    for builder in (
+        lambda: _banner_ta(recs.get("alkalinity"), ctx),
+        lambda: _banner_ph(recs.get("ph"), ctx),
+        lambda: _banner_cya(recs.get("cya"), ctx),
+        lambda: _banner_chlorine(recs.get("chlorine"), ctx),
+        lambda: _banner_ratio(ctx),
+        lambda: _banner_redox_level(ctx),
+        lambda: _banner_drift(recs.get("calibration"), "Drift pH Sonde"),
+        lambda: _banner_drift(recs.get("drift_redox"), "Drift Redox Sonde"),
     ):
-        rec = recs.get(key)
-        if rec is None or rec.action in ("ok", "no_data"):
-            continue
-        _push(label, rec)
+        b = builder()
+        if b is not None:
+            banners.append(b)
 
-    # FC/CYA-Verhältnis (chemie-basiert, nie critical — reine Warnung)
-    ratio_issue = _fc_cya_ratio_issue(ctx)
-    if ratio_issue is not None:
-        warning.append(f"**FC/CYA**: {ratio_issue['reason']}")
-
-    # Redox-Level — rot wenn kritisch, gelb wenn mild außerhalb
-    redox_crit = _redox_critical_banner(ctx)
-    if redox_crit is not None:
-        critical.append(redox_crit)
-    else:
-        redox_watch = _redox_watch_banner(ctx)
-        if redox_watch is not None:
-            warning.append(redox_watch)
-
-    # Drifts zum Schluss
-    for key, label in (
-        ("calibration", "Drift pH Sonde"),
-        ("drift_redox", "Drift Redox Sonde"),
-    ):
-        rec = recs.get(key)
-        if rec is None or rec.action in ("ok", "no_data"):
-            continue
-        _push(label, rec)
-
-    return critical, warning
+    banners.extend(_banner_stale_list(ctx))
+    return banners
 
 
 def _format_steps_inline(steps) -> str:
@@ -1135,24 +1237,15 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         )
         lines.append("")
 
-    # Strikte Reihenfolge: rot → gelb → blau.
-    # 1) Rote Parameter-Warnungen (MUSS) in Chemie-Reihenfolge
-    # 2) Stale-Warnungen + gelbe Parameter-Warnungen (SOLLTE)
-    # 3) Blaue Handlungsempfehlungen (Chemie-Reihenfolge via _action_recommendations)
-    critical_warnings, yellow_warnings = _param_warnings(ctx, recs)
-    for w in critical_warnings:
-        lines.append(f'<ha-alert alert-type="error">{w}</ha-alert>')
-        lines.append("")
-    for a in _stale_warnings(ctx):
-        lines.append(a)
-        lines.append("")
-    for w in yellow_warnings:
-        lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
-        lines.append("")
-
-    # Blaue Info-Alerts mit konkreten Handlungsanweisungen
-    for a in _action_recommendations(ctx, recs):
-        lines.append(f'<ha-alert alert-type="info">{a}</ha-alert>')
+    # Banner: Status + Action in einem. Reihenfolge rot → gelb → blau,
+    # innerhalb je Chemie-Priorität (TA → pH → CYA → Chlor → Ratio → Redox
+    # → Drifts → Stale).
+    banners = _build_banners(ctx, recs)
+    severity_order = {"critical": 0, "warning": 1, "info": 2}
+    banners.sort(key=lambda sb: severity_order.get(sb[0], 99))
+    alert_type = {"critical": "error", "warning": "warning", "info": "info"}
+    for severity, text in banners:
+        lines.append(f'<ha-alert alert-type="{alert_type[severity]}">{text}</ha-alert>')
         lines.append("")
 
     # 2. Messwerte-Tabelle
