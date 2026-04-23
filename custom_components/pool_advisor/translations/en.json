@@ -71,7 +71,7 @@
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.\n\nDefaults are TFP-aligned for a reference CYA of 30 (min 1.5 / target 2.25 / max 4.5). When your CYA is measured and fresh, the advisor automatically raises these values to match your actual CYA level. If CYA is missing or stale, the values configured here act as fallback.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",
@@ -277,7 +277,7 @@
           },
           "free_chlorine": {
             "name": "Free chlorine",
-            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.",
+            "description": "Primary sanitiser in the water — kills bacteria, viruses and algae via hypochlorous acid (HOCl). Too low and germs outrun chlorine (cloudiness, algae); too high irritates eyes and skin. The effective fraction depends strongly on CYA — TFP rule of thumb: target FC ≈ CYA × 0.075, e.g. 3 mg/l at CYA 40. The dosing controller regulates FC indirectly via redox.\n\nDefaults are TFP-aligned for a reference CYA of 30 (min 1.5 / target 2.25 / max 4.5). When your CYA is measured and fresh, the advisor automatically raises these values to match your actual CYA level. If CYA is missing or stale, the values configured here act as fallback.",
             "data": {
               "fc_min": "Free Cl min (mg/l)",
               "fc_target": "Free Cl target (mg/l)",

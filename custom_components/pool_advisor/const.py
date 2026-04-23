@@ -90,8 +90,8 @@ DEFAULT_PH_CRITICAL_LOW = 6.8
 DEFAULT_PH_CRITICAL_HIGH = 7.7
 DEFAULT_TA_CRITICAL_LOW = 60.0
 DEFAULT_TA_CRITICAL_HIGH = 150.0
-DEFAULT_FC_CRITICAL_LOW = 0.2
-DEFAULT_FC_CRITICAL_HIGH = 5.0
+DEFAULT_FC_CRITICAL_LOW = 0.5
+DEFAULT_FC_CRITICAL_HIGH = 10.0
 
 # FC/CYA-Verhältnis-Schwellen (TFP-Guideline, chemie-hart)
 # Zu niedrig: Chlor wird von CYA gebunden, Sanitation leidet
@@ -228,13 +228,23 @@ DEFAULT_TA_TARGET = 100.0
 DEFAULT_TA_MIN = 80.0
 DEFAULT_TA_MAX = 120.0
 
-DEFAULT_FC_TARGET_SALT = 0.5
-DEFAULT_FC_MIN_SALT = 0.3
-DEFAULT_FC_MAX_SALT = 0.8
+# FC-Defaults nach TFP-Faustregel bei Referenz-CYA 30 mg/l:
+#   min = CYA × 0.05 = 1.5, target = CYA × 0.075 = 2.25, max = CYA × 0.15 = 4.5
+# System überschreibt diese Werte dynamisch bei anderem CYA (nach oben),
+# daher sind sie der "Boden" für Pools mit niedrigem/ohne CYA.
+DEFAULT_FC_MIN = 1.5
+DEFAULT_FC_TARGET = 2.25
+DEFAULT_FC_MAX = 4.5
 
-DEFAULT_FC_TARGET_CLASSIC = 1.0
-DEFAULT_FC_MIN_CLASSIC = 0.5
-DEFAULT_FC_MAX_CLASSIC = 1.5
+# Alte Salt/Classic-Defaults — bleiben als Aliases für Rückwärtskompatibilität
+# mit bestehender config_flow-Logik. Neuer Code nutzt DEFAULT_FC_* (oben).
+DEFAULT_FC_TARGET_SALT = DEFAULT_FC_TARGET
+DEFAULT_FC_MIN_SALT = DEFAULT_FC_MIN
+DEFAULT_FC_MAX_SALT = DEFAULT_FC_MAX
+
+DEFAULT_FC_TARGET_CLASSIC = DEFAULT_FC_TARGET
+DEFAULT_FC_MIN_CLASSIC = DEFAULT_FC_MIN
+DEFAULT_FC_MAX_CLASSIC = DEFAULT_FC_MAX
 
 DEFAULT_CC_MAX = 0.2
 DEFAULT_CC_CRITICAL_HIGH = 0.5
