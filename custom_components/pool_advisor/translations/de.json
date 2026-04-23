@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH-Wert",
-            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (&lt; 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (&gt; 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
+            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (< 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (> 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH Ziel",
@@ -90,7 +90,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: < 650 unterversorgt, ~700 ideal, > 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",
@@ -244,7 +244,7 @@
         "sections": {
           "ph": {
             "name": "pH-Wert",
-            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (&lt; 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (&gt; 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
+            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (< 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (> 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein (bei pH 8 ist nur noch ~20% aktive Hypochlorige Säure wirksam). Ziel 7.0–7.4 ist der Sweet Spot aus Komfort, Material und Desinfektion.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH Ziel",
@@ -296,7 +296,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: &lt; 650 unterversorgt, ~700 ideal, &gt; 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
+            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Hängt am Produkt aus aktiver Hypochloriger Säure und Wasserchemie (pH, CYA, Verunreinigungen), ist also kein direktes Chemie-Maß sondern ein Ergebnis-Indikator. Die Dosieranlage regelt auf einen Sollwert am Gerät selbst; hier primär Diagnose: < 650 unterversorgt, ~700 ideal, > 800 verdächtig (Überdosierung oder Sondendrift). Der berechnete Erwartungswert in der Tabelle (Redox Berechnet) ist der theoretische Wert aus FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox Ziel (mV)",

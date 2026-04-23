@@ -365,27 +365,51 @@ def _stale_warnings(ctx: WorkflowContext) -> list[str]:
 def _param_warnings(
     ctx: WorkflowContext,
     recs: dict[str, Recommendation],
-) -> list[str]:
-    """Gelbe Parameter-Warnungen aus allen aktiven Recommendations.
+) -> tuple[list[str], list[str]]:
+    """Splitet Parameter-Warnungen in (rot=critical, gelb=warning).
 
-    Jeder Parameter mit action != ok/no_data erzeugt einen Warning-Alert
-    mit der spezifischen Reason-Zeile. Doppelungen zum roten Bade-Alert
-    gibt es nicht, weil der nur generisch "Nicht baden" sagt.
+    Reihenfolge TA → pH → CYA → Chlor → FC/CYA-Ratio → Redox → Drifts,
+    so dass der User von oben nach unten abarbeiten kann.
     """
-    warnings: list[str] = []
+    critical: list[str] = []
+    warning: list[str] = []
+
+    def _push(label: str, rec: Recommendation) -> None:
+        line = f"**{label}**: {rec.reason}"
+        (critical if rec.is_critical else warning).append(line)
+
     for key, label in (
         ("alkalinity", "Alkalität"),
         ("ph", "pH"),
         ("cya", "Cyanursäure"),
         ("chlorine", "Chlor"),
+    ):
+        rec = recs.get(key)
+        if rec is None or rec.action in ("ok", "no_data"):
+            continue
+        _push(label, rec)
+
+    # FC/CYA-Verhältnis (chemie-basiert, nie critical — reine Warnung)
+    ratio_issue = _fc_cya_ratio_issue(ctx)
+    if ratio_issue is not None:
+        warning.append(f"**FC/CYA-Verhältnis**: {ratio_issue['reason']}")
+
+    # Redox-Level (außerhalb critical-Band) → rot
+    redox_warn = _redox_level_warning(ctx)
+    if redox_warn is not None:
+        critical.append(redox_warn)
+
+    # Drifts zum Schluss
+    for key, label in (
         ("calibration", "Drift pH Sonde"),
         ("drift_redox", "Drift Redox Sonde"),
     ):
         rec = recs.get(key)
         if rec is None or rec.action in ("ok", "no_data"):
             continue
-        warnings.append(f"**{label}**: {rec.reason}")
-    return warnings
+        _push(label, rec)
+
+    return critical, warning
 
 
 def _format_steps_inline(steps) -> str:
@@ -464,15 +488,16 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
                     "Messung erneuern, dann Verdünnungs-Menge berechnen."
                 )
 
-    # Chlor-Aktionen: Breakpoint bei hohem CC, oder Routine-Dosis bei niedrigem FC.
-    # Konkrete Dosen stehen in der Shock-Szenarien-Tabelle unten — hier nur
-    # Kurzempfehlung.
+    # Chlor-Aktionen: konkrete Dosis inline zeigen (nicht nur "siehe Tabelle").
     cl_rec = recs.get("chlorine")
     if cl_rec is not None and cl_rec.steps:
         if cl_rec.action == "shock":
-            alerts.append("**Chlor (Breakpoint)**: Schockchlorung siehe Tabelle empfohlen.")
+            label = "**Chlor (Breakpoint)**"
         elif cl_rec.action == "raise":
-            alerts.append("**Chlor**: Routine-Shock siehe Tabelle empfohlen.")
+            label = "**Chlor (Routine-Shock)**"
+        else:
+            label = "**Chlor**"
+        alerts.append(f"{label}: {_format_steps_inline(cl_rec.steps)}")
 
     # Kalibrierungs-Handlungen
     cal = recs.get("calibration")
@@ -702,13 +727,7 @@ def _safety_rules() -> list[str]:
 
 
 def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
-    """Dynamische Hinweise aus den aktiven Recommendations.
-
-    Chlor-Notes bei action=shock/raise werden übersprungen — die CYA-Warnung
-    steht schon unter der Shock-Szenarien-Tabelle (via _scenario_notes).
-    Nur Chlor-watch-Notes (z.B. Decay-Schätzung bei FC-Überdosis) bleiben,
-    weil die sich auf die Wartezeit beziehen, nicht auf Dosieren.
-    """
+    """Dynamische Hinweise aus den aktiven Recommendations — unter der Tabelle."""
     notes: list[str] = []
     for key, label in (
         ("alkalinity", "Alkalität"),
@@ -720,8 +739,6 @@ def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
     ):
         rec = recs.get(key)
         if rec is None or rec.note is None or rec.action in ("ok", "no_data"):
-            continue
-        if key == "chlorine" and rec.action in ("shock", "raise"):
             continue
         notes.append(f"**{label}**: {rec.note}")
     return notes
@@ -774,22 +791,13 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         lines.append(a)
         lines.append("")
 
-    # FC/CYA-Ratio-Warnung (chemisch, nicht schwellen-basiert)
-    ratio_issue = _fc_cya_ratio_issue(ctx)
-    if ratio_issue is not None:
-        lines.append(
-            f'<ha-alert alert-type="warning"><b>FC/CYA-Verhältnis</b>: {ratio_issue["reason"]}</ha-alert>'
-        )
+    # Parameter-Warnungen — critical (rot) zuerst, dann warning (gelb),
+    # jeweils in Chemie-Reihenfolge TA → pH → CYA → Chlor → Ratio → Redox → Drifts.
+    critical_warnings, yellow_warnings = _param_warnings(ctx, recs)
+    for w in critical_warnings:
+        lines.append(f'<ha-alert alert-type="error">{w}</ha-alert>')
         lines.append("")
-
-    # Redox-Level außerhalb der kritischen Schwellen
-    redox_warn = _redox_level_warning(ctx)
-    if redox_warn is not None:
-        lines.append(f'<ha-alert alert-type="warning">{redox_warn}</ha-alert>')
-        lines.append("")
-
-    # Gelbe Parameter-Warnungen für alle nicht-OK-Parameter
-    for w in _param_warnings(ctx, recs):
+    for w in yellow_warnings:
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
         lines.append("")
 

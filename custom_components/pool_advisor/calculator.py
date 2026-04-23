@@ -44,6 +44,7 @@ class Recommendation:
     reason: str                       # short human-readable reason
     delta: float | None = None        # how far off target (same unit as parameter)
     note: str | None = None           # optional hint
+    is_critical: bool = False         # True → red banner (MUSS), False → yellow banner (SOLLTE)
 
 
 # ---- base rules (per m³ water, per 0.1 pH / per 10 mg/l TA / per 1 mg/l Cl) ----
@@ -243,6 +244,7 @@ def recommend_ph(
             steps=steps,
             reason=f"{current:.2f} zu hoch — Ziel {target:.2f}",
             delta=delta,
+            is_critical=is_critical,
         )
         method = _method_hint(ph_minus_type)
         if method:
@@ -266,6 +268,7 @@ def recommend_ph(
         steps=steps,
         reason=f"{current:.2f} zu niedrig — Ziel {target:.2f}",
         delta=delta,
+        is_critical=is_critical,
     )
     method = _method_hint(ph_plus_type)
     if method:
@@ -333,6 +336,7 @@ def recommend_alkalinity(
             steps=steps,
             reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
+            is_critical=is_critical,
         )
         method = _method_hint(TA_PLUS_BICARB)
         if method:
@@ -346,6 +350,7 @@ def recommend_alkalinity(
         steps=(),
         reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
         delta=delta,
+        is_critical=is_critical,
         note=(
             "TA senken erfolgt nicht durch einmalige Dosierung: pH gezielt auf ~7.0 senken, "
             "kräftig belüften (Düsen nach oben / Wasserfall), über mehrere Tage wiederholen, "
@@ -411,8 +416,9 @@ def recommend_shock(
             shock_strength_pct=shock_strength_pct,
             shock_display=shock_display,
             action="shock",
-            reason=f"{values} — Breakpoint-Dosierung (CC > {cc_critical_high:.2f})",
+            reason=f"{values} — Breakpoint-Dosierung (CC ≥ {cc_critical_high:.2f})",
         )
+        rec = dataclasses.replace(rec, is_critical=True)
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -442,6 +448,7 @@ def recommend_shock(
                 delta=fc_target - free_cl,
                 note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
             )
+        rec = dataclasses.replace(rec, is_critical=True)
         if chlorination_is_salt:
             rec = _append_note(
                 rec,
@@ -492,6 +499,7 @@ def recommend_shock(
                 steps=(),
                 reason=f"{values} — FC zu hoch — nicht baden",
                 delta=free_cl - fc_max,
+                is_critical=True,
                 note=(
                     "Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
                     "Filter + UV + Zeit reichen." + decay_note
@@ -565,63 +573,51 @@ def recommend_cya(
             ),
         )
 
-    # Too low — soft warning between critical_low and cya_min, active dose below critical_low
+    # Too low — immer aktiv dosieren. Rot (critical) unter critical_low, gelb sonst.
     if current < cya_min:
         delta = target - current
-        # critical_low > 0 und current darunter → aktiv dosieren. Sonst nur watch.
-        if critical_low > 0 and current < critical_low:
-            pure_g = delta * volume_m3
-            product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
-            step = DoseStep(
-                amount=round(product_g, 0),
-                unit="g",
-                product=cya_display,
-                wait_hours=48,
-            )
-            rec = Recommendation(
-                action="raise",
-                steps=(step,),
-                reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
-                delta=delta,
-                note=(
-                    "Menge = 80 % der Rechnung als Sicherheitspuffer. "
-                    "Einmalige Aktion: CYA baut nicht ab."
-                ),
-            )
-            method = _method_hint("cyanuric_acid")
-            if method:
-                rec = _append_note(rec, method)
-            return rec
-        # Watch-Zone zwischen critical_low und min
-        return Recommendation(
-            action="watch",
-            steps=(),
-            reason=f"{current:.0f} mg/l niedrig — Ziel {target:.0f}",
+        is_critical = critical_low > 0 and current < critical_low
+        pure_g = delta * volume_m3
+        product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
+        step = DoseStep(
+            amount=round(product_g, 0),
+            unit="g",
+            product=cya_display,
+            wait_hours=48,
+        )
+        rec = Recommendation(
+            action="raise",
+            steps=(step,),
+            reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
+            is_critical=is_critical,
             note=(
-                "Stabilisator unter Zielbereich: Chlor wird durch UV schneller "
-                "abgebaut, Dosierung effizient halten durch CYA-Nachlegen."
+                "Menge = 80 % der Rechnung als Sicherheitspuffer. "
+                "Einmalige Aktion: CYA baut nicht ab. Stabilisator zu niedrig = "
+                "Chlor wird von UV schneller abgebaut."
             ),
         )
+        method = _method_hint("cyanuric_acid")
+        if method:
+            rec = _append_note(rec, method)
+        return rec
 
-    # current > cya_max — watch zone or active water-exchange
-    if current >= critical_high:
-        return Recommendation(
-            action="lower",
-            steps=(),
-            reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
-            delta=current - target,
-            note=(
-                "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
-                "auf Flüssig-Chlor (NaOCl) oder Calciumhypochlorit umstellen."
-            ),
+    # Too high — Wasserwechsel empfohlen. Rot über critical_high, gelb zwischen max und critical_high.
+    is_critical = current >= critical_high
+    if is_critical:
+        note = (
+            "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
+            "auf Flüssig-Chlor (NaOCl) oder Calciumhypochlorit umstellen."
         )
+    else:
+        note = "Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter."
     return Recommendation(
-        action="watch",
+        action="lower",
         steps=(),
-        reason=f"{current:.0f} mg/l hoch — Ziel {target:.0f}",
+        reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
         delta=current - target,
-        note="Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter.",
+        is_critical=is_critical,
+        note=note,
     )
 
 

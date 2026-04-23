@@ -38,7 +38,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (&lt; 7) = eye irritation, metal/liner corrosion; too basic (&gt; 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
+            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (< 7) = eye irritation, metal/liner corrosion; too basic (> 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -90,7 +90,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
+            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: < 650 under-supplied, ~700 ideal, > 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
@@ -244,7 +244,7 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (&lt; 7) = eye irritation, metal/liner corrosion; too basic (&gt; 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
+            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (< 7) = eye irritation, metal/liner corrosion; too basic (> 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
             "data": {
               "ph_min": "pH min",
               "ph_target": "pH target",
@@ -296,7 +296,7 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: &lt; 650 under-supplied, ~700 ideal, &gt; 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
+            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: < 650 under-supplied, ~700 ideal, > 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
             "data": {
               "redox_min": "Redox min (mV)",
               "redox_target": "Redox target (mV)",
