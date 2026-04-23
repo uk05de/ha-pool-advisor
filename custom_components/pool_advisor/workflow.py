@@ -82,9 +82,8 @@ def _fc_cya_ratio_issue(ctx: WorkflowContext) -> dict | None:
             "direction": "low",
             "fc_suggested": min_fc,
             "reason": (
-                f"FC {ctx.fc:.2f} mg/l ist für deinen CYA-Level ({ctx.cya:.0f}) zu niedrig. "
-                f"Mindestens ~{min_fc:.2f} mg/l nötig (CYA × {FC_CYA_RATIO_MIN:.2f}), "
-                "sonst wird Chlor von CYA gebunden und die Sanitation leidet."
+                f"FC {ctx.fc:.2f} mg/l zu niedrig für CYA {ctx.cya:.0f} mg/l "
+                f"(min ~{min_fc:.2f})"
             ),
         }
     if ctx.fc > max_fc:
@@ -92,9 +91,8 @@ def _fc_cya_ratio_issue(ctx: WorkflowContext) -> dict | None:
             "direction": "high",
             "fc_suggested": max_fc,
             "reason": (
-                f"FC {ctx.fc:.2f} mg/l liegt für deinen CYA-Level ({ctx.cya:.0f}) im SLAM-Bereich. "
-                f"Komfort-Obergrenze ~{max_fc:.2f} mg/l (CYA × {FC_CYA_RATIO_HIGH:.2f}) — "
-                "kurzfristig ok, abwarten bis Chlor abbaut."
+                f"FC {ctx.fc:.2f} mg/l zu hoch für CYA {ctx.cya:.0f} mg/l "
+                f"(max ~{max_fc:.2f})"
             ),
         }
     return None
@@ -410,7 +408,7 @@ def _param_warnings(
     # FC/CYA-Verhältnis (chemie-basiert, nie critical — reine Warnung)
     ratio_issue = _fc_cya_ratio_issue(ctx)
     if ratio_issue is not None:
-        warning.append(f"**FC/CYA-Verhältnis**: {ratio_issue['reason']}")
+        warning.append(f"**FC/CYA**: {ratio_issue['reason']}")
 
     # Redox-Level — rot wenn kritisch, gelb wenn mild außerhalb
     redox_crit = _redox_critical_banner(ctx)
@@ -515,6 +513,19 @@ def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation
             # FC zu hoch — kein aktiver Eingriff, nur abwarten
             alerts.append(
                 "**Chlor**: Abwarten bis FC abklingt — kein aktiver Eingriff möglich."
+            )
+
+    # FC/CYA-Verhältnis
+    ratio_issue = _fc_cya_ratio_issue(ctx)
+    if ratio_issue is not None:
+        if ratio_issue["direction"] == "low":
+            alerts.append(
+                f"**Chlor/CYA**: FC-Ziel an CYA anpassen — Sollwert auf "
+                f"~{ratio_issue['fc_suggested']:.2f} mg/l anheben oder CYA senken."
+            )
+        else:  # high
+            alerts.append(
+                "**Chlor/CYA**: FC abwarten — Chlor baut sich durch UV und Verbrauch ab."
             )
 
     # Kalibrierungs-Handlungen
@@ -1057,25 +1068,51 @@ def _measurement_notes(ctx: WorkflowContext, recs: dict[str, Recommendation]) ->
 
 
 def _fc_cya_ratio_explanation(ctx: WorkflowContext) -> str | None:
-    """Erklärungs-Text unter der Tabelle wenn das FC/CYA-Verhältnis auffällig ist."""
+    """Strukturierte Note unter der Tabelle bei FC/CYA-Ratio-Auffälligkeit."""
     issue = _fc_cya_ratio_issue(ctx)
     if issue is None:
         return None
     if issue["direction"] == "low":
-        return (
-            f"**FC/CYA-Hinweis**: bei CYA {ctx.cya:.0f} mg/l sollte FC ≥ "
-            f"**{issue['fc_suggested']:.2f} mg/l** sein (TFP-Faustregel CYA × "
-            f"{FC_CYA_RATIO_MIN:.2f}). Aktuell ist Chlor größtenteils an CYA gebunden; "
-            "die aktive HOCl-Fraktion reicht nicht zum sauber-halten. Routinedosis anheben "
-            "oder Produktionsrate der Dosieranlage steigern."
-        )
+        lines = [
+            "**FC/CYA-Verhältnis**: Chlor wird durch CYA reversibel gebunden — bei zu viel "
+            "CYA pro FC reicht die aktive HOCl-Fraktion nicht mehr zum Keime-Töten.",
+            _bullet(
+                "Ziel",
+                f"FC ≥ CYA × {FC_CYA_RATIO_MIN:.2f} = "
+                f"{issue['fc_suggested']:.2f} mg/l bei CYA {ctx.cya:.0f}",
+            ),
+            _bullet(
+                "Option 1",
+                "Dosieranlagen-Sollwert (Redox oder FC) anheben, bis FC im Zielbereich",
+            ),
+            _bullet(
+                "Option 2", "CYA senken per Wasserteilwechsel (dauerhafter)"
+            ),
+            _bullet(
+                "Messung", "nach Anpassung 24 h abwarten, dann FC manuell prüfen"
+            ),
+        ]
+        return "\n".join(lines)
     # direction == "high"
-    return (
-        f"**FC/CYA-Hinweis**: bei CYA {ctx.cya:.0f} mg/l liegt die Komfort-Obergrenze bei "
-        f"**~{issue['fc_suggested']:.2f} mg/l** (CYA × {FC_CYA_RATIO_HIGH:.2f}). Aktuell "
-        "höher — Chlor-Dosierung pausieren lassen und warten, bis FC durch UV/Verbrauch abklingt. "
-        "Nur bei SLAM-Prozess (Algen/Kontamination) gewollt."
-    )
+    lines = [
+        "**FC/CYA-Verhältnis**: FC deutlich über Komfort-Obergrenze (SLAM-Niveau) — "
+        "kurzfristig nicht gefährlich, aber Reizung möglich.",
+        _bullet(
+            "Komfort-Obergrenze",
+            f"FC ≤ CYA × {FC_CYA_RATIO_HIGH:.2f} = "
+            f"{issue['fc_suggested']:.2f} mg/l bei CYA {ctx.cya:.0f}",
+        ),
+        _bullet("Aktion", "abwarten bis FC durch UV und Verbrauch abklingt"),
+        _bullet(
+            "Dosieranlage",
+            "pausiert meist automatisch, sonst Sollwert kurz reduzieren",
+        ),
+        _bullet(
+            "Wiederholung",
+            "wenn öfter auftretend, FC-Target oder CYA überprüfen",
+        ),
+    ]
+    return "\n".join(lines)
 
 
 # --- Hauptrender (unified) ---
