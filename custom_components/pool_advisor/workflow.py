@@ -786,16 +786,16 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
         )
         lines.append("")
 
-    # Konsolidierte Stale-Warnung (ein gelber Alert für alle veralteten Werte)
-    for a in _stale_warnings(ctx):
-        lines.append(a)
-        lines.append("")
-
-    # Parameter-Warnungen — critical (rot) zuerst, dann warning (gelb),
-    # jeweils in Chemie-Reihenfolge TA → pH → CYA → Chlor → Ratio → Redox → Drifts.
+    # Strikte Reihenfolge: rot → gelb → blau.
+    # 1) Rote Parameter-Warnungen (MUSS) in Chemie-Reihenfolge
+    # 2) Stale-Warnungen + gelbe Parameter-Warnungen (SOLLTE)
+    # 3) Blaue Handlungsempfehlungen (Chemie-Reihenfolge via _action_recommendations)
     critical_warnings, yellow_warnings = _param_warnings(ctx, recs)
     for w in critical_warnings:
         lines.append(f'<ha-alert alert-type="error">{w}</ha-alert>')
+        lines.append("")
+    for a in _stale_warnings(ctx):
+        lines.append(a)
         lines.append("")
     for w in yellow_warnings:
         lines.append(f'<ha-alert alert-type="warning">{w}</ha-alert>')
