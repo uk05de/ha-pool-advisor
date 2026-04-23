@@ -343,6 +343,8 @@ class PoolAdvisorData:
             routine_cl_display=self._display(CONF_ROUTINE_CL_NAME, CONF_ROUTINE_CL_TYPE),
             shock_display=self._display(CONF_SHOCK_NAME, CONF_SHOCK_TYPE),
             shock_type=self._cfg(CONF_SHOCK_TYPE) or "",
+            ph_minus_type=self._cfg(CONF_PH_MINUS_TYPE) or "",
+            ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH) or 0),
             shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH, 56)),
             cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
             cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
@@ -442,6 +444,11 @@ class PoolAdvisorData:
             ta_plus_type=self._cfg(CONF_TA_PLUS_TYPE),
             ta_plus_strength_pct=float(self._cfg(CONF_TA_PLUS_STRENGTH)),
             ta_plus_display=self._display(CONF_TA_PLUS_NAME, CONF_TA_PLUS_TYPE),
+            # Kontext für TA-Senkung (Format C braucht pH-Erst-Dosis):
+            ph_current=ph_for_dosing,
+            ph_minus_type=self._cfg(CONF_PH_MINUS_TYPE),
+            ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH) or 0),
+            ph_minus_display=self._display(CONF_PH_MINUS_NAME, CONF_PH_MINUS_TYPE),
         )
         routine_strength_raw = self._cfg(CONF_ROUTINE_CL_STRENGTH)
         cl_rec = recommend_shock(

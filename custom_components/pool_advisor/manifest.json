@@ -1,7 +1,7 @@
 {
   "domain": "pool_advisor",
   "name": "Pool Chemistry Advisor",
-  "version": "0.20.2",
+  "version": "0.21.0",
   "documentation": "https://github.com/uk05de/ha-pool-advisor",
   "issue_tracker": "https://github.com/uk05de/ha-pool-advisor/issues",
   "codeowners": ["@uk05de"],

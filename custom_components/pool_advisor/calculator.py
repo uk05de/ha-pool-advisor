@@ -21,6 +21,7 @@ from .const import (
     SHOCK_DICHLOR,
     SHOCK_NAOCL_LIQUID,
     SHOCK_STABILIZED,
+    SHOCK_TARGET_ROUTINE,
     TA_PLUS_BICARB,
 )
 
@@ -43,7 +44,8 @@ class Recommendation:
     steps: tuple[DoseStep, ...]       # may be empty
     reason: str                       # short human-readable reason
     delta: float | None = None        # how far off target (same unit as parameter)
-    note: str | None = None           # optional hint
+    note: str | None = None           # method hint / HOW it's done (under chem-table)
+    why: str | None = None            # WHY this action — leads the note-under-table paragraph
     is_critical: bool = False         # True → red banner (MUSS), False → yellow banner (SOLLTE)
 
 
@@ -146,6 +148,100 @@ def _method_hint(chemical_type: str) -> str | None:
 method_hint = _method_hint
 
 
+def method_plain(chemical_type: str) -> str:
+    """Methoden-Hinweis ohne Markdown-Bold, für Bullet-/Inline-Nutzung."""
+    m = _method_hint(chemical_type)
+    if not m:
+        return ""
+    return m.replace("**", "")
+
+
+def format_steps_short(steps: tuple[DoseStep, ...]) -> str:
+    """Kurze Beschreibung einer Dosis-Sequenz.
+
+    Uniforme Mehrdosen → "N× X unit Produkt alle Y h".
+    Einzeldose → "X unit Produkt".
+    Nicht-uniform → Pfeilkette.
+    """
+    if not steps:
+        return ""
+    amounts = {s.amount for s in steps}
+    if len(steps) >= 2 and len(amounts) == 1:
+        s = steps[0]
+        n = len(steps)
+        wait = s.wait_hours or 0
+        wait_str = f" alle {wait} h" if wait > 0 else ""
+        return f"{n}× {s.amount:g} {s.unit} {s.product}{wait_str}"
+    if len(steps) == 1:
+        s = steps[0]
+        return f"{s.amount:g} {s.unit} {s.product}"
+    return " → ".join(f"{s.amount:g} {s.unit}" for s in steps)
+
+
+def format_total_hours(steps: tuple[DoseStep, ...]) -> int:
+    """Gesamtzeit bis Kontroll-Messung: n × wait_interval."""
+    if not steps:
+        return 0
+    n = len(steps)
+    wait = steps[0].wait_hours or 0
+    return n * wait
+
+
+def format_total_sum(steps: tuple[DoseStep, ...]) -> tuple[float, str] | None:
+    """Summiert uniforme Doses. Nur wenn alle gleich."""
+    if not steps or len({s.amount for s in steps}) != 1:
+        return None
+    return steps[0].amount * len(steps), steps[0].unit
+
+
+def compute_ph_minus_dose(
+    *,
+    current: float,
+    target: float,
+    volume_m3: float,
+    ph_minus_type: str,
+    ph_minus_strength_pct: float,
+    ph_minus_display: str,
+) -> tuple[DoseStep, ...]:
+    """Isolierte Berechnung der pH-minus-Dosis zum Absenken von current → target.
+    Wird für TA-Senkung (Format C) wiederverwendet.
+    """
+    if current <= target:
+        return ()
+    steps_units_of_01 = (current - target) / 0.1
+    if ph_minus_type == PH_MINUS_DRY_ACID:
+        pure = G_DRY_ACID_PURE_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
+        total = pure * (100.0 / max(1.0, ph_minus_strength_pct))
+        return _split(total, "g", ph_minus_display, PH_MINUS_DRY_ACID, volume_m3)
+    if ph_minus_type == PH_MINUS_HCL:
+        pure_ml = ML_HCL_33_PER_M3_PER_01_PH * volume_m3 * steps_units_of_01
+        total = pure_ml * (33.0 / max(1.0, ph_minus_strength_pct))
+        return _split(total, "ml", ph_minus_display, PH_MINUS_HCL, volume_m3)
+    return ()
+
+
+def compute_cya_exchange(
+    *, current: float, target: float, volume_m3: float
+) -> dict:
+    """Berechnung des nötigen Wasser-Teilwechsels um CYA auf target zu bringen."""
+    if current <= target:
+        return {"percent": 0.0, "liters": 0.0}
+    f = 1.0 - (target / current)
+    return {
+        "percent": f * 100.0,
+        "liters": volume_m3 * f * 1000.0,
+        "needs_etappen": f * 100.0 > 50,
+        "needs_post_shock": f * 100.0 >= 30,
+    }
+
+
+def hocl_percent_at_ph(ph: float) -> float:
+    """Anteil aktiver Hypochloriger Säure (HOCl) am freien Chlor, %.
+    Henderson-Hasselbalch mit pKa(HOCl) = 7.54 bei 25 °C."""
+    import math
+    return 100.0 / (1.0 + math.pow(10.0, ph - 7.54))
+
+
 def _split(
     total: float,
     unit: str,
@@ -222,7 +318,6 @@ def recommend_ph(
                 f"Dosieranlage kann {direction_verb} und sollte selbst regeln"
             ),
             delta=delta,
-            note="Wenn Abweichung bestehen bleibt: Kanister, Elektrode und Sollwert der Anlage prüfen.",
         )
 
     steps_units_of_01 = abs(delta) / 0.1
@@ -239,21 +334,19 @@ def recommend_ph(
             steps = _split(total, "ml", ph_minus_display, PH_MINUS_HCL, volume_m3)
         else:
             return Recommendation(action="lower", steps=(), reason="Unbekanntes pH− Produkt", delta=delta)
-        rec = Recommendation(
+        hocl_pct = hocl_percent_at_ph(current)
+        why = (
+            f"Basisches Wasser lässt Kalk ausfallen und Chlor verliert Wirksamkeit "
+            f"(bei pH {current:.2f} wirken nur noch ~{hocl_pct:.0f} % als Hypochlorige Säure)."
+        )
+        return Recommendation(
             action="lower",
             steps=steps,
             reason=f"{current:.2f} zu hoch — Ziel {target:.2f}",
             delta=delta,
             is_critical=is_critical,
+            why=why,
         )
-        method = _method_hint(ph_minus_type)
-        if method:
-            rec = _append_note(rec, method)
-        if ph_dosing_minus:
-            rec = _append_note(
-                rec, "**pH-Alternative**: Dosieranlage prüfen (Kanister leer? Elektrode defekt? Sollwert?)."
-            )
-        return rec
 
     # Raise pH
     if ph_plus_type == PH_PLUS_SODA:
@@ -263,28 +356,24 @@ def recommend_ph(
     else:
         return Recommendation(action="raise", steps=(), reason="Unbekanntes pH+ Produkt", delta=delta)
 
-    rec = Recommendation(
+    # WHY: für critical härter, für non-critical mit Alternative
+    why_text = "Saures Wasser reizt Augen und Haut und greift Liner/Metall an."
+    if is_critical:
+        why_text = "Saures Wasser reizt Augen und Haut und greift Liner/Metall akut an."
+    elif not ph_dosing_plus:
+        # Milder, Anlage regelt nicht in diese Richtung → Alternative erwähnen
+        why_text += (
+            " Alternativ abwarten — pH steigt über Tage durch CO₂-Ausgasung meist natürlich wieder."
+        )
+
+    return Recommendation(
         action="raise",
         steps=steps,
         reason=f"{current:.2f} zu niedrig — Ziel {target:.2f}",
         delta=delta,
         is_critical=is_critical,
+        why=why_text,
     )
-    method = _method_hint(ph_plus_type)
-    if method:
-        rec = _append_note(rec, method)
-    if ph_dosing_plus:
-        rec = _append_note(
-            rec, "**pH-Alternative**: Dosieranlage prüfen (Sollwert, Elektrode-Kalibrierung)."
-        )
-    elif ph_dosing_minus:
-        rec = _append_note(
-            rec,
-            "Deine Dosieranlage kann nur pH− dosieren, nicht pH+. "
-            "pH steigt über Tage meist natürlich wieder (CO₂-Ausgasung, Chlor-Dosierung). "
-            "Wenn du nicht warten willst: manuell wie oben dosieren.",
-        )
-    return rec
 
 
 def recommend_alkalinity(
@@ -299,6 +388,11 @@ def recommend_alkalinity(
     ta_plus_type: str,
     ta_plus_strength_pct: float,
     ta_plus_display: str,
+    # Kontext für TA-Senkung (Format C braucht pH-Erst-Dosis):
+    ph_current: float | None = None,
+    ph_minus_type: str = "",
+    ph_minus_strength_pct: float = 0.0,
+    ph_minus_display: str = "",
 ) -> Recommendation:
     if current is None:
         return Recommendation(action="no_data", steps=(), reason="Keine Alkalitäts-Messung vorhanden")
@@ -322,7 +416,6 @@ def recommend_alkalinity(
             steps=(),
             reason=f"{current:.0f} mg/l {direction} — beobachten",
             delta=delta,
-            note="Bei nächster Messung beobachten, noch kein Eingriff nötig.",
         )
 
     if delta > 0:
@@ -331,30 +424,27 @@ def recommend_alkalinity(
         pure = G_BICARB_PURE_PER_M3_PER_10_TA * volume_m3 * (abs(delta) / 10.0)
         total = pure * (100.0 / max(1.0, ta_plus_strength_pct))
         steps = _split(total, "g", ta_plus_display, TA_PLUS_BICARB, volume_m3)
-        rec = Recommendation(
+        return Recommendation(
             action="raise",
             steps=steps,
             reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
             is_critical=is_critical,
+            why="TA ist der pH-Puffer — zu niedrig heißt pH springt bei jeder Dosis unkontrolliert.",
         )
-        method = _method_hint(TA_PLUS_BICARB)
-        if method:
-            rec = _append_note(rec, method)
-        return rec
 
-    # Lowering TA is a multi-day process (pH-down + aeration). Don't produce gram numbers;
-    # give a guided note instead.
+    # Lowering TA — mehrtägiger Prozess. pH-Erst-Dosis wird in workflow für
+    # Format C gerendert, Note hier bleibt nur die WHY-Erklärung.
     return Recommendation(
         action="lower",
         steps=(),
         reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
         delta=delta,
         is_critical=is_critical,
-        note=(
-            "TA senken erfolgt nicht durch einmalige Dosierung: pH gezielt auf ~7.0 senken, "
-            "kräftig belüften (Düsen nach oben / Wasserfall), über mehrere Tage wiederholen, "
-            "zwischendurch neu messen."
+        why=(
+            "TA lässt sich nicht chemisch senken, nur durch CO₂-Ausgasung. Der pH wird "
+            "gezielt auf ~7.0 gedrückt, CO₂ entweicht beim Belüften, TA fällt langsam. "
+            "Prozess dauert 5–10 Tage."
         ),
     )
 
@@ -419,26 +509,20 @@ def recommend_shock(
             reason=f"{values} — Breakpoint-Dosierung (CC ≥ {cc_critical_high:.2f})",
         )
         why = (
-            f"**Warum Breakpoint-Chlorung**: Chloramine (CC = {combined_cl:.2f} mg/l) "
-            f"haben die kritische Schwelle ({cc_critical_high:.2f}) überschritten. "
-            f"Breakpoint bricht sie chemisch auf — FC kurzzeitig auf ~10× CC drücken "
-            f"(≈ {need_fc_mg_per_l:.1f} mg/l). Details in der Shock-Tabelle."
+            f"Chloramine (CC = {combined_cl:.2f} mg/l) haben kritische Schwelle "
+            f"({cc_critical_high:.2f}) überschritten — chemisch aufbrechen per "
+            f"Breakpoint nötig (FC kurzzeitig auf ~10× CC ≈ {need_fc_mg_per_l:.1f} mg/l). "
+            "Gebundenes Chlor reizt Augen und erzeugt Chlorgeruch."
         )
-        rec = dataclasses.replace(rec, is_critical=True, note=_prefix_note(rec.note, why))
-        if chlorination_is_salt:
-            rec = _append_note(
-                rec,
-                "Alternativ unterstützend: Redox-Sollwert temporär anheben. "
-                "Für die eigentliche Breakpoint-Menge ist die manuelle Dosis empfohlen "
-                "(Dosierpumpen liefern nicht schnell genug).",
-            )
+        rec = dataclasses.replace(rec, is_critical=True, why=why)
         return rec
 
-    # 2. Free Cl below critical → active raise with ROUTINE product
+    # 2. Free Cl below critical → aktiver Routine-Shock auf Ziel 10 mg/l
     if free_cl is not None and free_cl < fc_critical_low:
+        target_fc_for_shock = float(SHOCK_TARGET_ROUTINE)
         if routine_type:
             rec = _build_cl_dose(
-                target_fc_increase=fc_target - free_cl,
+                target_fc_increase=target_fc_for_shock - free_cl,
                 volume_m3=volume_m3,
                 shock_type=routine_type,
                 shock_strength_pct=routine_strength_pct,
@@ -455,25 +539,12 @@ def recommend_shock(
                 note="Kein Routine-Chlor konfiguriert — manuelle Dosierung nur über Shock-Produkt möglich.",
             )
         why = (
-            f"**Warum Routine-Shock**: FC ({free_cl:.2f} mg/l) liegt unter der "
-            f"kritischen Untergrenze ({fc_critical_low:.2f}). Das bedeutet praktisch "
-            "keine aktive Sanitation mehr — Routine-Shock bringt FC schnell auf Ziel "
-            f"({fc_target:.2f} mg/l) zurück, bevor Bakterien und Algen Oberhand gewinnen. "
-            "Details in der Shock-Tabelle."
+            f"FC ({free_cl:.2f} mg/l) unter kritischer Untergrenze "
+            f"({fc_critical_low:.2f}) — keine wirksame Sanitation, Bakterien und Algen "
+            f"können wachsen. Routine-Shock bringt FC schnell auf sichere "
+            f"{target_fc_for_shock:.0f} mg/l."
         )
-        rec = dataclasses.replace(rec, is_critical=True, note=_prefix_note(rec.note, why))
-        if chlorination_is_salt:
-            rec = _append_note(
-                rec,
-                "Alternativer Weg: Redox-Sollwert erhöhen oder Produktionsrate der "
-                "Elektrolyse anheben — dann keine manuelle Dosierung nötig.",
-            )
-        elif has_auto_dosing:
-            rec = _append_note(
-                rec,
-                "Alternativer Weg: Chlor-Kanister der Dosieranlage prüfen (leer?) und "
-                "Produktionsrate der Dosierpumpe erhöhen.",
-            )
+        rec = dataclasses.replace(rec, is_critical=True, why=why)
         return rec
 
     # 3. Free Cl slightly low → watch
@@ -483,15 +554,11 @@ def recommend_shock(
             steps=(),
             reason=f"{values} — FC niedrig — beobachten",
             delta=fc_target - free_cl,
-            note=(
-                "Dosieranlage sollte selbst nachregeln." if (chlorination_is_salt or has_auto_dosing)
-                else None
-            ),
+            why="Dosieranlage sollte selbst nachregeln — falls FC nicht steigt, Kanister und Produktionsrate prüfen.",
         )
 
     # 4. Free Cl too high
     if free_cl is not None and free_cl > fc_max:
-        # Decay-Schätzung bis fc_max
         decay_note = ""
         hours = estimate_fc_decay_hours(
             fc_current=free_cl, fc_target=fc_max, cya=cya, water_temp_c=water_temp
@@ -503,28 +570,31 @@ def recommend_shock(
                 range_str = f"{max(1, int(hours * 0.75))}–{max(2, int(hours * 1.25))} h"
             else:
                 range_str = f"{lo_d:.1f}–{hi_d:.1f} Tage"
-            decay_note = f" ⏳ Geschätzt **~{range_str}** bis FC ≤ {fc_max:.1f} (Filter an, Abdeckung ab)."
+            decay_note = f" Geschätzt ~{range_str} bis FC ≤ {fc_max:.1f}."
 
-        # Oberhalb critical_high: nicht baden, aktive Warnung
         if free_cl > fc_critical_high:
+            why = (
+                "FC weit über kritischer Obergrenze — Augen-/Haut-Reizung, Bade-Sperre. "
+                "Chlor lässt sich nicht sinnvoll entfernen, Abbau nur über UV und Zeit." + decay_note
+            )
             return Recommendation(
                 action="lower",
                 steps=(),
                 reason=f"{values} — FC zu hoch — nicht baden",
                 delta=free_cl - fc_max,
                 is_critical=True,
-                note=(
-                    "Anlage pausiert Chlor-Dosierung automatisch. Aktives Senken nicht nötig — "
-                    "Filter + UV + Zeit reichen." + decay_note
-                ),
+                why=why,
             )
-        # Zwischen fc_max und critical_high: harmlos, klingt ab
+        why = (
+            "FC überdosiert, unkritisch — Filter + UV + Zeit bauen Chlor ab. "
+            "Die Dosieranlage pausiert automatisch." + decay_note
+        )
         return Recommendation(
             action="watch",
             steps=(),
             reason=f"{values} — FC hoch — Anlage pausiert, klingt ab",
             delta=free_cl - fc_max,
-            note=(decay_note.strip() if decay_note else None),
+            why=why,
         )
 
     # 5. Combined Cl elevated but below shock threshold
@@ -534,8 +604,10 @@ def recommend_shock(
             steps=(),
             reason=f"{values} — CC hoch — beobachten",
             delta=combined_cl - cc_max,
-            note=(
-                f"Wenn CC nicht unter {cc_max:.2f} fällt: Breakpoint-Modus erwägen."
+            why=(
+                f"Gebundenes Chlor (Chloramine) leicht erhöht — kann durch normale "
+                f"Dosierung wieder sinken. Wenn CC dauerhaft über {cc_max:.2f} mg/l "
+                f"bleibt, Breakpoint-Chlorung einleiten."
             ),
         )
 
@@ -605,39 +677,44 @@ def recommend_cya(
             product=cya_display,
             wait_hours=48,
         )
-        rec = Recommendation(
+        if is_critical:
+            why = (
+                "Stabilisator kritisch niedrig — Chlor verbrennt innerhalb weniger "
+                "Stunden unter UV, Sanitation bricht praktisch zusammen."
+            )
+        else:
+            why = (
+                "Stabilisator fehlt — ohne ihn halbiert sich Chlor unter direkter "
+                "Sonne in ~30–60 Min."
+            )
+        return Recommendation(
             action="raise",
             steps=(step,),
             reason=f"{current:.0f} mg/l zu niedrig — Ziel {target:.0f}",
             delta=delta,
             is_critical=is_critical,
-            note=(
-                "Menge = 80 % der Rechnung als Sicherheitspuffer. "
-                "Einmalige Aktion: CYA baut nicht ab. Stabilisator zu niedrig = "
-                "Chlor wird von UV schneller abgebaut."
-            ),
+            why=why,
         )
-        method = _method_hint("cyanuric_acid")
-        if method:
-            rec = _append_note(rec, method)
-        return rec
 
     # Too high — Wasserwechsel empfohlen. Rot über critical_high, gelb zwischen max und critical_high.
     is_critical = current >= critical_high
     if is_critical:
-        note = (
-            "Um künftig nicht wieder hoch zu kommen: häufige Shocks mit Dichlor meiden — "
-            "auf Flüssig-Chlor (NaOCl) oder Calciumhypochlorit umstellen."
+        why = (
+            "Stabilisator kritisch hoch — Chlor wird so stark gebunden, dass es "
+            "kaum noch desinfiziert. Chemisch nicht senkbar, nur durch Verdünnung."
         )
     else:
-        note = "Bei nächsten Schocks bewusst kein Dichlor nehmen — dann steigt CYA nicht weiter."
+        why = (
+            "Zu viel Stabilisator — Chlor wird chemisch gebunden und verliert "
+            "Sanitationswirkung. Chemisch nicht senkbar, nur durch Verdünnung."
+        )
     return Recommendation(
         action="lower",
         steps=(),
         reason=f"{current:.0f} mg/l zu hoch — Ziel {target:.0f}",
         delta=current - target,
         is_critical=is_critical,
-        note=note,
+        why=why,
     )
 
 
@@ -876,16 +953,10 @@ def _build_cl_dose(
         cya_factor = SHOCK_CYA_PER_PPM_CL.get(shock_type, 0.9)
         added_cya = target_fc_increase * cya_factor
         note = (
-            f"⚠ {shock_display} bringt Cyanursäure mit ins Wasser "
-            f"(~{added_cya:.1f} mg/l pro dieser Dosis). "
-            "Cyanursäure messen und bei >50–75 mg/l Wasser teilverdünnen. "
-            "CYA-frei schocken: Flüssig-Chlor (NaOCl) oder Monopersulfat/Oxi."
+            f"Bei stabilisiertem Shock ({shock_display}) erhöht sich CYA um "
+            f"~{added_cya:.1f} mg/l pro Dosis. Nach mehreren Shocks Cyanursäure prüfen."
         )
 
-    rec = Recommendation(
+    return Recommendation(
         action=action, steps=steps, reason=reason, delta=target_fc_increase, note=note
     )
-    method = _method_hint(shock_type)
-    if method:
-        rec = _append_note(rec, method)
-    return rec

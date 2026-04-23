@@ -16,7 +16,12 @@ from datetime import datetime
 
 from .calculator import (
     Recommendation,
+    compute_cya_exchange,
+    compute_ph_minus_dose,
+    format_steps_short,
+    format_total_hours,
     method_hint,
+    method_plain,
     shock_dose_grams_or_ml,
 )
 from .const import (
@@ -28,27 +33,36 @@ from .const import (
     SHOCK_TARGET_ALGEN_STARK,
     SHOCK_TARGET_ROUTINE,
     SHOCK_TARGET_SCHWARZALGEN,
+    TA_PLUS_BICARB,
 )
 
 
-def _redox_level_warning(ctx: WorkflowContext) -> str | None:
-    """Gelbe Warnung wenn Live-Redox außerhalb der kritischen Schwellen liegt.
-    Diagnose-Hinweis auf Elektrode / Kanister / Produktionsrate — keine
-    direkte Dosier-Empfehlung (das macht FC).
-    """
+def _redox_critical_banner(ctx: WorkflowContext) -> str | None:
+    """Roter Status-Banner wenn Redox außerhalb critical-Band.
+    Details liegen in der Note (Format D)."""
     if ctx.redox is None:
         return None
     if ctx.redox < ctx.redox_critical_low:
         return (
-            f"**Redox**: {ctx.redox:.0f} mV zu niedrig (kritisch < {ctx.redox_critical_low:.0f}) — "
-            "Chlor-Kanister der Dosieranlage prüfen (leer?), Produktionsrate der "
-            "Elektrolyse erhöhen oder Elektrode-Kalibrierung checken."
+            f"**Redox**: {ctx.redox:.0f} mV zu niedrig (kritisch < {ctx.redox_critical_low:.0f}) "
+            "— zu wenig aktives Chlor im Wasser"
         )
     if ctx.redox > ctx.redox_critical_high:
         return (
-            f"**Redox**: {ctx.redox:.0f} mV zu hoch (kritisch > {ctx.redox_critical_high:.0f}) — "
-            "Überdosierung oder Sondendrift? Manuelles FC nachmessen, ggf. Elektrode neu kalibrieren."
+            f"**Redox**: {ctx.redox:.0f} mV zu hoch (kritisch > {ctx.redox_critical_high:.0f}) "
+            "— Überdosierung oder Sondendrift"
         )
+    return None
+
+
+def _redox_watch_banner(ctx: WorkflowContext) -> str | None:
+    """Gelber Banner wenn Redox mild außerhalb min/max aber nicht kritisch."""
+    if ctx.redox is None:
+        return None
+    if ctx.redox_critical_low <= ctx.redox < ctx.redox_min:
+        return f"**Redox**: {ctx.redox:.0f} mV niedrig — Dosieranlage sollte selbst nachregeln"
+    if ctx.redox_max < ctx.redox <= ctx.redox_critical_high:
+        return f"**Redox**: {ctx.redox:.0f} mV hoch — Anlage pausiert, sollte selbst abklingen"
     return None
 
 
@@ -156,6 +170,10 @@ class WorkflowContext:
     stale: dict[str, bool] = field(default_factory=dict)
     measured_at: dict[str, datetime | None] = field(default_factory=dict)
     stale_days: dict[str, int] = field(default_factory=dict)
+
+    # pH-Minus-Konfig (für Format C TA-Senkung — Erst-Dosis berechnen):
+    ph_minus_type: str = ""
+    ph_minus_strength_pct: float = 0.0
 
 
 # ---------- Hilfsfunktionen ----------
@@ -394,10 +412,14 @@ def _param_warnings(
     if ratio_issue is not None:
         warning.append(f"**FC/CYA-Verhältnis**: {ratio_issue['reason']}")
 
-    # Redox-Level (außerhalb critical-Band) → rot
-    redox_warn = _redox_level_warning(ctx)
-    if redox_warn is not None:
-        critical.append(redox_warn)
+    # Redox-Level — rot wenn kritisch, gelb wenn mild außerhalb
+    redox_crit = _redox_critical_banner(ctx)
+    if redox_crit is not None:
+        critical.append(redox_crit)
+    else:
+        redox_watch = _redox_watch_banner(ctx)
+        if redox_watch is not None:
+            warning.append(redox_watch)
 
     # Drifts zum Schluss
     for key, label in (
@@ -446,64 +468,53 @@ def _format_steps_inline(steps) -> str:
 
 
 def _action_recommendations(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
-    """Konkrete Handlungsanweisungen als Info-Alert (blau)."""
+    """Konkrete Handlungsanweisungen als Info-Alert (blau).
+    Reihenfolge: TA → pH → CYA → Chlor → Drifts."""
     alerts: list[str] = []
 
-    for key, label in (
-        ("alkalinity", "Alkalität"),
-        ("ph", "pH"),
-        ("cya", "Cyanursäure"),
-    ):
-        rec = recs.get(key)
-        if rec is None or rec.action in ("ok", "no_data", "watch"):
-            continue
-        if rec.steps:
-            alerts.append(f"**{label}**: {_format_steps_inline(rec.steps)}")
-        elif rec.action == "lower" and key == "alkalinity":
+    # TA
+    ta_rec = recs.get("alkalinity")
+    if ta_rec is not None and ta_rec.action not in ("ok", "no_data", "watch"):
+        if ta_rec.steps:
+            alerts.append(f"**Alkalität**: Dosiere {format_steps_short(ta_rec.steps)}")
+        elif ta_rec.action == "lower":
             alerts.append(
-                "**Alkalität senken**: mehrtägiger Prozess — pH gezielt auf ~7.0 senken, "
-                "kräftig belüften (Düsen nach oben / Wasserfall), täglich wiederholen und neu messen"
+                "**Alkalität**: TA-Senkung starten — mehrtägiger Prozess, Anleitung "
+                "unter der Messwerte-Tabelle."
             )
-        elif rec.action == "lower" and key == "cya":
-            # CYA nur durch Verdünnung senkbar: f = 1 − target/current
-            if ctx.cya is not None and ctx.cya > ctx.cya_target:
-                f = 1.0 - (ctx.cya_target / ctx.cya)
-                percent = f * 100
-                liters = ctx.volume_m3 * f * 1000
-                msg = (
-                    f"**Cyanursäure senken**: chemisch nicht möglich, nur durch Verdünnung. "
-                    f"Ca. **{percent:.0f} % Wasser teiltauschen** "
-                    f"(≈ {liters:.0f} L bei {ctx.volume_m3:.0f} m³ Pool) um auf Ziel "
-                    f"{ctx.cya_target:.0f} mg/l zu kommen, dann neu messen."
-                )
-                if percent > 50:
-                    msg += (
-                        " Achtung großer Austausch — besser in 2–3 Etappen über mehrere Tage "
-                        "splitten, nicht auf einmal."
-                    )
-                # Frischwasser bringt FC=0 mit — Sanitation muss neu aufgebaut werden
-                if percent >= 30:
-                    msg += (
-                        " Nach dem Austausch **Routine-Shock empfohlen** (siehe Shock-Tabelle), "
-                        "da Frischwasser FC=0 mitbringt und die Dosieranlage Zeit braucht."
-                    )
-                alerts.append(msg)
-            else:
-                alerts.append(
-                    "**Cyanursäure senken**: chemisch nicht möglich, nur durch Wasser-Teiltausch. "
-                    "Messung erneuern, dann Verdünnungs-Menge berechnen."
-                )
 
-    # Chlor-Aktionen: WAS im Banner, WIE in der Shock-Tabelle, WARUM unter Chem-Tabelle.
-    cl_rec = recs.get("chlorine")
-    if cl_rec is not None and cl_rec.steps:
-        if cl_rec.action == "shock":
+    # pH
+    ph_rec = recs.get("ph")
+    if ph_rec is not None and ph_rec.action not in ("ok", "no_data", "watch") and ph_rec.steps:
+        alerts.append(f"**pH**: Dosiere {format_steps_short(ph_rec.steps)}")
+
+    # CYA
+    cya_rec = recs.get("cya")
+    if cya_rec is not None and cya_rec.action not in ("ok", "no_data", "watch"):
+        if cya_rec.action == "raise" and cya_rec.steps:
             alerts.append(
-                "**Chlor**: Breakpoint-Chlorung durchführen — siehe Shock-Tabelle unten."
+                f"**Cyanursäure**: Dosiere {format_steps_short(cya_rec.steps)}"
             )
-        elif cl_rec.action == "raise":
+        elif cya_rec.action == "lower":
             alerts.append(
-                "**Chlor**: Routine-Shock durchführen — siehe Shock-Tabelle unten."
+                "**Cyanursäure**: Wasserteilwechsel starten — Anleitung unter der Messwerte-Tabelle."
+            )
+
+    # Chlor — konkrete Dosis inline (Shock-Tabelle nur für manuelle Szenarien)
+    cl_rec = recs.get("chlorine")
+    if cl_rec is not None:
+        if cl_rec.action == "shock" and cl_rec.steps:
+            alerts.append(
+                f"**Chlor**: Breakpoint-Chlorung — {format_steps_short(cl_rec.steps)}"
+            )
+        elif cl_rec.action == "raise" and cl_rec.steps:
+            alerts.append(
+                f"**Chlor**: Routine-Shock — {format_steps_short(cl_rec.steps)}"
+            )
+        elif cl_rec.action == "lower":
+            # FC zu hoch — kein aktiver Eingriff, nur abwarten
+            alerts.append(
+                "**Chlor**: Abwarten bis FC abklingt — kein aktiver Eingriff möglich."
             )
 
     # Kalibrierungs-Handlungen
@@ -681,14 +692,12 @@ def _scenario_row(ctx: WorkflowContext, target_fc: float, label: str) -> str:
 
 
 def _scenarios_table(ctx: WorkflowContext) -> list[str]:
+    """User-getriggerte Shock-Szenarien (Breakpoint ist auto-empfohlen wenn nötig
+    und erscheint dann als konkrete Dosis in Blau + Note — nicht mehr hier)."""
     L = [
         "| Szenario | FC-Ziel | Dosis | CYA-Anstieg (mg/l) |",
         "|----------|--------:|------:|-------------------:|",
     ]
-    # Breakpoint nur wenn CC erhöht (Schwelle = cc_critical_high). Ziel ist strikt 10× CC.
-    if ctx.cc is not None and ctx.cc >= ctx.cc_critical_high:
-        target = ctx.cc * 10.0
-        L.append(_scenario_row(ctx, target, f"Breakpoint (10× CC = {target:.1f})"))
     for target, label in (
         (SHOCK_TARGET_ROUTINE, "Routine (präventiv, Wasserwechsel / Inbetriebnahme)"),
         (SHOCK_TARGET_ALGEN_LEICHT, "Algen leicht (grünlicher Schleier, Saisonstart)"),
@@ -733,21 +742,317 @@ def _safety_rules() -> list[str]:
     ]
 
 
-def _measurement_notes(recs: dict[str, Recommendation]) -> list[str]:
-    """Dynamische Hinweise aus den aktiven Recommendations — unter der Tabelle."""
+def _bullet(label: str, value: str) -> str:
+    return f"- **{label}**: {value}"
+
+
+def _note_ta_raise(rec: Recommendation, ctx: WorkflowContext) -> str:
+    """Format A — TA anheben (Natron, Eimer, während-Dosierung-Pumpe)."""
+    lines = [rec.why or "TA zu niedrig."]
+    lines.append(_bullet("Dosierung", format_steps_short(rec.steps)))
+    lines.append(_bullet("Einfüllung", method_plain(TA_PLUS_BICARB)))
+    lines.append(_bullet("Pumpe", "während der Dosierung durchgehend"))
+    h = format_total_hours(rec.steps)
+    lines.append(_bullet("Messung", f"~{h} h nach der letzten Dosis"))
+    return "\n".join(lines)
+
+
+def _note_ta_lower(rec: Recommendation, ctx: WorkflowContext) -> str:
+    """Format C — TA senken (mehrtägiger pH-down + Belüftungs-Prozess)."""
+    lines = [rec.why or "TA zu hoch, senken."]
+    # Erst-Dosis pH-down berechnen (wenn pH-Wert + Konfig vorhanden)
+    ph = ctx.ph_manual if ctx.ph_manual is not None else ctx.ph_auto
+    step1 = ""
+    if ph is not None and ph > 7.0 and ctx.ph_minus_type and ctx.ph_minus_strength_pct > 0:
+        steps = compute_ph_minus_dose(
+            current=ph,
+            target=7.0,
+            volume_m3=ctx.volume_m3,
+            ph_minus_type=ctx.ph_minus_type,
+            ph_minus_strength_pct=ctx.ph_minus_strength_pct,
+            ph_minus_display=ctx.ph_minus_display,
+        )
+        if steps:
+            dose = format_steps_short(steps)
+            step1 = (
+                f"**pH auf 7.0 dosieren**: bei aktuellem pH {ph:.2f} → {dose}, "
+                f"{method_plain(ctx.ph_minus_type)}"
+            )
+    elif ph is not None and ph <= 7.0:
+        step1 = f"**pH ist bereits ≤ 7.0** ({ph:.2f}) — heute kein pH-Down nötig, direkt zu Schritt 2"
+    else:
+        step1 = (
+            "**pH auf 7.0 dosieren**: mit deinem pH-Minus-Produkt gezielt auf ~7.0. "
+            "Dosis richtet sich nach aktuellem pH-Wert."
+        )
+    lines.append(f"1. {step1}")
+    lines.append(
+        "2. **24 h belüften**: Abdeckung ab, Düsen nach oben / Wasserfall / Luftsprudler, "
+        "Filter dauerhaft laufen"
+    )
+    lines.append(
+        "3. **Täglich pH + TA messen**. pH > 7.0 → zurück zu Schritt 1 (Dosis an aktuellen pH anpassen)"
+    )
+    lines.append(
+        "4. **TA ≈ Ziel** erreicht → pH mit pH+ wieder auf Ziel-pH"
+    )
+    return "\n".join(lines)
+
+
+def _note_ph_dose(rec: Recommendation, ctx: WorkflowContext) -> str:
+    """Format A — pH raise/lower."""
+    lines = [rec.why or "pH außerhalb Zielbereich."]
+    lines.append(_bullet("Dosierung", format_steps_short(rec.steps)))
+    # Produkt-Typ für method_plain: aus dem ersten Step ableitbar, aber einfacher:
+    # anhand action direkt wählen
+    if rec.action == "lower":
+        # pH- (dry_acid oder HCl) — method hängt von ctx.ph_minus_type
+        method = method_plain(ctx.ph_minus_type) if ctx.ph_minus_type else ""
+    else:
+        # pH+ (soda)
+        method = method_plain("soda_ash_na2co3")
+    if method:
+        lines.append(_bullet("Einfüllung", method))
+    lines.append(_bullet("Pumpe", "während der Dosierung durchgehend"))
+    h = format_total_hours(rec.steps)
+    lines.append(_bullet("Messung", f"~{h} h nach der letzten Dosis"))
+    return "\n".join(lines)
+
+
+def _note_cya_raise(rec: Recommendation, ctx: WorkflowContext) -> str:
+    """Format A (Socke-Variante) — CYA anheben."""
+    lines = [rec.why or "CYA zu niedrig."]
+    lines.append(_bullet("Dosierung", format_steps_short(rec.steps)))
+    lines.append(_bullet("Einfüllung", "in Skimmer- oder Filter-Socke aufhängen"))
+    lines.append(_bullet("Pumpe", "24–48 h durchgehend"))
+    lines.append(_bullet("Messung", "nach 3–5 Tagen (Granulat löst sich langsam)"))
+    lines.append(
+        "Menge enthält 80 % Sicherheitspuffer — CYA baut nicht ab und ist nur durch "
+        "Wasserwechsel senkbar, daher lieber zu wenig als zu viel. Bei Bedarf nach der "
+        "Messung nachlegen."
+    )
+    return "\n".join(lines)
+
+
+def _note_cya_lower(rec: Recommendation, ctx: WorkflowContext) -> str:
+    """Format B — CYA senken per Wasserteilwechsel."""
+    lines = [rec.why or "CYA zu hoch."]
+    if ctx.cya is not None and ctx.cya > ctx.cya_target:
+        ex = compute_cya_exchange(
+            current=ctx.cya, target=ctx.cya_target, volume_m3=ctx.volume_m3
+        )
+        lines.append(_bullet(
+            "Aktion",
+            f"ca. **{ex['percent']:.0f} % Wasser teiltauschen** "
+            f"(≈ {ex['liters']:.0f} L bei {ctx.volume_m3:.0f} m³) um auf Ziel "
+            f"{ctx.cya_target:.0f} mg/l zu kommen",
+        ))
+        if ex.get("needs_etappen"):
+            lines.append(_bullet(
+                "Verteilung", "in 2–3 Etappen über mehrere Tage (> 50 % Austausch)"
+            ))
+        if ex.get("needs_post_shock"):
+            lines.append(_bullet(
+                "Nachher",
+                "Routine-Shock (Frischwasser bringt FC=0, Dosieranlage braucht Zeit)",
+            ))
+        lines.append(_bullet("Messung", "nach dem Tausch"))
+    else:
+        lines.append(_bullet("Aktion", "Messung erneuern, dann Verdünnungs-Menge berechnen"))
+    # Langfrist-Hinweis bei critical high
+    if rec.is_critical:
+        lines.append(
+            "Langfristig: häufige Dichlor-Shocks meiden — auf Flüssig-Chlor (NaOCl) oder "
+            "Calciumhypochlorit umstellen, um CYA stabil zu halten."
+        )
+    return "\n".join(lines)
+
+
+def _note_chlorine(rec: Recommendation, ctx: WorkflowContext) -> str | None:
+    """Format A/Watch — Chlor (shock, raise, watch)."""
+    if rec.action in ("shock", "raise"):
+        # Format A mit shock_type-spezifischer method
+        shock_t = ctx.shock_type if rec.action == "shock" else ctx.shock_type  # routine uses same type by default
+        lines = [rec.why or "Chlor-Action."]
+        lines.append(_bullet("Dosierung", format_steps_short(rec.steps)))
+        method = method_plain(shock_t) if shock_t else ""
+        if method:
+            lines.append(_bullet("Einfüllung", method))
+        lines.append(_bullet("Pumpe", "durchgehend während und mindestens 24 h nach der Dosierung"))
+        h = format_total_hours(rec.steps)
+        if h > 0:
+            lines.append(_bullet("Messung", f"~{h} h nach der letzten Dosis, dann FC + CC prüfen"))
+        else:
+            lines.append(_bullet("Messung", "24–48 h nach der Dosierung, dann FC + CC prüfen"))
+        # Zusatz-Hinweis (z.B. CYA-Warnung aus rec.note)
+        if rec.note:
+            lines.append(rec.note)
+        return "\n".join(lines)
+    if rec.action == "watch":
+        # State B: FC niedrig oder FC hoch oder CC watch — kurzer Hinweis
+        # rec.why enthält Erklärung + decay
+        if rec.why:
+            return rec.why
+        return None
+    if rec.action == "lower":
+        # FC zu hoch, nicht baden
+        lines = [rec.why or "FC zu hoch."]
+        lines.append(_bullet("Aktion", "abwarten, Abdeckung ab, Pumpe läuft durchgehend"))
+        lines.append(_bullet("Dosieranlage", "pausiert automatisch (Redox-Sollwert erreicht)"))
+        lines.append(_bullet("Messung", "täglich, bis FC wieder im Zielbereich"))
+        return "\n".join(lines)
+    return None
+
+
+def _note_redox_level(ctx: WorkflowContext) -> str | None:
+    """Format D — Redox Diagnose bei critical."""
+    if ctx.redox is None:
+        return None
+    if ctx.redox < ctx.redox_critical_low:
+        lines = [
+            f"Zu niedriger Redox ({ctx.redox:.0f} mV, kritisch < {ctx.redox_critical_low:.0f}) "
+            "heißt zu wenig aktives Chlor — entweder liefert die Dosieranlage nicht, oder "
+            "die Elektrode driftet und zeigt zu wenig an."
+        ]
+        lines.append(_bullet(
+            "Chlor-Kanister prüfen",
+            "leer oder fast leer? → tauschen und Produktionsrate hochstellen",
+        ))
+        lines.append(_bullet(
+            "Produktionsrate erhöhen", "falls noch Reserve da"
+        ))
+        lines.append(_bullet(
+            "Elektrode kalibrieren",
+            "mit Prüflösung 468 mV, wenn Kanister ok und Dosierung läuft",
+        ))
+        lines.append(_bullet(
+            "Messung", "nach jedem Schritt ~30 Min warten, dann Redox erneut prüfen"
+        ))
+        return "\n".join(lines)
+    if ctx.redox > ctx.redox_critical_high:
+        lines = [
+            f"Zu hoher Redox ({ctx.redox:.0f} mV, kritisch > {ctx.redox_critical_high:.0f}) "
+            "heißt entweder tatsächliche Chlor-Überdosierung oder Sondendrift. Der FC-Wert "
+            "verrät, welcher Fall vorliegt."
+        ]
+        lines.append(_bullet(
+            "FC manuell messen",
+            "stimmt hoher FC mit hohem Redox überein? → echte Überdosierung, "
+            "Sollwert der Anlage senken oder Produktionsrate reduzieren",
+        ))
+        lines.append(_bullet(
+            "FC normal",
+            "Sondendrift — Redox-Elektrode mit Prüflösung 468 mV kalibrieren",
+        ))
+        lines.append(_bullet(
+            "Messung",
+            "nach Kalibrierung oder Sollwert-Änderung ~30 Min warten und erneut prüfen",
+        ))
+        return "\n".join(lines)
+    return None
+
+
+def _note_drift_ph(rec: Recommendation, ctx: WorkflowContext) -> str | None:
+    """Format D — pH Sonden-Drift."""
+    if rec.action != "calibrate":
+        return None
+    delta_str = f"{rec.delta:+.2f}" if rec.delta is not None else "?"
+    lines = [
+        f"Die Anlagen-Elektrode weicht vom manuellen Photometer-Wert um {delta_str} ab "
+        f"(Schwelle ±{ctx.ph_calib_threshold:.2f}). Die Anlage dosiert auf Basis ihres "
+        "eigenen falschen Messwerts — solange die Drift besteht, reguliert sie nicht mehr "
+        "aufs echte Ziel."
+    ]
+    lines.append(_bullet(
+        "Kalibrieren",
+        "an der Dosieranlage mit Pufferlösungen pH 7 und pH 4 (2-Punkt-Kalibrierung)",
+    ))
+    lines.append(_bullet(
+        "Zwischenzeitlich",
+        "Photometer-Wert als Wahrheit nehmen, Anlage-Sollwert NICHT blind nachführen",
+    ))
+    lines.append(_bullet(
+        "Messung",
+        "nach Kalibrierung ~30 Min abwarten, dann pH (Anlage) und pH (manuell) erneut vergleichen",
+    ))
+    return "\n".join(lines)
+
+
+def _note_drift_redox(rec: Recommendation, ctx: WorkflowContext) -> str | None:
+    """Format D — Redox Sonden-Drift."""
+    if rec.action != "calibrate":
+        return None
+    delta_str = f"{rec.delta:+.0f}" if rec.delta is not None else "?"
+    lines = [
+        f"Der gemessene Redox weicht vom chemisch erwarteten Wert um {delta_str} mV ab "
+        f"(Schwelle ±{ctx.redox_drift_threshold:.0f} mV). Die Elektrode zeigt verzerrt an — "
+        "die Anlage regelt auf ein falsches Bild."
+    ]
+    lines.append(_bullet(
+        "Kalibrieren",
+        "an der Dosieranlage mit Prüflösung 468 mV (1-Punkt-Kalibrierung)",
+    ))
+    lines.append(_bullet(
+        "Messung",
+        "nach Kalibrierung ~30 Min abwarten, dann Redox erneut mit dem berechneten Wert "
+        "in der Messwert-Tabelle vergleichen",
+    ))
+    return "\n".join(lines)
+
+
+def _measurement_notes(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list[str]:
+    """Dispatcht zu den per-Parameter Note-Composern (Format A/B/C/D).
+
+    Reihenfolge: TA → pH → CYA → Chlor → FC/CYA-Ratio → Redox → Drifts.
+    """
     notes: list[str] = []
-    for key, label in (
-        ("alkalinity", "Alkalität"),
-        ("ph", "pH"),
-        ("cya", "Cyanursäure"),
-        ("chlorine", "Chlor"),
-        ("calibration", "Drift pH Sonde"),
-        ("drift_redox", "Drift Redox Sonde"),
-    ):
-        rec = recs.get(key)
-        if rec is None or rec.note is None or rec.action in ("ok", "no_data"):
-            continue
-        notes.append(f"**{label}**: {rec.note}")
+
+    def _push(label: str, body: str | None) -> None:
+        if body:
+            notes.append(f"**{label}**: {body}")
+
+    # TA
+    ta_rec = recs.get("alkalinity")
+    if ta_rec is not None:
+        if ta_rec.action == "raise":
+            _push("Alkalität", _note_ta_raise(ta_rec, ctx))
+        elif ta_rec.action == "lower":
+            _push("Alkalität", _note_ta_lower(ta_rec, ctx))
+
+    # pH (raise/lower mit Dosis; watch hat keine Note)
+    ph_rec = recs.get("ph")
+    if ph_rec is not None and ph_rec.action in ("raise", "lower") and ph_rec.steps:
+        _push("pH", _note_ph_dose(ph_rec, ctx))
+
+    # CYA
+    cya_rec = recs.get("cya")
+    if cya_rec is not None:
+        if cya_rec.action == "raise":
+            _push("Cyanursäure", _note_cya_raise(cya_rec, ctx))
+        elif cya_rec.action == "lower":
+            _push("Cyanursäure", _note_cya_lower(cya_rec, ctx))
+
+    # Chlor
+    cl_rec = recs.get("chlorine")
+    if cl_rec is not None:
+        _push("Chlor", _note_chlorine(cl_rec, ctx))
+
+    # FC/CYA Ratio
+    ratio_explain = _fc_cya_ratio_explanation(ctx)
+    if ratio_explain:
+        notes.append(ratio_explain)
+
+    # Redox Level (critical)
+    _push("Redox", _note_redox_level(ctx))
+
+    # Drifts
+    cal_rec = recs.get("calibration")
+    if cal_rec is not None:
+        _push("Drift pH Sonde", _note_drift_ph(cal_rec, ctx))
+    dr_rec = recs.get("drift_redox")
+    if dr_rec is not None:
+        _push("Drift Redox Sonde", _note_drift_redox(dr_rec, ctx))
+
     return notes
 
 
@@ -820,21 +1125,21 @@ def render_normal(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> str:
     lines.append("")
     lines += _values_table(ctx, recs)
 
-    # Hinweise unter der Messwerte-Tabelle
-    notes_below = list(_measurement_notes(recs))
-    ratio_explain = _fc_cya_ratio_explanation(ctx)
-    if ratio_explain:
-        notes_below.append(ratio_explain)
+    # Hinweise unter der Messwerte-Tabelle (Multi-Line Blockquote)
+    notes_below = list(_measurement_notes(ctx, recs))
     for n in notes_below:
-        lines.append(f"> {n}")
+        for line in n.split("\n"):
+            lines.append(f"> {line}")
         lines.append(">")
     if notes_below:
         lines.append("")
 
-    # 3. Shock-Szenarien-Tabelle (permanent)
+    # 3. Shock-Szenarien-Tabelle — manuelle Szenarien (Algen, präventiv).
+    # Auto-empfohlene Shocks (Breakpoint, Routine bei FC-krit-low) stehen
+    # bereits als konkrete Dosis in Blau + Note.
     lines.append("---")
     lines.append("")
-    lines.append("**Shock-Szenarien** (falls gewünscht oder nötig):")
+    lines.append("**Shock-Szenarien bei Bedarf** (user-getriggert, z.B. Algen oder Saisonstart):")
     lines.append("")
     lines += _scenarios_table(ctx)
 
