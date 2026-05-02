@@ -251,6 +251,28 @@ class PoolAdvisorData:
         """
         return self._read_live(key)
 
+    def _combined_chlorine(self) -> float | None:
+        """Combined Chlorine = TC − FC, falls direkt-Sensor leer oder unplausibel.
+
+        PoolLab misst CC nicht direkt — es wird aus DPD-1 (FC) und DPD-3 (TC)
+        rechnerisch abgeleitet. Manche HA-Integrationen liefern jedoch einen
+        veralteten / falschen CC-Sensorwert. Wir nehmen daher:
+          1. Den Sensor-Wert wenn er CC ≤ TC einhält (chemisch plausibel).
+          2. Sonst rechnen wir CC = max(0, TC − FC) selbst.
+          3. Wenn weder TC noch CC-Sensor da → None.
+        """
+        cc_raw = self._read_live(CONF_ENT_COMBINED_CL)
+        fc = self._read_live(CONF_ENT_FREE_CL)
+        tc = self._read_live(CONF_ENT_TOTAL_CL)
+        # Plausibilitätsprüfung: CC ≤ TC, sonst Sensor verwerfen
+        if cc_raw is not None and tc is not None and cc_raw > tc:
+            cc_raw = None
+        if cc_raw is not None:
+            return cc_raw
+        if fc is not None and tc is not None:
+            return max(0.0, tc - fc)
+        return None
+
     def _measured_at_for(self, key: str) -> datetime | None:
         """Timestamp of the reading (UTC). Prefers the PoolLab `measured_at`
         attribute; falls back to entity `last_updated`. Test mode returns now.
@@ -353,7 +375,7 @@ class PoolAdvisorData:
             ph_manual=self._manual_value(CONF_ENT_PH_MANUAL),
             ta=self._manual_value(CONF_ENT_ALKALINITY),
             fc=self._manual_value(CONF_ENT_FREE_CL),
-            cc=self._manual_value(CONF_ENT_COMBINED_CL),
+            cc=self._combined_chlorine(),
             cya=self._manual_value(CONF_ENT_CYANURIC),
             water_temp=self._read_live(CONF_ENT_TEMPERATURE),
             ph_target=float(self._cfg(CONF_PH_TARGET)),
@@ -481,7 +503,7 @@ class PoolAdvisorData:
         fc_b = self._effective_fc_bounds()
         routine_strength_raw = self._cfg(CONF_ROUTINE_CL_STRENGTH)
         cl_rec = recommend_shock(
-            combined_cl=self._manual_value(CONF_ENT_COMBINED_CL),
+            combined_cl=self._combined_chlorine(),
             free_cl=self._manual_value(CONF_ENT_FREE_CL),
             total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
             fc_min=fc_b["fc_min"],
