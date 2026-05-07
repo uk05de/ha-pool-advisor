@@ -31,6 +31,7 @@ async def async_setup_entry(
         entities.append(ManualDoseConfirm(data, entry, key, label, name_key))
         entities.append(ManualDoseCancel(data, entry, key, label, name_key))
     entities.append(PendingDoseApply(data, entry))
+    entities.append(PendingDoseCancel(data, entry))
     async_add_entities(entities)
 
 
@@ -386,3 +387,72 @@ class ManualDoseCancel(ButtonEntity):
             "Pool Advisor: %s Dosis abgebrochen — Number auf %.1f (Empfehlung)",
             self._chem_key, target_value,
         )
+
+
+class PendingDoseCancel(ButtonEntity):
+    """Abbrechen-Button für den Generic-Pending-Slot.
+
+    Setzt Select zurück auf Default, Number auf 0, DateTime auf None —
+    ohne Werte in einen Per-Chemie-Slot zu kopieren. Nützlich wenn User
+    seine Sub-Dashboard-Eingaben verwerfen will.
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:close-circle-outline"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        self._data = data
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_pending_cancel"
+        self._attr_name = "Manuelle Dosis — Abbrechen"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Pool Advisor",
+            model="Chemistry Recommendations",
+        )
+
+    async def async_press(self) -> None:
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        select_eid = registry.async_get_entity_id(
+            "select", DOMAIN, f"{self._entry.entry_id}_pending_chemistry"
+        )
+        amount_eid = registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._entry.entry_id}_pending_amount"
+        )
+        time_eid = registry.async_get_entity_id(
+            "datetime", DOMAIN, f"{self._entry.entry_id}_pending_time"
+        )
+
+        # Select zuerst (Auto-Fill ändert Number) → dann Number explizit auf 0
+        if select_eid:
+            select_component = self.hass.data.get("select")
+            if select_component is not None:
+                for entity in select_component.entities:
+                    if entity.entity_id == select_eid and entity.options:
+                        await entity.async_select_option(entity.options[0])
+                        break
+
+        if amount_eid:
+            try:
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {"entity_id": amount_eid, "value": 0},
+                    blocking=True,
+                )
+            except Exception:
+                _LOGGER.exception("Pool Advisor: Pending-Cancel Number-Reset fehlgeschlagen")
+
+        if time_eid:
+            component = self.hass.data.get("datetime")
+            if component is not None:
+                for entity in component.entities:
+                    if entity.entity_id == time_eid and hasattr(entity, "clear"):
+                        entity.clear()
+                        break
+
+        _LOGGER.info("Pool Advisor: Pending-Slot abgebrochen")
