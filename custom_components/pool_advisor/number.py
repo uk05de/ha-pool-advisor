@@ -111,6 +111,14 @@ class ManualDoseAmount(NumberEntity, RestoreEntity):
             # Bei Init-Race kann recommendations noch leer sein
             pass
 
+    @property
+    def native_value(self) -> float:
+        return self._value
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._value = float(value)
+        self.async_write_ha_state()
+
 
 class PendingDoseAmount(NumberEntity, RestoreEntity):
     """Generic-Pending-Slot Menge — wird per Select-Wechsel aus der
@@ -162,12 +170,4 @@ class PendingDoseAmount(NumberEntity, RestoreEntity):
             self._value = self._data.recommended_dose_amount(chem_key)
         except AttributeError:
             self._value = 0.0
-        self.async_write_ha_state()
-
-    @property
-    def native_value(self) -> float:
-        return self._value
-
-    async def async_set_native_value(self, value: float) -> None:
-        self._value = float(value)
         self.async_write_ha_state()

@@ -150,71 +150,86 @@ class PendingDoseApply(ButtonEntity):
     async def async_press(self) -> None:
         from homeassistant.helpers import entity_registry as er
 
-        registry = er.async_get(self.hass)
-        select_eid = registry.async_get_entity_id(
-            "select", DOMAIN, f"{self._entry.entry_id}_pending_chemistry"
-        )
-        amount_eid = registry.async_get_entity_id(
-            "number", DOMAIN, f"{self._entry.entry_id}_pending_amount"
-        )
-        time_eid = registry.async_get_entity_id(
-            "datetime", DOMAIN, f"{self._entry.entry_id}_pending_time"
-        )
-
-        select_state = self.hass.states.get(select_eid) if select_eid else None
-        amount_state = self.hass.states.get(amount_eid) if amount_eid else None
-        time_state = self.hass.states.get(time_eid) if time_eid else None
-
-        if select_state is None or select_state.state in (None, "", "unknown", "unavailable"):
-            _LOGGER.warning("Pool Advisor: Apply pressed without selected chemistry")
-            return
-
-        # Map Display-Label zurück auf chem_key
-        label_to_key = {label: key for key, label, _, _ in MANUAL_DOSE_CHEMISTRIES}
-        chem_key = label_to_key.get(select_state.state)
-        if not chem_key:
-            _LOGGER.warning(
-                "Pool Advisor: Apply with unknown chemistry label %r", select_state.state
-            )
-            return
-
         try:
-            amount = float(amount_state.state) if amount_state else 0.0
-        except (ValueError, TypeError):
+            registry = er.async_get(self.hass)
+            select_eid = registry.async_get_entity_id(
+                "select", DOMAIN, f"{self._entry.entry_id}_pending_chemistry"
+            )
+            amount_eid = registry.async_get_entity_id(
+                "number", DOMAIN, f"{self._entry.entry_id}_pending_amount"
+            )
+            time_eid = registry.async_get_entity_id(
+                "datetime", DOMAIN, f"{self._entry.entry_id}_pending_time"
+            )
+
+            _LOGGER.debug(
+                "Pool Advisor Apply: lookups select=%s amount=%s time=%s",
+                select_eid, amount_eid, time_eid,
+            )
+
+            select_state = self.hass.states.get(select_eid) if select_eid else None
+            amount_state = self.hass.states.get(amount_eid) if amount_eid else None
+            time_state = self.hass.states.get(time_eid) if time_eid else None
+
+            if select_state is None or select_state.state in (None, "", "unknown", "unavailable"):
+                _LOGGER.warning(
+                    "Pool Advisor: Apply pressed without selected chemistry (select_state=%s)",
+                    select_state,
+                )
+                return
+
+            # Map Display-Label zurück auf chem_key
+            label_to_key = {label: key for key, label, _, _ in MANUAL_DOSE_CHEMISTRIES}
+            chem_key = label_to_key.get(select_state.state)
+            if not chem_key:
+                _LOGGER.warning(
+                    "Pool Advisor: Apply with unknown chemistry label %r (known: %s)",
+                    select_state.state, list(label_to_key.keys()),
+                )
+                return
+
             amount = 0.0
+            if amount_state and amount_state.state not in (None, "", "unknown", "unavailable"):
+                try:
+                    amount = float(amount_state.state)
+                except (ValueError, TypeError):
+                    _LOGGER.warning(
+                        "Pool Advisor: Pending amount not numeric: %r", amount_state.state
+                    )
 
-        # Ziel-Number-Entity für die Chemie finden
-        target_amount_eid = registry.async_get_entity_id(
-            "number", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_amount"
-        )
-        target_time_eid = registry.async_get_entity_id(
-            "datetime", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_time"
-        )
-
-        if target_amount_eid:
-            await self.hass.services.async_call(
-                "number",
-                "set_value",
-                {"entity_id": target_amount_eid, "value": amount},
-                blocking=True,
+            # Ziel-Number-Entity für die Chemie finden
+            target_amount_eid = registry.async_get_entity_id(
+                "number", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_amount"
+            )
+            target_time_eid = registry.async_get_entity_id(
+                "datetime", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_time"
             )
 
-        # Wenn Pending-Zeit gesetzt: in Ziel-DateTime kopieren
-        if (
-            target_time_eid
-            and time_state
-            and time_state.state not in (None, "", "unknown", "unavailable")
-        ):
-            await self.hass.services.async_call(
-                "datetime",
-                "set_value",
-                {"entity_id": target_time_eid, "datetime": time_state.state},
-                blocking=True,
+            _LOGGER.info(
+                "Pool Advisor Apply: chem=%s amount=%.1f targets number=%s datetime=%s",
+                chem_key, amount, target_amount_eid, target_time_eid,
             )
 
-        _LOGGER.info(
-            "Pool Advisor: pending → %s (amount=%.1f, time=%s)",
-            chem_key,
-            amount,
-            time_state.state if time_state else "(empty)",
-        )
+            if target_amount_eid:
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {"entity_id": target_amount_eid, "value": amount},
+                    blocking=True,
+                )
+
+            # Wenn Pending-Zeit gesetzt: in Ziel-DateTime kopieren
+            if (
+                target_time_eid
+                and time_state
+                and time_state.state not in (None, "", "unknown", "unavailable")
+            ):
+                await self.hass.services.async_call(
+                    "datetime",
+                    "set_value",
+                    {"entity_id": target_time_eid, "datetime": time_state.state},
+                    blocking=True,
+                )
+        except Exception:
+            _LOGGER.exception("Pool Advisor: Apply-Button-Press fehlgeschlagen")
+            raise
