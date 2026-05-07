@@ -550,6 +550,40 @@ class PoolAdvisorData:
         }
         async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self.entry.entry_id}")
 
+    # --- recommended-dose lookup (für Manuell-Dosing-Number-Entities) ---
+    def recommended_dose_amount(self, chem_key: str) -> float:
+        """Liefere die für eine manuelle Chemie aktuell empfohlene Menge.
+
+        Mapping zwischen Empfehlungs-Slot und manueller Chemie ist
+        action-basiert: pH-Lower → ph_minus_manual, pH-Raise → ph_plus,
+        TA-Raise → ta_plus, Chlor-Shock/Raise → cl_manual,
+        CYA-Raise → cya. Alle anderen Actions → 0 (kein pending-Dose).
+
+        Bei mehrstufigen Empfehlungen wird die Menge des ersten Schritts
+        zurückgegeben — das User dosiert pro Bestätigung einen Schritt.
+        """
+        rec_map = {
+            "ph_minus_manual": ("ph", "lower"),
+            "ph_plus": ("ph", "raise"),
+            "ta_plus": ("alkalinity", "raise"),
+            "cl_manual": ("chlorine", ("raise", "shock")),
+            "cya": ("cya", "raise"),
+        }
+        mapping = rec_map.get(chem_key)
+        if mapping is None:
+            return 0.0
+        rec_key, expected_action = mapping
+        rec = self.recommendations.get(rec_key)
+        if rec is None or not rec.steps:
+            return 0.0
+        if isinstance(expected_action, tuple):
+            if rec.action not in expected_action:
+                return 0.0
+        else:
+            if rec.action != expected_action:
+                return 0.0
+        return float(rec.steps[0].amount)
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = PoolAdvisorData(hass, entry)

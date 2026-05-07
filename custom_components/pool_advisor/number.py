@@ -84,18 +84,31 @@ class ManualDoseAmount(NumberEntity, RestoreEntity):
                 self._value = float(last.state)
             except (ValueError, TypeError):
                 self._value = 0.0
-        # An Advisor-Updates anhängen (für künftige Recommendation-Vorbelegung)
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._handle_update
             )
         )
+        # Initial-Sync mit aktueller Empfehlung sobald Advisor-Daten verfügbar
+        self._sync_with_recommendation()
 
     @callback
     def _handle_update(self) -> None:
-        # Hier wird in Commit 3 die Recommendation-Vorbelegung passieren.
-        # Aktuell: keine Aktion, Wert bleibt wie zuletzt vom User gesetzt.
+        """Bei jedem Advisor-Recalc: Number mit aktueller Empfehlung
+        überschreiben. User-Edits sind transient — sie überleben bis zur
+        nächsten Empfehlung. Workflow: Empfehlung → User glance → ggf. edit
+        → Button-Press. Recalcs sind sparsam, Race-Window klein."""
+        self._sync_with_recommendation()
         self.async_write_ha_state()
+
+    def _sync_with_recommendation(self) -> None:
+        """Aktualisiere _value aus aktueller Empfehlung, wenn vorhanden.
+        Bei keiner aktiven Empfehlung (action != raise/lower/shock): 0."""
+        try:
+            self._value = self._data.recommended_dose_amount(self._chem_key)
+        except AttributeError:
+            # Bei Init-Race kann recommendations noch leer sein
+            pass
 
     @property
     def native_value(self) -> float:
