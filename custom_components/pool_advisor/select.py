@@ -44,7 +44,8 @@ class PendingChemistrySelect(SelectEntity, RestoreEntity):
             label: key for key, label in self._key_to_label.items()
         }
         self._attr_options = list(self._key_to_label.values())
-        self._current: str | None = None
+        # Default auf erste Option damit HA nicht "unknown" zeigt
+        self._current: str = self._attr_options[0]
         self._attr_unique_id = f"{entry.entry_id}_pending_chemistry"
         self._attr_name = "Manuelle Dosis — Chemie"
         self._attr_device_info = DeviceInfo(
@@ -61,7 +62,7 @@ class PendingChemistrySelect(SelectEntity, RestoreEntity):
             self._current = last.state
 
     @property
-    def current_option(self) -> str | None:
+    def current_option(self) -> str:
         return self._current
 
     async def async_select_option(self, option: str) -> None:
@@ -92,6 +93,4 @@ class PendingChemistrySelect(SelectEntity, RestoreEntity):
 
     @property
     def selected_chem_key(self) -> str | None:
-        if self._current is None:
-            return None
         return self._label_to_key.get(self._current)
