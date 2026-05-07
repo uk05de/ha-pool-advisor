@@ -118,22 +118,46 @@
           }
         }
       },
-      "chemicals": {
-        "title": "Chemikalien",
-        "description": "Routine-Chlor = für kleine Nachdosierungen im Normalbetrieb (oft gleich wie Dosieranlagen-Kanister, z.B. Flüssig-Chlor NaOCl). Shock-Chlor = für Breakpoint/Algen (z.B. Chlorifix Dichlor). Beide optional — leer lassen wenn du nicht manuell dosierst.",
+      "chemicals_auto": {
+        "title": "Chemikalien — Dosieranlage",
+        "description": "Produkte die deine Dosieranlage (z.B. Bayrol) kontinuierlich verwendet. Verbrauch wird automatisch über pump_state erfasst — keine manuellen Bestätigungs-Buttons nötig.",
         "sections": {
-          "ph_minus": {
-            "name": "pH−",
-            "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)",
+          "routine_ph_minus": {
+            "name": "Routine pH-Minus",
+            "description": "Säure-Produkt im Kanister der Anlage (typ. Liquid HCl 14.9% oder Trockensäure)",
             "data": {
-              "ph_minus_name": "Produktname (z.B. 'Bayrol pH-Minus')",
+              "ph_minus_name": "Produktname (z.B. 'Bayrol pH-minus 14.9%')",
               "ph_minus_type": "Wirkstoff",
               "ph_minus_strength": "Stärke (%)"
             }
           },
+          "routine_cl": {
+            "name": "Routine-Chlor",
+            "description": "Chlor-Produkt im Kanister der Anlage (typ. Liquid NaOCl) — optional",
+            "data": {
+              "routine_cl_name": "Produktname",
+              "routine_cl_type": "Wirkstoff (optional)",
+              "routine_cl_strength": "Stärke (%)"
+            }
+          }
+        }
+      },
+      "chemicals_manual": {
+        "title": "Chemikalien — manuelle Dosierung",
+        "description": "Produkte die du selbst dosierst, wenn der Advisor das empfiehlt. Pool-Advisor stellt für jede dieser Chemien einen Bestätigungs-Button bereit. Alle Sektionen optional — leer lassen wenn nicht verwendet.",
+        "sections": {
+          "ph_minus_manual": {
+            "name": "Manuell pH-Minus",
+            "description": "Alternative zur Anlagen-Säure für manuelle Spezial-Dosen (typ. Trockensäure-Granulat NaHSO4)",
+            "data": {
+              "ph_minus_manual_name": "Produktname (z.B. 'Bayrol pH-minus Granulat')",
+              "ph_minus_manual_type": "Wirkstoff",
+              "ph_minus_manual_strength": "Stärke (%)"
+            }
+          },
           "ph_plus": {
-            "name": "pH+",
-            "description": "Base zum pH-Anheben (Soda)",
+            "name": "pH-Plus",
+            "description": "Base zum pH-Anheben (Soda Ash, Na2CO3)",
             "data": {
               "ph_plus_name": "Produktname",
               "ph_plus_type": "Wirkstoff",
@@ -141,26 +165,17 @@
             }
           },
           "ta_plus": {
-            "name": "TA+",
-            "description": "Natron zum Anheben der Alkalität",
+            "name": "TA-Plus",
+            "description": "Natron (NaHCO3) zum Anheben der Alkalität",
             "data": {
               "ta_plus_name": "Produktname",
               "ta_plus_type": "Wirkstoff",
               "ta_plus_strength": "Stärke (%)"
             }
           },
-          "routine_cl": {
-            "name": "Routine-Chlor",
-            "description": "Für kleine Nachdosierungen im Normalbetrieb — optional",
-            "data": {
-              "routine_cl_name": "Produktname",
-              "routine_cl_type": "Wirkstoff (optional)",
-              "routine_cl_strength": "Stärke (%)"
-            }
-          },
           "shock": {
-            "name": "Shock-Chlor",
-            "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor",
+            "name": "Schock-Chlor",
+            "description": "Für Breakpoint/Algen — Granulat (Chlorifix/Dichlor) oder Cal-Hypo",
             "data": {
               "shock_name": "Produktname (z.B. 'Chlorifix')",
               "shock_type": "Wirkstoff",
@@ -169,7 +184,7 @@
           },
           "cya": {
             "name": "Cyanursäure",
-            "description": "Stabilisator-Produkt",
+            "description": "Stabilisator-Granulat",
             "data": {
               "cya_name": "Produktname",
               "cya_type": "Wirkstoff",
@@ -205,7 +220,8 @@
           "entities_auto": "Automatische Messung",
           "entities_manual": "Manuelle Messung",
           "targets": "Zielwerte & Toleranzen",
-          "chemicals": "Chemikalien",
+          "chemicals_auto": "Chemikalien — Dosieranlage",
+          "chemicals_manual": "Chemikalien — manuelle Dosierung",
           "testmodus": "Testmodus (statische Werte)",
           "edit_all": "Alles der Reihe nach"
         }
@@ -322,21 +338,44 @@
           }
         }
       },
-      "chemicals": {
-        "title": "Chemikalien",
+      "chemicals_auto": {
+        "title": "Chemikalien — Dosieranlage",
         "sections": {
-          "ph_minus": {
-            "name": "pH−",
-            "description": "Säure zum pH-Senken (Trockensäure oder Salzsäure)",
+          "routine_ph_minus": {
+            "name": "Routine pH-Minus",
+            "description": "Säure-Produkt im Kanister der Anlage",
             "data": {
-              "ph_minus_name": "Produktname (z.B. 'Bayrol pH-Minus')",
+              "ph_minus_name": "Produktname",
               "ph_minus_type": "Wirkstoff",
               "ph_minus_strength": "Stärke (%)"
             }
           },
+          "routine_cl": {
+            "name": "Routine-Chlor",
+            "description": "Chlor-Produkt im Kanister der Anlage — optional",
+            "data": {
+              "routine_cl_name": "Produktname",
+              "routine_cl_type": "Wirkstoff (optional)",
+              "routine_cl_strength": "Stärke (%)"
+            }
+          }
+        }
+      },
+      "chemicals_manual": {
+        "title": "Chemikalien — manuelle Dosierung",
+        "sections": {
+          "ph_minus_manual": {
+            "name": "Manuell pH-Minus",
+            "description": "Alternative zur Anlagen-Säure (typ. Granulat)",
+            "data": {
+              "ph_minus_manual_name": "Produktname",
+              "ph_minus_manual_type": "Wirkstoff",
+              "ph_minus_manual_strength": "Stärke (%)"
+            }
+          },
           "ph_plus": {
-            "name": "pH+",
-            "description": "Base zum pH-Anheben (Soda)",
+            "name": "pH-Plus",
+            "description": "Base zum pH-Anheben",
             "data": {
               "ph_plus_name": "Produktname",
               "ph_plus_type": "Wirkstoff",
@@ -344,7 +383,7 @@
             }
           },
           "ta_plus": {
-            "name": "TA+",
+            "name": "TA-Plus",
             "description": "Natron zum Anheben der Alkalität",
             "data": {
               "ta_plus_name": "Produktname",
@@ -352,20 +391,11 @@
               "ta_plus_strength": "Stärke (%)"
             }
           },
-          "routine_cl": {
-            "name": "Routine-Chlor",
-            "description": "Für kleine Nachdosierungen im Normalbetrieb — optional",
-            "data": {
-              "routine_cl_name": "Produktname",
-              "routine_cl_type": "Wirkstoff (optional)",
-              "routine_cl_strength": "Stärke (%)"
-            }
-          },
           "shock": {
-            "name": "Shock-Chlor",
-            "description": "Für Breakpoint/Algen — Granulat oder Flüssig-Chlor",
+            "name": "Schock-Chlor",
+            "description": "Für Breakpoint/Algen",
             "data": {
-              "shock_name": "Produktname (z.B. 'Chlorifix')",
+              "shock_name": "Produktname",
               "shock_type": "Wirkstoff",
               "shock_strength": "Stärke (%)"
             }

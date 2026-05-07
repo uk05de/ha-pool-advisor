@@ -102,6 +102,11 @@ FC_CYA_RATIO_HIGH: Final = 0.40
 CONF_PH_MINUS_TYPE: Final = "ph_minus_type"
 CONF_PH_MINUS_STRENGTH: Final = "ph_minus_strength"
 CONF_PH_MINUS_NAME: Final = "ph_minus_name"
+# Manuelles pH-Minus-Produkt (typ. Granulat / NaHSO4) — Alternative zum Auto-Dosing
+# der Anlage. Wird verwendet wenn User manuell pH senkt (Spezial / Notdosis).
+CONF_PH_MINUS_MANUAL_TYPE: Final = "ph_minus_manual_type"
+CONF_PH_MINUS_MANUAL_STRENGTH: Final = "ph_minus_manual_strength"
+CONF_PH_MINUS_MANUAL_NAME: Final = "ph_minus_manual_name"
 CONF_PH_PLUS_TYPE: Final = "ph_plus_type"
 CONF_PH_PLUS_STRENGTH: Final = "ph_plus_strength"
 CONF_PH_PLUS_NAME: Final = "ph_plus_name"

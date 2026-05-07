@@ -40,6 +40,9 @@ from .const import (
     CONF_PH_MINUS_NAME,
     CONF_PH_MINUS_STRENGTH,
     CONF_PH_MINUS_TYPE,
+    CONF_PH_MINUS_MANUAL_NAME,
+    CONF_PH_MINUS_MANUAL_STRENGTH,
+    CONF_PH_MINUS_MANUAL_TYPE,
     CONF_PH_PLUS_NAME,
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
@@ -322,7 +325,14 @@ def _opt_text(key: str, defaults: dict[str, Any]) -> dict[str, Any]:
     return {"default": val} if val else {}
 
 
-def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
+def _schema_chemicals_auto(defaults: dict[str, Any]) -> vol.Schema:
+    """Chemikalien für automatische Dosieranlage (Bayrol o.ä.).
+
+    Diese Produkte werden vom Dosier-Controller kontinuierlich verwendet
+    (typ. Liquid-Säure und Liquid-Chlor). Der Pool-Advisor zeigt für sie
+    keinen manuellen Confirm-Button — der Verbrauch wird über pump_state
+    automatisch erfasst.
+    """
     ph_minus_section = section(
         vol.Schema(
             {
@@ -333,6 +343,56 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 vol.Required(
                     CONF_PH_MINUS_STRENGTH,
                     default=defaults.get(CONF_PH_MINUS_STRENGTH, DEFAULT_STRENGTH[PH_MINUS_DRY_ACID]),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": False},
+    )
+    routine_cl_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_ROUTINE_CL_NAME, **_opt_text(CONF_ROUTINE_CL_NAME, defaults)): str,
+                **(
+                    {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
+                    if defaults.get(CONF_ROUTINE_CL_TYPE)
+                    else {vol.Optional(CONF_ROUTINE_CL_TYPE): _select(SHOCK_CHOICES, "shock")}
+                ),
+                vol.Optional(
+                    CONF_ROUTINE_CL_STRENGTH,
+                    default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
+                ): _pct_number(),
+            }
+        ),
+        {"collapsed": True},
+    )
+    return vol.Schema(
+        {
+            vol.Required("routine_ph_minus"): ph_minus_section,
+            vol.Required("routine_cl"): routine_cl_section,
+        }
+    )
+
+
+def _schema_chemicals_manual(defaults: dict[str, Any]) -> vol.Schema:
+    """Chemikalien für manuelle Dosierung durch den User.
+
+    Für jede dieser Chemikalien stellt Pool-Advisor Number/DateTime/Button-
+    Entitäten bereit, mit denen User durchgeführte Dosierungen bestätigen
+    kann. Empfehlungen werden in Number-Entity vorbefüllt.
+    """
+    ph_minus_manual_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_PH_MINUS_MANUAL_NAME, **_opt_text(CONF_PH_MINUS_MANUAL_NAME, defaults)): str,
+                vol.Optional(
+                    CONF_PH_MINUS_MANUAL_TYPE,
+                    default=defaults.get(CONF_PH_MINUS_MANUAL_TYPE, PH_MINUS_DRY_ACID),
+                ): _select(PH_MINUS_CHOICES, "ph_minus"),
+                vol.Optional(
+                    CONF_PH_MINUS_MANUAL_STRENGTH,
+                    default=defaults.get(
+                        CONF_PH_MINUS_MANUAL_STRENGTH, DEFAULT_STRENGTH[PH_MINUS_DRY_ACID]
+                    ),
                 ): _pct_number(),
             }
         ),
@@ -363,23 +423,6 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
                 vol.Required(
                     CONF_TA_PLUS_STRENGTH,
                     default=defaults.get(CONF_TA_PLUS_STRENGTH, DEFAULT_STRENGTH[TA_PLUS_BICARB]),
-                ): _pct_number(),
-            }
-        ),
-        {"collapsed": True},
-    )
-    routine_cl_section = section(
-        vol.Schema(
-            {
-                vol.Optional(CONF_ROUTINE_CL_NAME, **_opt_text(CONF_ROUTINE_CL_NAME, defaults)): str,
-                **(
-                    {vol.Optional(CONF_ROUTINE_CL_TYPE, default=defaults[CONF_ROUTINE_CL_TYPE]): _select(SHOCK_CHOICES, "shock")}
-                    if defaults.get(CONF_ROUTINE_CL_TYPE)
-                    else {vol.Optional(CONF_ROUTINE_CL_TYPE): _select(SHOCK_CHOICES, "shock")}
-                ),
-                vol.Optional(
-                    CONF_ROUTINE_CL_STRENGTH,
-                    default=defaults.get(CONF_ROUTINE_CL_STRENGTH, 0),
                 ): _pct_number(),
             }
         ),
@@ -419,10 +462,9 @@ def _schema_chemicals(defaults: dict[str, Any]) -> vol.Schema:
     )
     return vol.Schema(
         {
-            vol.Required("ph_minus"): ph_minus_section,
+            vol.Required("ph_minus_manual"): ph_minus_manual_section,
             vol.Required("ph_plus"): ph_plus_section,
             vol.Required("ta_plus"): ta_plus_section,
-            vol.Required("routine_cl"): routine_cl_section,
             vol.Required("shock"): shock_section,
             vol.Required("cya"): cya_section,
         }
@@ -494,7 +536,7 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_targets(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(_flatten(user_input))
-            return await self.async_step_chemicals()
+            return await self.async_step_chemicals_auto()
 
         is_salt = self._data.get(CONF_CHLORINATION) == CHLORINATION_SALT
         defaults = {
@@ -504,11 +546,17 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         return self.async_show_form(step_id="targets", data_schema=_schema_targets(defaults))
 
-    async def async_step_chemicals(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_chemicals_auto(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            self._data.update(_flatten(user_input))
+            return await self.async_step_chemicals_manual()
+        return self.async_show_form(step_id="chemicals_auto", data_schema=_schema_chemicals_auto({}))
+
+    async def async_step_chemicals_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(_flatten(user_input))
             return await self.async_step_testmodus()
-        return self.async_show_form(step_id="chemicals", data_schema=_schema_chemicals({}))
+        return self.async_show_form(step_id="chemicals_manual", data_schema=_schema_chemicals_manual({}))
 
     async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
@@ -556,7 +604,8 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
                 "entities_auto",
                 "entities_manual",
                 "targets",
-                "chemicals",
+                "chemicals_auto",
+                "chemicals_manual",
                 "testmodus",
                 "edit_all",
             ],
@@ -614,18 +663,28 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._data.update(_flatten(user_input))
             if self._chain:
-                return await self.async_step_chemicals()
+                return await self.async_step_chemicals_auto()
             return self._save()
         return self.async_show_form(step_id="targets", data_schema=_schema_targets(self._current_all()))
 
-    async def async_step_chemicals(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_chemicals_auto(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            self._data.update(_flatten(user_input))
+            if self._chain:
+                return await self.async_step_chemicals_manual()
+            return self._save()
+        return self.async_show_form(
+            step_id="chemicals_auto", data_schema=_schema_chemicals_auto(self._current_all())
+        )
+
+    async def async_step_chemicals_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data.update(_flatten(user_input))
             if self._chain:
                 return await self.async_step_testmodus()
             return self._save()
         return self.async_show_form(
-            step_id="chemicals", data_schema=_schema_chemicals(self._current_all())
+            step_id="chemicals_manual", data_schema=_schema_chemicals_manual(self._current_all())
         )
 
     async def async_step_testmodus(self, user_input: dict[str, Any] | None = None) -> FlowResult:

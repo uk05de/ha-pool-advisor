@@ -118,22 +118,46 @@
           }
         }
       },
-      "chemicals": {
-        "title": "Chemicals",
-        "description": "Routine chlorine = small top-ups during normal operation (often same as dosing canister, e.g. NaOCl liquid). Shock chlorine = breakpoint/algae events (e.g. dichlor granulate). Both optional — leave empty if you never dose manually.",
+      "chemicals_auto": {
+        "title": "Chemicals — dosing system",
+        "description": "Products your dosing system (e.g. Bayrol) continuously dispenses. Consumption tracked automatically via pump_state — no confirmation buttons needed.",
         "sections": {
-          "ph_minus": {
-            "name": "pH−",
-            "description": "Acid to lower pH (dry acid or muriatic acid)",
+          "routine_ph_minus": {
+            "name": "Routine pH-Minus",
+            "description": "Acid product in dosing canister (typically liquid HCl 14.9% or dry acid)",
             "data": {
-              "ph_minus_name": "Product name",
+              "ph_minus_name": "Product name (e.g. 'Bayrol pH-minus 14.9%')",
               "ph_minus_type": "Active compound",
               "ph_minus_strength": "Strength (%)"
             }
           },
+          "routine_cl": {
+            "name": "Routine chlorine",
+            "description": "Chlorine product in dosing canister (typically liquid NaOCl) — optional",
+            "data": {
+              "routine_cl_name": "Product name",
+              "routine_cl_type": "Active compound (optional)",
+              "routine_cl_strength": "Strength (%)"
+            }
+          }
+        }
+      },
+      "chemicals_manual": {
+        "title": "Chemicals — manual dosing",
+        "description": "Products you dose yourself when the advisor recommends it. Pool-Advisor exposes a confirmation button per chemistry. All sections optional — leave empty if not used.",
+        "sections": {
+          "ph_minus_manual": {
+            "name": "Manual pH-Minus",
+            "description": "Alternative to dosing-system acid for ad-hoc manual events (typically dry acid granulate, NaHSO4)",
+            "data": {
+              "ph_minus_manual_name": "Product name (e.g. 'Bayrol pH-minus granulate')",
+              "ph_minus_manual_type": "Active compound",
+              "ph_minus_manual_strength": "Strength (%)"
+            }
+          },
           "ph_plus": {
-            "name": "pH+",
-            "description": "Base to raise pH (soda ash)",
+            "name": "pH-Plus",
+            "description": "Base to raise pH (Soda Ash, Na2CO3)",
             "data": {
               "ph_plus_name": "Product name",
               "ph_plus_type": "Active compound",
@@ -141,35 +165,26 @@
             }
           },
           "ta_plus": {
-            "name": "TA+",
-            "description": "Baking soda to raise alkalinity",
+            "name": "TA-Plus",
+            "description": "Sodium bicarbonate (NaHCO3) to raise alkalinity",
             "data": {
               "ta_plus_name": "Product name",
               "ta_plus_type": "Active compound",
               "ta_plus_strength": "Strength (%)"
             }
           },
-          "routine_cl": {
-            "name": "Routine chlorine",
-            "description": "For small top-ups during normal operation — optional",
-            "data": {
-              "routine_cl_name": "Product name",
-              "routine_cl_type": "Active compound (optional)",
-              "routine_cl_strength": "Strength (%)"
-            }
-          },
           "shock": {
             "name": "Shock chlorine",
-            "description": "For breakpoint/algae events — granulate or liquid chlorine",
+            "description": "For breakpoint/algae events — granulate (dichlor/Chlorifix) or Cal-Hypo",
             "data": {
-              "shock_name": "Product name",
+              "shock_name": "Product name (e.g. 'Chlorifix')",
               "shock_type": "Active compound",
               "shock_strength": "Strength (%)"
             }
           },
           "cya": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer product",
+            "description": "Stabilizer granulate",
             "data": {
               "cya_name": "Product name",
               "cya_type": "Active compound",
@@ -205,7 +220,8 @@
           "entities_auto": "Automatic measurements",
           "entities_manual": "Manual measurements",
           "targets": "Targets & tolerances",
-          "chemicals": "Chemicals",
+          "chemicals_auto": "Chemicals — dosing system",
+          "chemicals_manual": "Chemicals — manual dosing",
           "testmodus": "Test mode (static values)",
           "edit_all": "Edit everything in order"
         }
@@ -322,21 +338,44 @@
           }
         }
       },
-      "chemicals": {
-        "title": "Chemicals",
+      "chemicals_auto": {
+        "title": "Chemicals — dosing system",
         "sections": {
-          "ph_minus": {
-            "name": "pH−",
-            "description": "Acid to lower pH (dry acid or muriatic acid)",
+          "routine_ph_minus": {
+            "name": "Routine pH-Minus",
+            "description": "Acid product in dosing canister",
             "data": {
               "ph_minus_name": "Product name",
               "ph_minus_type": "Active compound",
               "ph_minus_strength": "Strength (%)"
             }
           },
+          "routine_cl": {
+            "name": "Routine chlorine",
+            "description": "Chlorine product in dosing canister — optional",
+            "data": {
+              "routine_cl_name": "Product name",
+              "routine_cl_type": "Active compound (optional)",
+              "routine_cl_strength": "Strength (%)"
+            }
+          }
+        }
+      },
+      "chemicals_manual": {
+        "title": "Chemicals — manual dosing",
+        "sections": {
+          "ph_minus_manual": {
+            "name": "Manual pH-Minus",
+            "description": "Alternative to dosing-system acid (typically granulate)",
+            "data": {
+              "ph_minus_manual_name": "Product name",
+              "ph_minus_manual_type": "Active compound",
+              "ph_minus_manual_strength": "Strength (%)"
+            }
+          },
           "ph_plus": {
-            "name": "pH+",
-            "description": "Base to raise pH (soda ash)",
+            "name": "pH-Plus",
+            "description": "Base to raise pH",
             "data": {
               "ph_plus_name": "Product name",
               "ph_plus_type": "Active compound",
@@ -344,26 +383,17 @@
             }
           },
           "ta_plus": {
-            "name": "TA+",
-            "description": "Baking soda to raise alkalinity",
+            "name": "TA-Plus",
+            "description": "Sodium bicarbonate to raise alkalinity",
             "data": {
               "ta_plus_name": "Product name",
               "ta_plus_type": "Active compound",
               "ta_plus_strength": "Strength (%)"
             }
           },
-          "routine_cl": {
-            "name": "Routine chlorine",
-            "description": "For small top-ups during normal operation — optional",
-            "data": {
-              "routine_cl_name": "Product name",
-              "routine_cl_type": "Active compound (optional)",
-              "routine_cl_strength": "Strength (%)"
-            }
-          },
           "shock": {
             "name": "Shock chlorine",
-            "description": "For breakpoint/algae events — granulate or liquid chlorine",
+            "description": "For breakpoint/algae events",
             "data": {
               "shock_name": "Product name",
               "shock_type": "Active compound",
