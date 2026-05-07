@@ -174,8 +174,8 @@
             }
           },
           "shock": {
-            "name": "Schock-Chlor",
-            "description": "Für Breakpoint/Algen — Granulat (Chlorifix/Dichlor) oder Cal-Hypo",
+            "name": "Manuell Chlor",
+            "description": "Für Breakpoint/Algen oder Routine-Nachdosierung — Granulat (Chlorifix/Dichlor) oder Cal-Hypo",
             "data": {
               "shock_name": "Produktname (z.B. 'Chlorifix')",
               "shock_type": "Wirkstoff",
@@ -392,8 +392,8 @@
             }
           },
           "shock": {
-            "name": "Schock-Chlor",
-            "description": "Für Breakpoint/Algen",
+            "name": "Manuell Chlor",
+            "description": "Für Breakpoint/Algen oder manuelle Routine-Dosis",
             "data": {
               "shock_name": "Produktname",
               "shock_type": "Wirkstoff",

@@ -174,8 +174,8 @@
             }
           },
           "shock": {
-            "name": "Shock chlorine",
-            "description": "For breakpoint/algae events — granulate (dichlor/Chlorifix) or Cal-Hypo",
+            "name": "Manual chlorine",
+            "description": "For breakpoint/algae or manual top-up — granulate (dichlor/Chlorifix) or Cal-Hypo",
             "data": {
               "shock_name": "Product name (e.g. 'Chlorifix')",
               "shock_type": "Active compound",
@@ -392,8 +392,8 @@
             }
           },
           "shock": {
-            "name": "Shock chlorine",
-            "description": "For breakpoint/algae events",
+            "name": "Manual chlorine",
+            "description": "For breakpoint/algae or manual top-up",
             "data": {
               "shock_name": "Product name",
               "shock_type": "Active compound",

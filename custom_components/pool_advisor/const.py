@@ -257,5 +257,17 @@ DEFAULT_REDOX_MAX = 750
 DEFAULT_REDOX_CRITICAL_LOW = 600
 DEFAULT_REDOX_CRITICAL_HIGH = 800
 
+# --- Manual-dose chemistries ---
+# Definiert die Chemikalien für die der User manuell dosiert. Pro Eintrag
+# stellt Pool-Advisor je eine Number-, DateTime- und Button-Entity bereit.
+# Tuple: (key, default_label, mdi_icon, name_config_key)
+MANUAL_DOSE_CHEMISTRIES: Final = [
+    ("ph_minus_manual", "Manuell pH-Minus", "mdi:water-minus", CONF_PH_MINUS_MANUAL_NAME),
+    ("ph_plus", "pH-Plus", "mdi:water-plus", CONF_PH_PLUS_NAME),
+    ("ta_plus", "TA-Plus", "mdi:water-plus", CONF_TA_PLUS_NAME),
+    ("cl_manual", "Manuell Chlor", "mdi:flash", CONF_SHOCK_NAME),
+    ("cya", "Cyanursäure", "mdi:shield-account", CONF_CYA_NAME),
+]
+
 # --- Signals / events ---
 SIGNAL_UPDATE = f"{DOMAIN}_update"
