@@ -60,6 +60,10 @@ class ManualDoseAmount(NumberEntity, RestoreEntity):
         self._attr_native_unit_of_measurement = "g"
         self._attr_icon = icon
         self._attr_unique_id = f"{entry.entry_id}_dose_{chem_key}_amount"
+        # Stable entity name aus chem_label — User-konfigurierter Produktname
+        # wird nicht für die Entity-ID-Generierung verwendet, damit IDs
+        # umbenennungs-stabil bleiben.
+        self._attr_name = f"{chem_label} Menge"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
@@ -68,14 +72,14 @@ class ManualDoseAmount(NumberEntity, RestoreEntity):
         )
 
     @property
-    def name(self) -> str:
-        """Name nutzt bei Bedarf den User-konfigurierten Produktnamen,
-        sonst das chem_label-Default ('Manuell pH-Minus' etc.)."""
+    def extra_state_attributes(self) -> dict:
+        """Optional: User-Produktname als Attribut, falls konfiguriert."""
         custom_name = self._entry.options.get(self._name_config_key) or self._entry.data.get(
             self._name_config_key
         )
-        prefix = custom_name if custom_name else self._chem_label
-        return f"{prefix} Menge"
+        if custom_name:
+            return {"product_name": custom_name}
+        return {}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

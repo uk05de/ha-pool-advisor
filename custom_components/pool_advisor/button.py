@@ -26,10 +26,10 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     data: PoolAdvisorData = hass.data[DOMAIN][entry.entry_id]
-    entities = [
-        ManualDoseConfirm(data, entry, key, label, name_key)
-        for key, label, _, name_key in MANUAL_DOSE_CHEMISTRIES
-    ]
+    entities: list = []
+    for key, label, _, name_key in MANUAL_DOSE_CHEMISTRIES:
+        entities.append(ManualDoseConfirm(data, entry, key, label, name_key))
+        entities.append(ManualDoseCancel(data, entry, key, label, name_key))
     entities.append(PendingDoseApply(data, entry))
     async_add_entities(entities)
 
@@ -55,6 +55,8 @@ class ManualDoseConfirm(ButtonEntity):
         self._chem_label = chem_label
         self._name_config_key = name_config_key
         self._attr_unique_id = f"{entry.entry_id}_dose_{chem_key}_confirm"
+        # Stable entity name — siehe number.py Kommentar
+        self._attr_name = f"{chem_label} Dosis bestätigen"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
@@ -63,12 +65,13 @@ class ManualDoseConfirm(ButtonEntity):
         )
 
     @property
-    def name(self) -> str:
+    def extra_state_attributes(self) -> dict:
         custom_name = self._entry.options.get(self._name_config_key) or self._entry.data.get(
             self._name_config_key
         )
-        prefix = custom_name if custom_name else self._chem_label
-        return f"{prefix} Dosis bestätigen"
+        if custom_name:
+            return {"product_name": custom_name}
+        return {}
 
     async def async_press(self) -> None:
         """Liest Menge + Zeit aus den Geschwister-Entitäten und registriert das Event."""
@@ -289,3 +292,81 @@ class PendingDoseApply(ButtonEntity):
         except Exception:
             _LOGGER.exception("Pool Advisor: Apply-Button-Press fehlgeschlagen")
             raise
+
+
+class ManualDoseCancel(ButtonEntity):
+    """Cancel-Button: setzt Per-Chemie Number+DateTime zurück.
+
+    Nützlich wenn User versehentlich die falsche Chemie ausgewählt hat oder
+    die Dosis doch nicht durchführt. Der Confirm-Button verschwindet dann
+    via Lovelace-Conditional-Card (Number=0).
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:close-circle"
+
+    def __init__(
+        self,
+        data: PoolAdvisorData,
+        entry: ConfigEntry,
+        chem_key: str,
+        chem_label: str,
+        name_config_key: str,
+    ) -> None:
+        self._data = data
+        self._entry = entry
+        self._chem_key = chem_key
+        self._chem_label = chem_label
+        self._name_config_key = name_config_key
+        self._attr_unique_id = f"{entry.entry_id}_dose_{chem_key}_cancel"
+        self._attr_name = f"{chem_label} Dosis abbrechen"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Pool Advisor",
+            model="Chemistry Recommendations",
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        custom_name = self._entry.options.get(self._name_config_key) or self._entry.data.get(
+            self._name_config_key
+        )
+        if custom_name:
+            return {"product_name": custom_name}
+        return {}
+
+    async def async_press(self) -> None:
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        amount_eid = registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._entry.entry_id}_dose_{self._chem_key}_amount"
+        )
+        time_eid = registry.async_get_entity_id(
+            "datetime", DOMAIN, f"{self._entry.entry_id}_dose_{self._chem_key}_time"
+        )
+
+        if amount_eid:
+            try:
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {"entity_id": amount_eid, "value": 0},
+                    blocking=True,
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Pool Advisor: Cancel Number-Reset fehlgeschlagen für %s", self._chem_key
+                )
+
+        if time_eid:
+            component = self.hass.data.get("datetime")
+            if component is not None:
+                for entity in component.entities:
+                    if entity.entity_id == time_eid and hasattr(entity, "clear"):
+                        entity.clear()
+                        break
+
+        _LOGGER.info("Pool Advisor: %s Dosis abgebrochen", self._chem_key)
