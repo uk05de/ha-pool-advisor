@@ -254,6 +254,38 @@ class PendingDoseApply(ButtonEntity):
                     {"entity_id": target_time_eid, "datetime": time_state.state},
                     blocking=True,
                 )
+
+            # Pending-Slot zurücksetzen (Select auf Default-Option, Number auf 0,
+            # DateTime auf None). Reihenfolge wichtig: Select zuerst, weil dessen
+            # async_select_option per Auto-Fill die Number mit einer Empfehlung
+            # überschreibt — wir setzen Number danach explizit auf 0.
+            if select_eid:
+                select_component = self.hass.data.get("select")
+                if select_component is not None:
+                    for entity in select_component.entities:
+                        if entity.entity_id == select_eid and entity.options:
+                            await entity.async_select_option(entity.options[0])
+                            break
+
+            if amount_eid:
+                try:
+                    await self.hass.services.async_call(
+                        "number",
+                        "set_value",
+                        {"entity_id": amount_eid, "value": 0},
+                        blocking=True,
+                    )
+                except Exception:
+                    _LOGGER.exception("Pool Advisor: Reset Pending-Number nach Apply fehlgeschlagen")
+
+            # DateTime über Entity-Instanz zurücksetzen (HA-Service akzeptiert kein None)
+            if time_eid:
+                component = self.hass.data.get("datetime")
+                if component is not None:
+                    for entity in component.entities:
+                        if entity.entity_id == time_eid and hasattr(entity, "clear"):
+                            entity.clear()
+                            break
         except Exception:
             _LOGGER.exception("Pool Advisor: Apply-Button-Press fehlgeschlagen")
             raise
