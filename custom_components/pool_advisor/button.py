@@ -118,8 +118,32 @@ class ManualDoseConfirm(ButtonEntity):
             registered_at.isoformat(),
         )
 
-        # TODO Commit 5: Event in PoolAdvisorData persistieren + Predictions verwenden
-        # TODO Commit 5: DateTime-Entity zurücksetzen, ggf. Number-Entity ebenfalls
+        # Reset Number auf 0 → Conditional-Card blendet Confirm-Button aus
+        if amount_entity_id:
+            try:
+                await self.hass.services.async_call(
+                    "number",
+                    "set_value",
+                    {"entity_id": amount_entity_id, "value": 0},
+                    blocking=True,
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Pool Advisor: Reset Number nach Confirm fehlgeschlagen"
+                )
+
+        # DateTime direkt über die Entity-Instanz auf None setzen
+        # (datetime.set_value Service erlaubt kein None — wir nutzen die clear()-Methode)
+        if time_entity_id:
+            component = self.hass.data.get("datetime")
+            if component is not None:
+                for entity in component.entities:
+                    if entity.entity_id == time_entity_id and hasattr(entity, "clear"):
+                        entity.clear()
+                        break
+
+        # TODO Commit 5 (Persistierung): Event in PoolAdvisorData speichern +
+        # in TA/FC/CYA-Predictions verwenden
 
 
 class PendingDoseApply(ButtonEntity):
