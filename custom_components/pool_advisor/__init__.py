@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime as _datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -265,7 +265,7 @@ class PoolAdvisorData:
             return None
         return max(0.0, tc - fc)
 
-    def _measured_at_for(self, key: str) -> datetime | None:
+    def _measured_at_for(self, key: str) -> _datetime | None:
         """Timestamp of the reading (UTC). Prefers the PoolLab `measured_at`
         attribute; falls back to entity `last_updated`. Test mode returns now.
         """
@@ -277,9 +277,9 @@ class PoolAdvisorData:
         state = self.hass.states.get(entity_id)
         if state is None or state.state in (None, "", "unknown", "unavailable"):
             return None
-        measured_at: datetime | None = None
+        measured_at: _datetime | None = None
         raw = state.attributes.get("measured_at")
-        if isinstance(raw, datetime):
+        if isinstance(raw, _datetime):
             measured_at = raw
         elif isinstance(raw, str):
             measured_at = dt_util.parse_datetime(raw)

@@ -7,7 +7,7 @@ reicher Registrierung wird der Wert zurück auf null gesetzt.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime as _datetime
 
 from homeassistant.components.datetime import DateTimeEntity
 from homeassistant.config_entries import ConfigEntry
@@ -54,7 +54,7 @@ class ManualDoseTime(DateTimeEntity, RestoreEntity):
         self._chem_key = chem_key
         self._chem_label = chem_label
         self._name_config_key = name_config_key
-        self._value: datetime | None = None
+        self._value: _datetime | None = None
         self._attr_unique_id = f"{entry.entry_id}_dose_{chem_key}_time"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
@@ -90,10 +90,10 @@ class ManualDoseTime(DateTimeEntity, RestoreEntity):
         self.async_write_ha_state()
 
     @property
-    def native_value(self) -> datetime | None:
+    def native_value(self) -> _datetime | None:
         return self._value
 
-    async def async_set_value(self, value: datetime) -> None:
+    async def async_set_value(self, value: _datetime) -> None:
         self._value = value
         self.async_write_ha_state()
 
@@ -113,7 +113,7 @@ class PendingDoseTime(DateTimeEntity, RestoreEntity):
     def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
         self._data = data
         self._entry = entry
-        self._value: datetime | None = None
+        self._value: _datetime | None = None
         self._attr_unique_id = f"{entry.entry_id}_pending_time"
         self._attr_name = "Manuelle Dosis — Zeitpunkt"
         self._attr_device_info = DeviceInfo(
@@ -133,10 +133,10 @@ class PendingDoseTime(DateTimeEntity, RestoreEntity):
                 self._value = None
 
     @property
-    def native_value(self) -> datetime | None:
+    def native_value(self) -> _datetime | None:
         return self._value
 
-    async def async_set_value(self, value: datetime) -> None:
+    async def async_set_value(self, value: _datetime) -> None:
         self._value = value
         self.async_write_ha_state()
 

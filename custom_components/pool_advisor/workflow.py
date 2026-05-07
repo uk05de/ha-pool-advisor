@@ -12,7 +12,7 @@ Zusammenfassung — keine Dosis-Empfehlung.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime as _datetime
 
 from .calculator import (
     Recommendation,
@@ -166,7 +166,7 @@ class WorkflowContext:
 
     # Stale-Tracking je Parameter — Keys: ph_manual, ta, fc, cc, tc, cya
     stale: dict[str, bool] = field(default_factory=dict)
-    measured_at: dict[str, datetime | None] = field(default_factory=dict)
+    measured_at: dict[str, _datetime | None] = field(default_factory=dict)
     stale_days: dict[str, int] = field(default_factory=dict)
 
     # pH-Minus-Konfig (für Format C TA-Senkung — Erst-Dosis berechnen):
@@ -478,7 +478,7 @@ def _banner_stale_list(ctx: WorkflowContext) -> list[tuple[str, str]]:
     """Pro stalem Parameter ein eigener Banner — Severity nach
     Überschreitungs-% (> 50 % → rot, sonst gelb)."""
     out: list[tuple[str, str]] = []
-    now = datetime.now().astimezone()
+    now = _datetime.now().astimezone()
     for key, label in _STALE_LABELS.items():
         if not ctx.stale.get(key):
             continue
