@@ -234,7 +234,6 @@ _STALE_LABELS: dict[str, str] = {
     "ta": "Alkalität",
     "ph_manual": "pH (Photometer)",
     "fc": "Chlor frei",
-    "cc": "Chlor gebunden",
     "tc": "Chlor gesamt",
     "cya": "Cyanursäure",
 }
@@ -729,7 +728,9 @@ def _values_table(ctx: WorkflowContext, recs: dict[str, Recommendation]) -> list
         if ctx.cc is not None
         else "—"
     )
-    L.append(_row("Chlor geb. (mg/l)", cc_str, "—", "—", f"{ctx.cc_max:.2f}", "cc"))
+    # CC wird aus FC und TC berechnet — Stale-Status erbt von FC/TC, kein
+    # eigener Stale-Key.
+    L.append(_row("Chlor geb. (mg/l)", cc_str, "—", "—", f"{ctx.cc_max:.2f}", None))
 
     # Chlor gesamt (TC)
     tc_str = (

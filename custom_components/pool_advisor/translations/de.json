@@ -27,7 +27,6 @@
           "entity_ph_manual": "pH (Manuell)",
           "entity_alkalinity": "Alkalität (TA)",
           "entity_free_chlorine": "Freies Chlor",
-          "entity_combined_chlorine": "Gebundenes Chlor",
           "entity_total_chlorine": "Gesamt-Chlor",
           "entity_cyanuric_acid": "Cyanursäure"
         }
@@ -190,7 +189,6 @@
           "test_temperature": "Temperatur (°C)",
           "test_alkalinity": "Alkalität (mg/l)",
           "test_free_chlorine": "Freies Chlor (mg/l)",
-          "test_combined_chlorine": "Gebundenes Chlor (mg/l)",
           "test_total_chlorine": "Gesamt-Chlor (mg/l)",
           "test_cyanuric_acid": "Cyanursäure (mg/l)"
         }
@@ -234,7 +232,6 @@
           "entity_ph_manual": "pH (Manuell)",
           "entity_alkalinity": "Alkalität (TA)",
           "entity_free_chlorine": "Freies Chlor",
-          "entity_combined_chlorine": "Gebundenes Chlor",
           "entity_total_chlorine": "Gesamt-Chlor",
           "entity_cyanuric_acid": "Cyanursäure"
         }
@@ -394,7 +391,6 @@
           "test_temperature": "Temperatur (°C)",
           "test_alkalinity": "Alkalität (mg/l)",
           "test_free_chlorine": "Freies Chlor (mg/l)",
-          "test_combined_chlorine": "Gebundenes Chlor (mg/l)",
           "test_total_chlorine": "Gesamt-Chlor (mg/l)",
           "test_cyanuric_acid": "Cyanursäure (mg/l)"
         }

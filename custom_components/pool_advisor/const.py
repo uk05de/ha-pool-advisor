@@ -32,7 +32,6 @@ CONF_ENT_TEMPERATURE: Final = "entity_temperature"
 CONF_ENT_PH_MANUAL: Final = "entity_ph_manual"
 CONF_ENT_ALKALINITY: Final = "entity_alkalinity"
 CONF_ENT_FREE_CL: Final = "entity_free_chlorine"
-CONF_ENT_COMBINED_CL: Final = "entity_combined_chlorine"
 CONF_ENT_TOTAL_CL: Final = "entity_total_chlorine"
 CONF_ENT_CYANURIC: Final = "entity_cyanuric_acid"
 
@@ -155,7 +154,6 @@ CONF_TEST_REDOX: Final = "test_redox"
 CONF_TEST_TEMPERATURE: Final = "test_temperature"
 CONF_TEST_ALKALINITY: Final = "test_alkalinity"
 CONF_TEST_FREE_CL: Final = "test_free_chlorine"
-CONF_TEST_COMBINED_CL: Final = "test_combined_chlorine"
 CONF_TEST_TOTAL_CL: Final = "test_total_chlorine"
 CONF_TEST_CYANURIC: Final = "test_cyanuric_acid"
 
@@ -166,7 +164,6 @@ TEST_VALUE_MAP: Final = {
     CONF_ENT_TEMPERATURE: CONF_TEST_TEMPERATURE,
     CONF_ENT_ALKALINITY: CONF_TEST_ALKALINITY,
     CONF_ENT_FREE_CL: CONF_TEST_FREE_CL,
-    CONF_ENT_COMBINED_CL: CONF_TEST_COMBINED_CL,
     CONF_ENT_TOTAL_CL: CONF_TEST_TOTAL_CL,
     CONF_ENT_CYANURIC: CONF_TEST_CYANURIC,
 }

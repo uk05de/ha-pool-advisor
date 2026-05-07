@@ -19,7 +19,6 @@ from .const import (
     CONF_CC_CRITICAL_HIGH,
     CONF_CHLORINATION,
     CONF_ENT_ALKALINITY,
-    CONF_ENT_COMBINED_CL,
     CONF_ENT_CYANURIC,
     CONF_ENT_FREE_CL,
     CONF_ENT_PH_AUTO,
@@ -75,7 +74,6 @@ from .const import (
     CONF_CYA_TYPE,
     CONF_REDOX_DRIFT_THRESHOLD,
     CONF_TEST_ALKALINITY,
-    CONF_TEST_COMBINED_CL,
     CONF_TEST_CYANURIC,
     CONF_TEST_FREE_CL,
     CONF_TEST_MODE,
@@ -205,7 +203,6 @@ def _schema_entities_manual(defaults: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_ENT_PH_MANUAL, **_opt(CONF_ENT_PH_MANUAL)): _sensor_selector(),
             vol.Optional(CONF_ENT_ALKALINITY, **_opt(CONF_ENT_ALKALINITY)): _sensor_selector(),
             vol.Optional(CONF_ENT_FREE_CL, **_opt(CONF_ENT_FREE_CL)): _sensor_selector(),
-            vol.Optional(CONF_ENT_COMBINED_CL, **_opt(CONF_ENT_COMBINED_CL)): _sensor_selector(),
             vol.Optional(CONF_ENT_TOTAL_CL, **_opt(CONF_ENT_TOTAL_CL)): _sensor_selector(),
             vol.Optional(CONF_ENT_CYANURIC, **_opt(CONF_ENT_CYANURIC)): _sensor_selector(),
         }
@@ -449,7 +446,6 @@ def _schema_testmodus(defaults: dict[str, Any]) -> vol.Schema:
             **_opt_num(CONF_TEST_TEMPERATURE, -10, 60, 0.5),
             **_opt_num(CONF_TEST_ALKALINITY, 5, 500, 5),
             **_opt_num(CONF_TEST_FREE_CL, 0, 20, 0.1),
-            **_opt_num(CONF_TEST_COMBINED_CL, 0, 10, 0.1),
             **_opt_num(CONF_TEST_TOTAL_CL, 0, 20, 0.1),
             **_opt_num(CONF_TEST_CYANURIC, 0, 300, 1),
         }

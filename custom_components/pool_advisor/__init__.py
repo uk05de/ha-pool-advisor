@@ -32,7 +32,6 @@ from .const import (
     PH_DOSING_MINUS,
     PH_DOSING_PLUS,
     CONF_ENT_ALKALINITY,
-    CONF_ENT_COMBINED_CL,
     CONF_ENT_CYANURIC,
     CONF_ENT_FREE_CL,
     CONF_ENT_PH_AUTO,
@@ -132,7 +131,6 @@ MANUAL_KEYS: tuple[str, ...] = (
     CONF_ENT_PH_MANUAL,
     CONF_ENT_ALKALINITY,
     CONF_ENT_FREE_CL,
-    CONF_ENT_COMBINED_CL,
     CONF_ENT_TOTAL_CL,
     CONF_ENT_CYANURIC,
 )
@@ -149,7 +147,6 @@ STALE_DAYS_MAP: dict[str, tuple[str, int]] = {
     CONF_ENT_PH_MANUAL: (CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS),
     CONF_ENT_ALKALINITY: (CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS),
     CONF_ENT_FREE_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
-    CONF_ENT_COMBINED_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
     CONF_ENT_TOTAL_CL: (CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS),
     CONF_ENT_CYANURIC: (CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS),
 }
@@ -163,7 +160,6 @@ SANITY_BOUNDS: dict[str, tuple[float, float]] = {
     CONF_ENT_TEMPERATURE: (-10.0, 60.0),
     CONF_ENT_ALKALINITY: (5.0, 500.0),
     CONF_ENT_FREE_CL: (0.0, 20.0),
-    CONF_ENT_COMBINED_CL: (0.0, 10.0),
     CONF_ENT_TOTAL_CL: (0.0, 20.0),
     CONF_ENT_CYANURIC: (0.0, 300.0),
 }
@@ -252,26 +248,18 @@ class PoolAdvisorData:
         return self._read_live(key)
 
     def _combined_chlorine(self) -> float | None:
-        """Combined Chlorine = TC − FC, falls direkt-Sensor leer oder unplausibel.
+        """Combined Chlorine = max(0, TC − FC).
 
-        PoolLab misst CC nicht direkt — es wird aus DPD-1 (FC) und DPD-3 (TC)
-        rechnerisch abgeleitet. Manche HA-Integrationen liefern jedoch einen
-        veralteten / falschen CC-Sensorwert. Wir nehmen daher:
-          1. Den Sensor-Wert wenn er CC ≤ TC einhält (chemisch plausibel).
-          2. Sonst rechnen wir CC = max(0, TC − FC) selbst.
-          3. Wenn weder TC noch CC-Sensor da → None.
+        Photometer-Tests (PoolLab, etc.) messen CC nie direkt — der Wert ergibt
+        sich immer aus DPD-1 (FC) und DPD-3 (TC). Frische und Stale-Status
+        erben somit von FC und TC; ein eigener CC-Sensor ist redundant und in
+        der Praxis veraltet.
         """
-        cc_raw = self._read_live(CONF_ENT_COMBINED_CL)
         fc = self._read_live(CONF_ENT_FREE_CL)
         tc = self._read_live(CONF_ENT_TOTAL_CL)
-        # Plausibilitätsprüfung: CC ≤ TC, sonst Sensor verwerfen
-        if cc_raw is not None and tc is not None and cc_raw > tc:
-            cc_raw = None
-        if cc_raw is not None:
-            return cc_raw
-        if fc is not None and tc is not None:
-            return max(0.0, tc - fc)
-        return None
+        if fc is None or tc is None:
+            return None
+        return max(0.0, tc - fc)
 
     def _measured_at_for(self, key: str) -> datetime | None:
         """Timestamp of the reading (UTC). Prefers the PoolLab `measured_at`
@@ -338,7 +326,6 @@ class PoolAdvisorData:
             "ph_manual": self._is_stale(CONF_ENT_PH_MANUAL),
             "ta": self._is_stale(CONF_ENT_ALKALINITY),
             "fc": self._is_stale(CONF_ENT_FREE_CL),
-            "cc": self._is_stale(CONF_ENT_COMBINED_CL),
             "tc": self._is_stale(CONF_ENT_TOTAL_CL),
             "cya": self._is_stale(CONF_ENT_CYANURIC),
         }
@@ -346,7 +333,6 @@ class PoolAdvisorData:
             "ph_manual": self._measured_at_for(CONF_ENT_PH_MANUAL),
             "ta": self._measured_at_for(CONF_ENT_ALKALINITY),
             "fc": self._measured_at_for(CONF_ENT_FREE_CL),
-            "cc": self._measured_at_for(CONF_ENT_COMBINED_CL),
             "tc": self._measured_at_for(CONF_ENT_TOTAL_CL),
             "cya": self._measured_at_for(CONF_ENT_CYANURIC),
         }
@@ -354,7 +340,6 @@ class PoolAdvisorData:
             "ph_manual": int(self._cfg(CONF_STALE_PH_MANUAL_DAYS, DEFAULT_STALE_PH_MANUAL_DAYS)),
             "ta": int(self._cfg(CONF_STALE_TA_DAYS, DEFAULT_STALE_TA_DAYS)),
             "fc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
-            "cc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
             "tc": int(self._cfg(CONF_STALE_FC_DAYS, DEFAULT_STALE_FC_DAYS)),
             "cya": int(self._cfg(CONF_STALE_CYA_DAYS, DEFAULT_STALE_CYA_DAYS)),
         }

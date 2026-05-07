@@ -27,7 +27,6 @@
           "entity_ph_manual": "pH (manual)",
           "entity_alkalinity": "Total alkalinity",
           "entity_free_chlorine": "Free chlorine",
-          "entity_combined_chlorine": "Combined chlorine",
           "entity_total_chlorine": "Total chlorine",
           "entity_cyanuric_acid": "Cyanuric acid"
         }
@@ -190,7 +189,6 @@
           "test_temperature": "Temperature (°C)",
           "test_alkalinity": "Total alkalinity (mg/l)",
           "test_free_chlorine": "Free chlorine (mg/l)",
-          "test_combined_chlorine": "Combined chlorine (mg/l)",
           "test_total_chlorine": "Total chlorine (mg/l)",
           "test_cyanuric_acid": "Cyanuric acid (mg/l)"
         }
@@ -234,7 +232,6 @@
           "entity_ph_manual": "pH (manual)",
           "entity_alkalinity": "Total alkalinity",
           "entity_free_chlorine": "Free chlorine",
-          "entity_combined_chlorine": "Combined chlorine",
           "entity_total_chlorine": "Total chlorine",
           "entity_cyanuric_acid": "Cyanuric acid"
         }
@@ -394,7 +391,6 @@
           "test_temperature": "Temperature (°C)",
           "test_alkalinity": "Total alkalinity (mg/l)",
           "test_free_chlorine": "Free chlorine (mg/l)",
-          "test_combined_chlorine": "Combined chlorine (mg/l)",
           "test_total_chlorine": "Total chlorine (mg/l)",
           "test_cyanuric_acid": "Cyanuric acid (mg/l)"
         }
