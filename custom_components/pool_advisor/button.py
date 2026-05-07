@@ -338,6 +338,13 @@ class ManualDoseCancel(ButtonEntity):
         return {}
 
     async def async_press(self) -> None:
+        """Cancel = Reset auf aktuelle Empfehlung.
+
+        Wenn der Advisor aktuell eine Dosis empfiehlt: Number auf empfohlene
+        Menge setzen (User hat z.B. einen Tippfehler gemacht und will zurück
+        auf empfohlenen Wert). Wenn keine Empfehlung aktiv: Number auf 0
+        (Conditional-Card blendet Button aus). DateTime immer leeren.
+        """
         from homeassistant.helpers import entity_registry as er
 
         registry = er.async_get(self.hass)
@@ -348,12 +355,18 @@ class ManualDoseCancel(ButtonEntity):
             "datetime", DOMAIN, f"{self._entry.entry_id}_dose_{self._chem_key}_time"
         )
 
+        # Aktuelle Empfehlung holen — bei keiner aktiven Empfehlung ist's 0
+        try:
+            target_value = self._data.recommended_dose_amount(self._chem_key)
+        except AttributeError:
+            target_value = 0.0
+
         if amount_eid:
             try:
                 await self.hass.services.async_call(
                     "number",
                     "set_value",
-                    {"entity_id": amount_eid, "value": 0},
+                    {"entity_id": amount_eid, "value": target_value},
                     blocking=True,
                 )
             except Exception:
@@ -369,4 +382,7 @@ class ManualDoseCancel(ButtonEntity):
                         entity.clear()
                         break
 
-        _LOGGER.info("Pool Advisor: %s Dosis abgebrochen", self._chem_key)
+        _LOGGER.info(
+            "Pool Advisor: %s Dosis abgebrochen — Number auf %.1f (Empfehlung)",
+            self._chem_key, target_value,
+        )
