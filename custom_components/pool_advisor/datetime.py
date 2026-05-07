@@ -30,6 +30,7 @@ async def async_setup_entry(
         ManualDoseTime(data, entry, key, label, name_key)
         for key, label, _, name_key in MANUAL_DOSE_CHEMISTRIES
     ]
+    entities.append(PendingDoseTime(data, entry))
     async_add_entities(entities)
 
 
@@ -98,5 +99,47 @@ class ManualDoseTime(DateTimeEntity, RestoreEntity):
 
     def clear(self) -> None:
         """Zeitstempel zurücksetzen (nach Button-Press)."""
+        self._value = None
+        self.async_write_ha_state()
+
+
+class PendingDoseTime(DateTimeEntity, RestoreEntity):
+    """Generic-Pending-Slot Zeit — optional, leer = jetzt."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:clock-edit-outline"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        self._data = data
+        self._entry = entry
+        self._value: datetime | None = None
+        self._attr_unique_id = f"{entry.entry_id}_pending_time"
+        self._attr_name = "Manuelle Dosis — Zeitpunkt"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Pool Advisor",
+            model="Chemistry Recommendations",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state not in (None, "", "unknown", "unavailable"):
+            try:
+                self._value = dt_util.parse_datetime(last.state)
+            except (ValueError, TypeError):
+                self._value = None
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self._value
+
+    async def async_set_value(self, value: datetime) -> None:
+        self._value = value
+        self.async_write_ha_state()
+
+    def clear(self) -> None:
         self._value = None
         self.async_write_ha_state()

@@ -27,6 +27,7 @@ async def async_setup_entry(
         ManualDoseAmount(data, entry, key, label, icon, name_key)
         for key, label, icon, name_key in MANUAL_DOSE_CHEMISTRIES
     ]
+    entities.append(PendingDoseAmount(data, entry))
     async_add_entities(entities)
 
 
@@ -109,6 +110,59 @@ class ManualDoseAmount(NumberEntity, RestoreEntity):
         except AttributeError:
             # Bei Init-Race kann recommendations noch leer sein
             pass
+
+
+class PendingDoseAmount(NumberEntity, RestoreEntity):
+    """Generic-Pending-Slot Menge — wird per Select-Wechsel aus der
+    aktuellen Empfehlung der gewählten Chemie auto-befüllt. Apply-Button
+    kopiert diesen Wert in die Per-Chemie-Number-Entity."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_native_min_value = 0
+    _attr_native_max_value = 5000
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+    _attr_native_unit_of_measurement = "g"
+    _attr_icon = "mdi:beaker-plus"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        self._data = data
+        self._entry = entry
+        self._value: float = 0.0
+        self._attr_unique_id = f"{entry.entry_id}_pending_amount"
+        self._attr_name = "Manuelle Dosis — Menge"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Pool Advisor",
+            model="Chemistry Recommendations",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state not in (None, "", "unknown", "unavailable"):
+            try:
+                self._value = float(last.state)
+            except (ValueError, TypeError):
+                self._value = 0.0
+
+    @property
+    def native_value(self) -> float:
+        return self._value
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._value = float(value)
+        self.async_write_ha_state()
+
+    def auto_fill_from_recommendation(self, chem_key: str) -> None:
+        """Wird vom Select-Entity bei Wechsel aufgerufen."""
+        try:
+            self._value = self._data.recommended_dose_amount(chem_key)
+        except AttributeError:
+            self._value = 0.0
+        self.async_write_ha_state()
 
     @property
     def native_value(self) -> float:

@@ -128,6 +128,7 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
     Platform.DATETIME,
     Platform.BUTTON,
+    Platform.SELECT,
 ]
 
 MANUAL_KEYS: tuple[str, ...] = (

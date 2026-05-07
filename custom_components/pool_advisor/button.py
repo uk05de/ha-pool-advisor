@@ -30,6 +30,7 @@ async def async_setup_entry(
         ManualDoseConfirm(data, entry, key, label, name_key)
         for key, label, _, name_key in MANUAL_DOSE_CHEMISTRIES
     ]
+    entities.append(PendingDoseApply(data, entry))
     async_add_entities(entities)
 
 
@@ -119,3 +120,101 @@ class ManualDoseConfirm(ButtonEntity):
 
         # TODO Commit 5: Event in PoolAdvisorData persistieren + Predictions verwenden
         # TODO Commit 5: DateTime-Entity zurücksetzen, ggf. Number-Entity ebenfalls
+
+
+class PendingDoseApply(ButtonEntity):
+    """Apply-Button für den Generic-Pending-Slot.
+
+    Liest Pending-Select (Chemie) + Pending-Number (Menge) + Pending-DateTime
+    (Zeit) und kopiert die Werte in die korrespondierenden Per-Chemie-Slots.
+    Dadurch wird der zugehörige Confirm-Button im Hauptdashboard aktiv (via
+    Lovelace-Conditional-Card).
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_icon = "mdi:check-bold"
+
+    def __init__(self, data: PoolAdvisorData, entry: ConfigEntry) -> None:
+        self._data = data
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_pending_apply"
+        self._attr_name = "Manuelle Dosis — Übernehmen"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Pool Advisor",
+            model="Chemistry Recommendations",
+        )
+
+    async def async_press(self) -> None:
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        select_eid = registry.async_get_entity_id(
+            "select", DOMAIN, f"{self._entry.entry_id}_pending_chemistry"
+        )
+        amount_eid = registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._entry.entry_id}_pending_amount"
+        )
+        time_eid = registry.async_get_entity_id(
+            "datetime", DOMAIN, f"{self._entry.entry_id}_pending_time"
+        )
+
+        select_state = self.hass.states.get(select_eid) if select_eid else None
+        amount_state = self.hass.states.get(amount_eid) if amount_eid else None
+        time_state = self.hass.states.get(time_eid) if time_eid else None
+
+        if select_state is None or select_state.state in (None, "", "unknown", "unavailable"):
+            _LOGGER.warning("Pool Advisor: Apply pressed without selected chemistry")
+            return
+
+        # Map Display-Label zurück auf chem_key
+        label_to_key = {label: key for key, label, _, _ in MANUAL_DOSE_CHEMISTRIES}
+        chem_key = label_to_key.get(select_state.state)
+        if not chem_key:
+            _LOGGER.warning(
+                "Pool Advisor: Apply with unknown chemistry label %r", select_state.state
+            )
+            return
+
+        try:
+            amount = float(amount_state.state) if amount_state else 0.0
+        except (ValueError, TypeError):
+            amount = 0.0
+
+        # Ziel-Number-Entity für die Chemie finden
+        target_amount_eid = registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_amount"
+        )
+        target_time_eid = registry.async_get_entity_id(
+            "datetime", DOMAIN, f"{self._entry.entry_id}_dose_{chem_key}_time"
+        )
+
+        if target_amount_eid:
+            await self.hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": target_amount_eid, "value": amount},
+                blocking=True,
+            )
+
+        # Wenn Pending-Zeit gesetzt: in Ziel-DateTime kopieren
+        if (
+            target_time_eid
+            and time_state
+            and time_state.state not in (None, "", "unknown", "unavailable")
+        ):
+            await self.hass.services.async_call(
+                "datetime",
+                "set_value",
+                {"entity_id": target_time_eid, "datetime": time_state.state},
+                blocking=True,
+            )
+
+        _LOGGER.info(
+            "Pool Advisor: pending → %s (amount=%.1f, time=%s)",
+            chem_key,
+            amount,
+            time_state.state if time_state else "(empty)",
+        )
