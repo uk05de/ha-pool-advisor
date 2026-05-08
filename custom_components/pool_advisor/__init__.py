@@ -195,10 +195,13 @@ class PoolAdvisorData:
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        from .dose_history import DoseHistory  # local import vermeidet Zyklen
+
         self.hass = hass
         self.entry = entry
         self.recommendations: dict[str, Recommendation] = {}
         self._unsub = None
+        self.dose_history = DoseHistory(hass, entry.entry_id)
 
     # --- config helpers ---
     def _cfg(self, key: str, default: Any = None) -> Any:
@@ -311,6 +314,9 @@ class PoolAdvisorData:
 
     # --- lifecycle ---
     async def async_setup(self) -> None:
+        # Dose-Historie aus Disk laden bevor Sensoren erstmals rendern
+        await self.dose_history.async_load()
+
         tracked = [
             self._cfg(k) for k in (*AUTO_KEYS, *MANUAL_KEYS) if self._cfg(k)
         ]

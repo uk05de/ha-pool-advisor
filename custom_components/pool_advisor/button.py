@@ -122,6 +122,24 @@ class ManualDoseConfirm(ButtonEntity):
             registered_at.isoformat(),
         )
 
+        # Persistiere Event in Dose-History
+        try:
+            await self._data.dose_history.async_add_event(
+                chem_key=self._chem_key,
+                amount=amount,
+                unit="g",
+                timestamp=registered_at,
+            )
+        except Exception:
+            _LOGGER.exception("Pool Advisor: Persist Dose-Event fehlgeschlagen")
+
+        # Sensoren benachrichtigen damit Cumulative-Wert sich aktualisiert
+        from homeassistant.helpers.dispatcher import async_dispatcher_send
+        from .const import SIGNAL_UPDATE
+        async_dispatcher_send(
+            self.hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}"
+        )
+
         # Reset Number auf 0 → Conditional-Card blendet Confirm-Button aus
         if amount_entity_id:
             try:

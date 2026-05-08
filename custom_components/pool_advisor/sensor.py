@@ -11,7 +11,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PoolAdvisorData
-from .const import DOMAIN, SIGNAL_UPDATE
+from .const import DOMAIN, MANUAL_DOSE_CHEMISTRIES, SIGNAL_UPDATE
 from .workflow import render as _workflow_render
 
 
@@ -19,13 +19,16 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     data: PoolAdvisorData = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            DriftPhSensor(data, entry),
-            DriftRedoxSensor(data, entry),
-            MarkdownSummarySensor(data, entry),
-        ]
-    )
+    entities: list = [
+        DriftPhSensor(data, entry),
+        DriftRedoxSensor(data, entry),
+        MarkdownSummarySensor(data, entry),
+    ]
+    # Cumulative-Dose-Sensoren pro manueller Chemie — state_class total_increasing
+    # macht HA-Statistics + Charts ohne weitere Setup-Schritte verfügbar.
+    for chem_key, chem_label, _, _ in MANUAL_DOSE_CHEMISTRIES:
+        entities.append(CumulativeDoseSensor(data, entry, chem_key, chem_label))
+    async_add_entities(entities)
 
 
 class _BaseSensor(SensorEntity):
@@ -158,3 +161,34 @@ class MarkdownSummarySensor(_BaseSensor):
     def extra_state_attributes(self) -> dict[str, Any]:
         ctx = self._data.build_workflow_context()
         return {"markdown": _workflow_render(ctx, self._data.recommendations)}
+
+
+class CumulativeDoseSensor(_BaseSensor):
+    """Lifetime-cumulative dosed amount für eine manuelle Chemie.
+
+    state_class=total_increasing → HA Statistics ermittelt automatisch
+    Tages-/Wochen-/Monats-Aggregate. Lovelace ApexCharts kann ohne weitere
+    Konfiguration daraus den Tagesverlauf zeichnen.
+    """
+
+    _attr_icon = "mdi:counter"
+    _attr_state_class = "total_increasing"
+    _attr_native_unit_of_measurement = "g"
+
+    def __init__(
+        self,
+        data: PoolAdvisorData,
+        entry: ConfigEntry,
+        chem_key: str,
+        chem_label: str,
+    ) -> None:
+        super().__init__(data, entry)
+        self._chem_key = chem_key
+        self._attr_unique_id = f"{entry.entry_id}_dosed_cumulative_{chem_key}"
+        self._attr_name = f"{chem_label} dosiert gesamt"
+
+    @property
+    def native_value(self) -> float:
+        if self._data.dose_history is None:
+            return 0
+        return round(self._data.dose_history.cumulative_for_chemistry(self._chem_key), 1)
