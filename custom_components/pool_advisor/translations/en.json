@@ -215,7 +215,7 @@
         "description": "Which section do you want to edit?",
         "menu_options": {
           "pool": "Pool (volume, chlorination)",
-          "entities_auto": "Automatic measurements",
+          "entities_auto": "Bayrol controller (probes + setpoints + tolerance + alerts)",
           "entities_manual": "Manual measurements",
           "targets": "Targets & tolerances",
           "chemicals_auto": "Chemicals — dosing system",
@@ -233,11 +233,32 @@
         }
       },
       "entities_auto": {
-        "title": "Automatic measurements",
-        "data": {
-          "entity_ph_auto": "pH (controller)",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperature"
+        "title": "Bayrol controller",
+        "description": "Live readings and setpoints from the Bayrol bridge. Probe values for pH/Redox/Temperature — prefer the gated variant. Setpoints + tolerance + alerts replace the previously manually configured Pool-Advisor targets.",
+        "sections": {
+          "sondes": {
+            "name": "Probe readings",
+            "data": {
+              "entity_ph_auto": "pH (probe)",
+              "entity_redox": "Redox (probe)",
+              "entity_temperature": "Temperature (probe)"
+            }
+          },
+          "anlage_targets": {
+            "name": "Setpoints + tolerance + alerts from the controller",
+            "data": {
+              "entity_ph_target": "pH target (setpoint)",
+              "entity_ph_tolerance_min": "pH tolerance min (target − offset)",
+              "entity_ph_tolerance_max": "pH tolerance max (target + offset)",
+              "entity_ph_alert_min": "pH alert min",
+              "entity_ph_alert_max": "pH alert max",
+              "entity_redox_target": "Redox target (setpoint)",
+              "entity_redox_tolerance_min": "Redox tolerance min (target − offset)",
+              "entity_redox_tolerance_max": "Redox tolerance max (target + offset)",
+              "entity_redox_alert_min": "Redox alert min",
+              "entity_redox_alert_max": "Redox alert max"
+            }
+          }
         }
       },
       "entities_manual": {

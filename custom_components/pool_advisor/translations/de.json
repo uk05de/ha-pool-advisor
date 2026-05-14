@@ -215,7 +215,7 @@
         "description": "Welchen Bereich möchtest du bearbeiten?",
         "menu_options": {
           "pool": "Pool (Volumen, Chlorierung)",
-          "entities_auto": "Automatische Messung",
+          "entities_auto": "Bayrol-Anlage (Sonden + Setpoints + Toleranz + Alerts)",
           "entities_manual": "Manuelle Messung",
           "targets": "Zielwerte & Toleranzen",
           "chemicals_auto": "Chemikalien — Dosieranlage",
@@ -233,11 +233,32 @@
         }
       },
       "entities_auto": {
-        "title": "Automatische Messung",
-        "data": {
-          "entity_ph_auto": "pH (Dosieranlage)",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperatur"
+        "title": "Bayrol-Anlage",
+        "description": "Live-Werte und Setpoints aus der Bayrol-Bridge. Sonden-Werte für pH/Redox/Temperatur — empfohlen die gated-Variante. Setpoints + Toleranz + Alerts ersetzen die früher manuell konfigurierten Pool-Advisor-Targets.",
+        "sections": {
+          "sondes": {
+            "name": "Sonden-Werte",
+            "data": {
+              "entity_ph_auto": "pH (Sonde)",
+              "entity_redox": "Redox (Sonde)",
+              "entity_temperature": "Temperatur (Sonde)"
+            }
+          },
+          "anlage_targets": {
+            "name": "Setpoints + Toleranz + Alerts der Anlage",
+            "data": {
+              "entity_ph_target": "pH Target (Setpoint)",
+              "entity_ph_tolerance_min": "pH Toleranz Min (Target − Offset)",
+              "entity_ph_tolerance_max": "pH Toleranz Max (Target + Offset)",
+              "entity_ph_alert_min": "pH Alert Min",
+              "entity_ph_alert_max": "pH Alert Max",
+              "entity_redox_target": "Redox Target (Setpoint)",
+              "entity_redox_tolerance_min": "Redox Toleranz Min (Target − Offset)",
+              "entity_redox_tolerance_max": "Redox Toleranz Max (Target + Offset)",
+              "entity_redox_alert_min": "Redox Alert Min",
+              "entity_redox_alert_max": "Redox Alert Max"
+            }
+          }
         }
       },
       "entities_manual": {
@@ -253,14 +274,6 @@
       "targets": {
         "title": "Zielwerte & Toleranzen",
         "sections": {
-          "ph": {
-            "name": "pH-Wert",
-            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Ziel und kritische Schwellen kommen live aus der Bayrol-Anlage (siehe Bayrol-Anlage-Werte). Hier nur das normale Toleranz-Band.",
-            "data": {
-              "ph_min": "pH min",
-              "ph_max": "pH max"
-            }
-          },
           "alkalinity": {
             "name": "Alkalität (TA)",
             "description": "Karbonathärte (HCO₃⁻) — das chemische Gedächtnis des pH. Viel TA = pH ist robust gegen Säure-/Base-Stöße; zu wenig TA = jede kleine Dosis lässt pH springen. Zu hoher TA bindet zu viel Säure, pH tendiert nach oben und Kalk fällt aus. Anheben mit Natron (NaHCO₃), Senken ist ein mehrtägiger Prozess (pH auf ~7.0 + kräftig belüften). Ziel 80–120 mg/l.",
