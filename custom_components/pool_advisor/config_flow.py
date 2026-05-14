@@ -521,7 +521,11 @@ class PoolAdvisorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_entities_auto(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            # entities_auto ist section-basiert → user_input ist nested
+            # ({"sondes": {...}, "anlage_targets": {...}}). _flatten zieht alle
+            # Felder auf eine flache Ebene, damit entry.options direkt die
+            # entity_ph_target etc. Keys hat statt der Section-Wrapper.
+            self._data.update(_flatten(user_input))
             return await self.async_step_entities_manual()
         return self.async_show_form(step_id="entities_auto", data_schema=_schema_entities_auto({}))
 
@@ -639,7 +643,8 @@ class PoolAdvisorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_entities_auto(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            self._data.update(user_input)
+            # Sections-basierter Step → _flatten() für flache Keys in entry.options
+            self._data.update(_flatten(user_input))
             if self._chain:
                 return await self.async_step_entities_manual()
             return self._save()
