@@ -38,6 +38,14 @@ CONF_ENT_REDOX_TARGET: Final = "entity_redox_target"
 CONF_ENT_REDOX_ALERT_MIN: Final = "entity_redox_alert_min"
 CONF_ENT_REDOX_ALERT_MAX: Final = "entity_redox_alert_max"
 
+# Toleranz-Bänder (zwischen Target und Alert) — kommen ebenfalls live aus
+# Bayrol-Bridge (derived sensors aus Target ± user-konfigurierbarem Offset).
+# Damit ist ALLE Schwellen-Konfiguration an einem Ort: bei Bayrol-Bridge.
+CONF_ENT_PH_TOLERANCE_MIN: Final = "entity_ph_tolerance_min"
+CONF_ENT_PH_TOLERANCE_MAX: Final = "entity_ph_tolerance_max"
+CONF_ENT_REDOX_TOLERANCE_MIN: Final = "entity_redox_tolerance_min"
+CONF_ENT_REDOX_TOLERANCE_MAX: Final = "entity_redox_tolerance_max"
+
 # Input entities — manual (spot checks, e.g. PoolLab)
 CONF_ENT_PH_MANUAL: Final = "entity_ph_manual"
 CONF_ENT_ALKALINITY: Final = "entity_alkalinity"
@@ -65,11 +73,9 @@ DEFAULT_STALE_FC_DAYS: Final = 14
 DEFAULT_STALE_CYA_DAYS: Final = 56
 
 # Targets
-# pH/Redox-Target werden live aus Bayrol-Bridge gelesen (siehe CONF_ENT_PH_TARGET
-# etc.). Hier nur das normale Toleranz-Band (zwischen Target und kritischer
-# Schwelle — Bayrol kennt diese Zwischen-Stufe nicht).
-CONF_PH_MIN: Final = "ph_min"
-CONF_PH_MAX: Final = "ph_max"
+# pH/Redox-Target + Toleranz + Alert kommen alle live aus Bayrol-Bridge.
+# Nur TA/FC/CYA Bereiche bleiben in Pool-Advisor-Config (Bayrol kennt die
+# Werte nicht).
 
 CONF_TA_MIN: Final = "ta_min"
 CONF_TA_MAX: Final = "ta_max"
@@ -81,9 +87,6 @@ CONF_FC_TARGET: Final = "fc_target"
 
 CONF_CC_MAX: Final = "cc_max"
 CONF_CC_CRITICAL_HIGH: Final = "cc_critical_high"
-
-CONF_REDOX_MIN: Final = "redox_min"
-CONF_REDOX_MAX: Final = "redox_max"
 
 # Critical thresholds für TA/FC (pH/Redox kommen aus Bayrol-Anlage)
 CONF_TA_CRITICAL_LOW: Final = "ta_critical_low"

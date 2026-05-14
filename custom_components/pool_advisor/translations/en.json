@@ -24,12 +24,16 @@
             }
           },
           "anlage_targets": {
-            "name": "Setpoints + alerts from the controller",
+            "name": "Setpoints + tolerance + alerts from the controller",
             "data": {
               "entity_ph_target": "pH target (setpoint)",
+              "entity_ph_tolerance_min": "pH tolerance min (target − offset)",
+              "entity_ph_tolerance_max": "pH tolerance max (target + offset)",
               "entity_ph_alert_min": "pH alert min",
               "entity_ph_alert_max": "pH alert max",
               "entity_redox_target": "Redox target (setpoint)",
+              "entity_redox_tolerance_min": "Redox tolerance min (target − offset)",
+              "entity_redox_tolerance_max": "Redox tolerance max (target + offset)",
               "entity_redox_alert_min": "Redox alert min",
               "entity_redox_alert_max": "Redox alert max"
             }
@@ -51,14 +55,6 @@
         "title": "Targets & tolerances",
         "description": "Defaults are common pool-chemistry guidelines. Blocks are collapsible.",
         "sections": {
-          "ph": {
-            "name": "pH",
-            "description": "Acid-base value (scale 0–14, neutral 7). Target and critical thresholds come live from the Bayrol controller (see Bayrol controller section). Here only the normal tolerance band.",
-            "data": {
-              "ph_min": "pH min",
-              "ph_max": "pH max"
-            }
-          },
           "alkalinity": {
             "name": "Alkalinity (TA)",
             "description": "Carbonate hardness (HCO₃⁻) — the chemical memory of pH. Plenty of TA = pH is robust against acid/base shocks; too little = every small dose makes pH jump. Too much TA absorbs too much acid, pH drifts up and scale forms. Raise with baking soda (NaHCO₃); lowering is a multi-day process (drop pH to ~7.0 and aerate heavily). Target 80–120 mg/l.",
@@ -98,14 +94,6 @@
             "data": {
               "cc_max": "Combined Cl max (mg/l, watch)",
               "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
-            }
-          },
-          "redox": {
-            "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV. Target and alert thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
-            "data": {
-              "redox_min": "Redox min (mV)",
-              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {
@@ -265,14 +253,6 @@
       "targets": {
         "title": "Targets & tolerances",
         "sections": {
-          "ph": {
-            "name": "pH",
-            "description": "Acid-base value. Target and critical thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
-            "data": {
-              "ph_min": "pH min",
-              "ph_max": "pH max"
-            }
-          },
           "alkalinity": {
             "name": "Alkalinity (TA)",
             "description": "Carbonate hardness (HCO₃⁻) — the chemical memory of pH. Plenty of TA = pH is robust against acid/base shocks; too little = every small dose makes pH jump. Too much TA absorbs too much acid, pH drifts up and scale forms. Raise with baking soda (NaHCO₃); lowering is a multi-day process (drop pH to ~7.0 and aerate heavily). Target 80–120 mg/l.",
@@ -312,14 +292,6 @@
             "data": {
               "cc_max": "Combined Cl max (mg/l, watch)",
               "cc_critical_high": "Combined Cl critical high (mg/l, shock)"
-            }
-          },
-          "redox": {
-            "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV. Target and alert thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
-            "data": {
-              "redox_min": "Redox min (mV)",
-              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {

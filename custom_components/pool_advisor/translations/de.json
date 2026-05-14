@@ -24,12 +24,16 @@
             }
           },
           "anlage_targets": {
-            "name": "Setpoints + Alerts der Anlage",
+            "name": "Setpoints + Toleranz + Alerts der Anlage",
             "data": {
               "entity_ph_target": "pH Target (Setpoint)",
+              "entity_ph_tolerance_min": "pH Toleranz Min (Target − Offset)",
+              "entity_ph_tolerance_max": "pH Toleranz Max (Target + Offset)",
               "entity_ph_alert_min": "pH Alert Min",
               "entity_ph_alert_max": "pH Alert Max",
               "entity_redox_target": "Redox Target (Setpoint)",
+              "entity_redox_tolerance_min": "Redox Toleranz Min (Target − Offset)",
+              "entity_redox_tolerance_max": "Redox Toleranz Max (Target + Offset)",
               "entity_redox_alert_min": "Redox Alert Min",
               "entity_redox_alert_max": "Redox Alert Max"
             }
@@ -51,14 +55,6 @@
         "title": "Zielwerte & Toleranzen",
         "description": "Defaults sind Richtwerte aus der Pool-Chemie-Literatur. Blöcke sind einklappbar.",
         "sections": {
-          "ph": {
-            "name": "pH-Wert",
-            "description": "Säure-Basen-Wert (Skala 0–14, neutral 7). Zu sauer (< 7) = Augenreizung, Metall-/Liner-Korrosion; zu basisch (> 7.6) = Kalkausfällung, Trübung, Chlor-Wirksamkeit bricht ein. Ziel und kritische Schwellen kommen live aus der Bayrol-Anlage (siehe Bayrol-Anlage-Werte). Hier nur das normale Toleranz-Band zwischen Ziel und Alarm.",
-            "data": {
-              "ph_min": "pH min",
-              "ph_max": "pH max"
-            }
-          },
           "alkalinity": {
             "name": "Alkalität (TA)",
             "description": "Karbonathärte (HCO₃⁻) — das chemische Gedächtnis des pH. Viel TA = pH ist robust gegen Säure-/Base-Stöße; zu wenig TA = jede kleine Dosis lässt pH springen. Zu hoher TA bindet zu viel Säure, pH tendiert nach oben und Kalk fällt aus. Anheben mit Natron (NaHCO₃), Senken ist ein mehrtägiger Prozess (pH auf ~7.0 + kräftig belüften). Ziel 80–120 mg/l.",
@@ -98,14 +94,6 @@
             "data": {
               "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
               "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
-            }
-          },
-          "redox": {
-            "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Ziel und Alert-Schwellen kommen live aus der Bayrol-Anlage. Hier nur das normale Toleranz-Band.",
-            "data": {
-              "redox_min": "Redox min (mV)",
-              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {
@@ -312,14 +300,6 @@
             "data": {
               "cc_max": "Gebundenes Chlor max (mg/l, beobachten)",
               "cc_critical_high": "Gebundenes Chlor kritisch hoch (mg/l, Shockchlorung)"
-            }
-          },
-          "redox": {
-            "name": "Redox (ORP)",
-            "description": "Oxidationspotenzial in mV — Summen-Maß wie gut das Wasser gerade desinfiziert. Ziel und Alert-Schwellen kommen live aus der Bayrol-Anlage. Hier nur das normale Toleranz-Band.",
-            "data": {
-              "redox_min": "Redox min (mV)",
-              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {

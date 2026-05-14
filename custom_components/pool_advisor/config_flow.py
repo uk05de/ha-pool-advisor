@@ -26,10 +26,14 @@ from .const import (
     CONF_ENT_PH_AUTO,
     CONF_ENT_PH_MANUAL,
     CONF_ENT_PH_TARGET,
+    CONF_ENT_PH_TOLERANCE_MAX,
+    CONF_ENT_PH_TOLERANCE_MIN,
     CONF_ENT_REDOX,
     CONF_ENT_REDOX_ALERT_MAX,
     CONF_ENT_REDOX_ALERT_MIN,
     CONF_ENT_REDOX_TARGET,
+    CONF_ENT_REDOX_TOLERANCE_MAX,
+    CONF_ENT_REDOX_TOLERANCE_MIN,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
     CONF_FC_CRITICAL_HIGH,
@@ -39,8 +43,6 @@ from .const import (
     CONF_FC_TARGET,
     CONF_NAME,
     CONF_PH_CALIB_THRESHOLD,
-    CONF_PH_MAX,
-    CONF_PH_MIN,
     CONF_PH_MINUS_NAME,
     CONF_PH_MINUS_STRENGTH,
     CONF_PH_MINUS_TYPE,
@@ -51,8 +53,6 @@ from .const import (
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
     CONF_POOL_VOLUME_M3,
-    CONF_REDOX_MAX,
-    CONF_REDOX_MIN,
     CONF_ROUTINE_CL_NAME,
     CONF_ROUTINE_CL_STRENGTH,
     CONF_ROUTINE_CL_TYPE,
@@ -100,10 +100,6 @@ from .const import (
     DEFAULT_FC_TARGET_CLASSIC,
     DEFAULT_FC_TARGET_SALT,
     DEFAULT_PH_CALIB_THRESHOLD,
-    DEFAULT_PH_MAX,
-    DEFAULT_PH_MIN,
-    DEFAULT_REDOX_MAX,
-    DEFAULT_REDOX_MIN,
     DEFAULT_STALE_CYA_DAYS,
     DEFAULT_STALE_FC_DAYS,
     DEFAULT_STALE_PH_MANUAL_DAYS,
@@ -198,9 +194,13 @@ def _schema_entities_auto(defaults: dict[str, Any]) -> vol.Schema:
         vol.Schema(
             {
                 vol.Optional(CONF_ENT_PH_TARGET, **_opt(CONF_ENT_PH_TARGET)): _sensor_selector(),
+                vol.Optional(CONF_ENT_PH_TOLERANCE_MIN, **_opt(CONF_ENT_PH_TOLERANCE_MIN)): _sensor_selector(),
+                vol.Optional(CONF_ENT_PH_TOLERANCE_MAX, **_opt(CONF_ENT_PH_TOLERANCE_MAX)): _sensor_selector(),
                 vol.Optional(CONF_ENT_PH_ALERT_MIN, **_opt(CONF_ENT_PH_ALERT_MIN)): _sensor_selector(),
                 vol.Optional(CONF_ENT_PH_ALERT_MAX, **_opt(CONF_ENT_PH_ALERT_MAX)): _sensor_selector(),
                 vol.Optional(CONF_ENT_REDOX_TARGET, **_opt(CONF_ENT_REDOX_TARGET)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX_TOLERANCE_MIN, **_opt(CONF_ENT_REDOX_TOLERANCE_MIN)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX_TOLERANCE_MAX, **_opt(CONF_ENT_REDOX_TOLERANCE_MAX)): _sensor_selector(),
                 vol.Optional(CONF_ENT_REDOX_ALERT_MIN, **_opt(CONF_ENT_REDOX_ALERT_MIN)): _sensor_selector(),
                 vol.Optional(CONF_ENT_REDOX_ALERT_MAX, **_opt(CONF_ENT_REDOX_ALERT_MAX)): _sensor_selector(),
             }
@@ -235,17 +235,9 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
     def _dv(key, fallback):
         return defaults.get(key, fallback)
 
-    # pH-Target, Alert-Min/Max kommen live aus den Bayrol-Bridge Number-
-    # Entities (siehe entities_auto). Hier nur das normale Toleranz-Band.
-    ph_section = section(
-        vol.Schema(
-            {
-                vol.Required(CONF_PH_MIN, default=_dv(CONF_PH_MIN, DEFAULT_PH_MIN)): _number(6.0, 8.0, 0.05),
-                vol.Required(CONF_PH_MAX, default=_dv(CONF_PH_MAX, DEFAULT_PH_MAX)): _number(6.0, 8.0, 0.05),
-            }
-        ),
-        {"collapsed": False},
-    )
+    # pH-Werte (Target, Toleranz, Alert) kommen alle live aus den Bayrol-
+    # Bridge Number-/Sensor-Entities (siehe entities_auto). Keine pH-Sektion
+    # mehr in den Pool-Advisor-Targets.
     ta_section = section(
         vol.Schema(
             {
@@ -291,17 +283,8 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
         ),
         {"collapsed": True},
     )
-    # Redox-Target, Alert-Min/Max kommen live aus den Bayrol-Bridge Number-
-    # Entities (siehe entities_auto). Hier nur das normale Toleranz-Band.
-    redox_section = section(
-        vol.Schema(
-            {
-                vol.Required(CONF_REDOX_MIN, default=_dv(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)): _number(400, 900, 5),
-                vol.Required(CONF_REDOX_MAX, default=_dv(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)): _number(400, 900, 5),
-            }
-        ),
-        {"collapsed": True},
-    )
+    # Redox-Werte (Target, Toleranz, Alert) kommen alle live aus den Bayrol-
+    # Bridge Number-/Sensor-Entities (siehe entities_auto).
     drift_section = section(
         vol.Schema(
             {
@@ -324,12 +307,10 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
     )
     return vol.Schema(
         {
-            vol.Required("ph"): ph_section,
             vol.Required("alkalinity"): ta_section,
             vol.Required("cyanuric"): cya_section,
             vol.Required("free_chlorine"): fc_section,
             vol.Required("combined_chlorine"): cc_section,
-            vol.Required("redox"): redox_section,
             vol.Required("drift"): drift_section,
             vol.Required("stale"): stale_section,
         }
