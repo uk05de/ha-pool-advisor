@@ -21,9 +21,15 @@ from .const import (
     CONF_ENT_ALKALINITY,
     CONF_ENT_CYANURIC,
     CONF_ENT_FREE_CL,
+    CONF_ENT_PH_ALERT_MAX,
+    CONF_ENT_PH_ALERT_MIN,
     CONF_ENT_PH_AUTO,
     CONF_ENT_PH_MANUAL,
+    CONF_ENT_PH_TARGET,
     CONF_ENT_REDOX,
+    CONF_ENT_REDOX_ALERT_MAX,
+    CONF_ENT_REDOX_ALERT_MIN,
+    CONF_ENT_REDOX_TARGET,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
     CONF_FC_CRITICAL_HIGH,
@@ -33,8 +39,6 @@ from .const import (
     CONF_FC_TARGET,
     CONF_NAME,
     CONF_PH_CALIB_THRESHOLD,
-    CONF_PH_CRITICAL_HIGH,
-    CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
     CONF_PH_MINUS_NAME,
@@ -46,13 +50,9 @@ from .const import (
     CONF_PH_PLUS_NAME,
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
-    CONF_PH_TARGET,
     CONF_POOL_VOLUME_M3,
-    CONF_REDOX_CRITICAL_HIGH,
-    CONF_REDOX_CRITICAL_LOW,
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
-    CONF_REDOX_TARGET,
     CONF_ROUTINE_CL_NAME,
     CONF_ROUTINE_CL_STRENGTH,
     CONF_ROUTINE_CL_TYPE,
@@ -100,16 +100,10 @@ from .const import (
     DEFAULT_FC_TARGET_CLASSIC,
     DEFAULT_FC_TARGET_SALT,
     DEFAULT_PH_CALIB_THRESHOLD,
-    DEFAULT_PH_CRITICAL_HIGH,
-    DEFAULT_PH_CRITICAL_LOW,
     DEFAULT_PH_MAX,
     DEFAULT_PH_MIN,
-    DEFAULT_PH_TARGET,
-    DEFAULT_REDOX_CRITICAL_HIGH,
-    DEFAULT_REDOX_CRITICAL_LOW,
     DEFAULT_REDOX_MAX,
     DEFAULT_REDOX_MIN,
-    DEFAULT_REDOX_TARGET,
     DEFAULT_STALE_CYA_DAYS,
     DEFAULT_STALE_FC_DAYS,
     DEFAULT_STALE_PH_MANUAL_DAYS,
@@ -187,11 +181,36 @@ def _schema_entities_auto(defaults: dict[str, Any]) -> vol.Schema:
         val = defaults.get(key)
         return {"default": val} if val else {}
 
+    sondes_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_ENT_PH_AUTO, **_opt(CONF_ENT_PH_AUTO)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX, **_opt(CONF_ENT_REDOX)): _sensor_selector(),
+                vol.Optional(CONF_ENT_TEMPERATURE, **_opt(CONF_ENT_TEMPERATURE)): _sensor_selector(),
+            }
+        ),
+        {"collapsed": False},
+    )
+    # Setpoint + Alert-Min/Max der Bayrol-Anlage als Live-Quelle. Wenn nicht
+    # konfiguriert, fällt der Advisor auf interne Defaults zurück (Pool-Advisor
+    # bleibt funktional, aber zeigt nicht mehr was die Anlage tatsächlich tut).
+    targets_section = section(
+        vol.Schema(
+            {
+                vol.Optional(CONF_ENT_PH_TARGET, **_opt(CONF_ENT_PH_TARGET)): _sensor_selector(),
+                vol.Optional(CONF_ENT_PH_ALERT_MIN, **_opt(CONF_ENT_PH_ALERT_MIN)): _sensor_selector(),
+                vol.Optional(CONF_ENT_PH_ALERT_MAX, **_opt(CONF_ENT_PH_ALERT_MAX)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX_TARGET, **_opt(CONF_ENT_REDOX_TARGET)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX_ALERT_MIN, **_opt(CONF_ENT_REDOX_ALERT_MIN)): _sensor_selector(),
+                vol.Optional(CONF_ENT_REDOX_ALERT_MAX, **_opt(CONF_ENT_REDOX_ALERT_MAX)): _sensor_selector(),
+            }
+        ),
+        {"collapsed": True},
+    )
     return vol.Schema(
         {
-            vol.Optional(CONF_ENT_PH_AUTO, **_opt(CONF_ENT_PH_AUTO)): _sensor_selector(),
-            vol.Optional(CONF_ENT_REDOX, **_opt(CONF_ENT_REDOX)): _sensor_selector(),
-            vol.Optional(CONF_ENT_TEMPERATURE, **_opt(CONF_ENT_TEMPERATURE)): _sensor_selector(),
+            vol.Required("sondes"): sondes_section,
+            vol.Required("anlage_targets"): targets_section,
         }
     )
 
@@ -216,14 +235,13 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
     def _dv(key, fallback):
         return defaults.get(key, fallback)
 
+    # pH-Target, Alert-Min/Max kommen live aus den Bayrol-Bridge Number-
+    # Entities (siehe entities_auto). Hier nur das normale Toleranz-Band.
     ph_section = section(
         vol.Schema(
             {
                 vol.Required(CONF_PH_MIN, default=_dv(CONF_PH_MIN, DEFAULT_PH_MIN)): _number(6.0, 8.0, 0.05),
-                vol.Required(CONF_PH_TARGET, default=_dv(CONF_PH_TARGET, DEFAULT_PH_TARGET)): _number(6.0, 8.0, 0.05),
                 vol.Required(CONF_PH_MAX, default=_dv(CONF_PH_MAX, DEFAULT_PH_MAX)): _number(6.0, 8.0, 0.05),
-                vol.Required(CONF_PH_CRITICAL_LOW, default=_dv(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)): _number(5.5, 8.0, 0.05),
-                vol.Required(CONF_PH_CRITICAL_HIGH, default=_dv(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)): _number(6.5, 9.0, 0.05),
             }
         ),
         {"collapsed": False},
@@ -273,14 +291,13 @@ def _schema_targets(defaults: dict[str, Any]) -> vol.Schema:
         ),
         {"collapsed": True},
     )
+    # Redox-Target, Alert-Min/Max kommen live aus den Bayrol-Bridge Number-
+    # Entities (siehe entities_auto). Hier nur das normale Toleranz-Band.
     redox_section = section(
         vol.Schema(
             {
                 vol.Required(CONF_REDOX_MIN, default=_dv(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)): _number(400, 900, 5),
-                vol.Required(CONF_REDOX_TARGET, default=_dv(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)): _number(400, 900, 5),
                 vol.Required(CONF_REDOX_MAX, default=_dv(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)): _number(400, 900, 5),
-                vol.Required(CONF_REDOX_CRITICAL_LOW, default=_dv(CONF_REDOX_CRITICAL_LOW, DEFAULT_REDOX_CRITICAL_LOW)): _number(300, 900, 5),
-                vol.Required(CONF_REDOX_CRITICAL_HIGH, default=_dv(CONF_REDOX_CRITICAL_HIGH, DEFAULT_REDOX_CRITICAL_HIGH)): _number(500, 1000, 5),
             }
         ),
         {"collapsed": True},

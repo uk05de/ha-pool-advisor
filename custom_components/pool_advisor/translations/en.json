@@ -12,12 +12,28 @@
         }
       },
       "entities_auto": {
-        "title": "Automatic measurements",
-        "description": "Continuous readings (e.g. Bayrol dosing controller). All optional.",
-        "data": {
-          "entity_ph_auto": "pH (controller)",
-          "entity_redox": "Redox",
-          "entity_temperature": "Temperature"
+        "title": "Bayrol controller",
+        "description": "Live readings and setpoints from the Bayrol bridge. Probe values for pH/Redox/Temperature — prefer the gated variant if available (filters out values while pump is off). Setpoints + alerts replace the previously manually configured Pool-Advisor targets — they stay in sync with what the controller is actually doing.",
+        "sections": {
+          "sondes": {
+            "name": "Probe readings",
+            "data": {
+              "entity_ph_auto": "pH (probe)",
+              "entity_redox": "Redox (probe)",
+              "entity_temperature": "Temperature (probe)"
+            }
+          },
+          "anlage_targets": {
+            "name": "Setpoints + alerts from the controller",
+            "data": {
+              "entity_ph_target": "pH target (setpoint)",
+              "entity_ph_alert_min": "pH alert min",
+              "entity_ph_alert_max": "pH alert max",
+              "entity_redox_target": "Redox target (setpoint)",
+              "entity_redox_alert_min": "Redox alert min",
+              "entity_redox_alert_max": "Redox alert max"
+            }
+          }
         }
       },
       "entities_manual": {
@@ -37,13 +53,10 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (< 7) = eye irritation, metal/liner corrosion; too basic (> 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
+            "description": "Acid-base value (scale 0–14, neutral 7). Target and critical thresholds come live from the Bayrol controller (see Bayrol controller section). Here only the normal tolerance band.",
             "data": {
               "ph_min": "pH min",
-              "ph_target": "pH target",
-              "ph_max": "pH max",
-              "ph_critical_low": "pH critical low (intervene below)",
-              "ph_critical_high": "pH critical high (intervene above)"
+              "ph_max": "pH max"
             }
           },
           "alkalinity": {
@@ -89,13 +102,10 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: < 650 under-supplied, ~700 ideal, > 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
+            "description": "Oxidation potential in mV. Target and alert thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
             "data": {
               "redox_min": "Redox min (mV)",
-              "redox_target": "Redox target (mV)",
-              "redox_max": "Redox max (mV)",
-              "redox_critical_low": "Redox critical low (mV, diagnostic alarm)",
-              "redox_critical_high": "Redox critical high (mV, diagnostic alarm)"
+              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {
@@ -257,13 +267,10 @@
         "sections": {
           "ph": {
             "name": "pH",
-            "description": "Acid-base value (scale 0–14, neutral 7). Too acidic (< 7) = eye irritation, metal/liner corrosion; too basic (> 7.6) = scale, cloudiness, chlorine effectiveness collapses (at pH 8 only ~20% active hypochlorous acid remains). Target 7.0–7.4 is the sweet spot of comfort, material, and disinfection.",
+            "description": "Acid-base value. Target and critical thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
             "data": {
               "ph_min": "pH min",
-              "ph_target": "pH target",
-              "ph_max": "pH max",
-              "ph_critical_low": "pH critical low",
-              "ph_critical_high": "pH critical high"
+              "ph_max": "pH max"
             }
           },
           "alkalinity": {
@@ -309,13 +316,10 @@
           },
           "redox": {
             "name": "Redox (ORP)",
-            "description": "Oxidation potential in mV — aggregate measure of how well the water is currently disinfecting. Depends on the product of active hypochlorous acid and water chemistry (pH, CYA, impurities), so it's not a direct chemistry metric but a result indicator. The dosing controller regulates on a setpoint at the device itself; here it is mostly diagnostic: < 650 under-supplied, ~700 ideal, > 800 suspicious (overdosing or probe drift). The computed expected value in the table (Redox Calculated) is the theoretical value from FC + pH + CYA.",
+            "description": "Oxidation potential in mV. Target and alert thresholds come live from the Bayrol controller. Here only the normal tolerance band.",
             "data": {
               "redox_min": "Redox min (mV)",
-              "redox_target": "Redox target (mV)",
-              "redox_max": "Redox max (mV)",
-              "redox_critical_low": "Redox critical low (mV, diagnostic alarm)",
-              "redox_critical_high": "Redox critical high (mV, diagnostic alarm)"
+              "redox_max": "Redox max (mV)"
             }
           },
           "drift": {

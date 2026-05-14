@@ -35,8 +35,14 @@ from .const import (
     CONF_ENT_CYANURIC,
     CONF_ENT_FREE_CL,
     CONF_ENT_PH_AUTO,
+    CONF_ENT_PH_ALERT_MAX,
+    CONF_ENT_PH_ALERT_MIN,
     CONF_ENT_PH_MANUAL,
+    CONF_ENT_PH_TARGET,
     CONF_ENT_REDOX,
+    CONF_ENT_REDOX_ALERT_MAX,
+    CONF_ENT_REDOX_ALERT_MIN,
+    CONF_ENT_REDOX_TARGET,
     CONF_ENT_TEMPERATURE,
     CONF_ENT_TOTAL_CL,
     CONF_CC_MAX,
@@ -46,8 +52,6 @@ from .const import (
     CONF_FC_MIN,
     CONF_FC_TARGET,
     CONF_PH_CALIB_THRESHOLD,
-    CONF_PH_CRITICAL_HIGH,
-    CONF_PH_CRITICAL_LOW,
     CONF_PH_MAX,
     CONF_PH_MIN,
     CONF_PH_MINUS_NAME,
@@ -56,7 +60,6 @@ from .const import (
     CONF_PH_PLUS_NAME,
     CONF_PH_PLUS_STRENGTH,
     CONF_PH_PLUS_TYPE,
-    CONF_PH_TARGET,
     CONF_POOL_VOLUME_M3,
     CONF_ROUTINE_CL_NAME,
     CONF_ROUTINE_CL_STRENGTH,
@@ -80,12 +83,9 @@ from .const import (
     CONF_CYA_STRENGTH,
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
-    CONF_REDOX_CRITICAL_HIGH,
-    CONF_REDOX_CRITICAL_LOW,
     CONF_REDOX_DRIFT_THRESHOLD,
     CONF_REDOX_MAX,
     CONF_REDOX_MIN,
-    CONF_REDOX_TARGET,
     CONF_TEST_MODE,
     DEFAULT_REDOX_CRITICAL_HIGH,
     DEFAULT_REDOX_CRITICAL_LOW,
@@ -143,6 +143,19 @@ AUTO_KEYS: tuple[str, ...] = (
     CONF_ENT_PH_AUTO,
     CONF_ENT_REDOX,
     CONF_ENT_TEMPERATURE,
+)
+
+# Bayrol-Anlage Setpoint/Alert-Entities — Live-Quelle für pH/Redox-Targets
+# und kritische Schwellen. Werden wie AUTO_KEYS auf State-Changes überwacht,
+# damit Setpoint-Änderungen am Bayrol-Display sofort eine Recalculation
+# auslösen.
+BAYROL_TARGET_KEYS: tuple[str, ...] = (
+    CONF_ENT_PH_TARGET,
+    CONF_ENT_PH_ALERT_MIN,
+    CONF_ENT_PH_ALERT_MAX,
+    CONF_ENT_REDOX_TARGET,
+    CONF_ENT_REDOX_ALERT_MIN,
+    CONF_ENT_REDOX_ALERT_MAX,
 )
 
 # Maps a manual-entity config key → (stale-threshold config key, default days).
@@ -216,6 +229,27 @@ class PoolAdvisorData:
         if chemical:
             return PRODUCT_LABELS.get(chemical, chemical)
         return "Produkt"
+
+    # --- Bayrol-Target Live-Read ---
+    def _read_target(self, entity_key: str, fallback: float) -> float:
+        """Lies einen Setpoint/Alert-Wert live aus der konfigurierten
+        Bayrol-Entity. Fallback wenn nicht konfiguriert oder Entity
+        unavailable — damit der Advisor weiter rechnet auch wenn die
+        Bayrol-Bridge gerade offline ist."""
+        entity_id = self._cfg(entity_key)
+        if not entity_id:
+            return fallback
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in (None, "", "unknown", "unavailable"):
+            return fallback
+        try:
+            return float(state.state)
+        except (TypeError, ValueError):
+            _LOGGER.debug(
+                "Non-numeric state for target %s: %r — using fallback %s",
+                entity_id, state.state, fallback,
+            )
+            return fallback
 
     # --- live read (auto) ---
     def _read_live(self, entity_key: str) -> float | None:
@@ -318,7 +352,9 @@ class PoolAdvisorData:
         await self.dose_history.async_load()
 
         tracked = [
-            self._cfg(k) for k in (*AUTO_KEYS, *MANUAL_KEYS) if self._cfg(k)
+            self._cfg(k)
+            for k in (*AUTO_KEYS, *MANUAL_KEYS, *BAYROL_TARGET_KEYS)
+            if self._cfg(k)
         ]
 
         @callback
@@ -373,7 +409,7 @@ class PoolAdvisorData:
             cc=self._combined_chlorine(),
             cya=self._manual_value(CONF_ENT_CYANURIC),
             water_temp=self._read_live(CONF_ENT_TEMPERATURE),
-            ph_target=float(self._cfg(CONF_PH_TARGET)),
+            ph_target=self._read_target(CONF_ENT_PH_TARGET, DEFAULT_PH_TARGET),
             ta_target=float(self._cfg(CONF_TA_TARGET)),
             fc_target=fc_b["fc_target"],
             cya_target=float(self._cfg(CONF_CYA_TARGET, DEFAULT_CYA_TARGET)),
@@ -381,9 +417,9 @@ class PoolAdvisorData:
             ph_max=float(self._cfg(CONF_PH_MAX)),
             ta_min=float(self._cfg(CONF_TA_MIN)),
             ta_max=float(self._cfg(CONF_TA_MAX)),
-            # Thresholds für Color-Coding
-            ph_critical_low=float(self._cfg(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)),
-            ph_critical_high=float(self._cfg(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)),
+            # Thresholds für Color-Coding — pH/Redox kritisch aus Bayrol-Anlage
+            ph_critical_low=self._read_target(CONF_ENT_PH_ALERT_MIN, DEFAULT_PH_CRITICAL_LOW),
+            ph_critical_high=self._read_target(CONF_ENT_PH_ALERT_MAX, DEFAULT_PH_CRITICAL_HIGH),
             ta_critical_low=float(self._cfg(CONF_TA_CRITICAL_LOW, DEFAULT_TA_CRITICAL_LOW)),
             ta_critical_high=float(self._cfg(CONF_TA_CRITICAL_HIGH, DEFAULT_TA_CRITICAL_HIGH)),
             fc_critical_low=fc_b["fc_critical_low"],
@@ -403,10 +439,10 @@ class PoolAdvisorData:
             total_cl=self._manual_value(CONF_ENT_TOTAL_CL),
             redox=self._read_live(CONF_ENT_REDOX),
             redox_min=float(self._cfg(CONF_REDOX_MIN, DEFAULT_REDOX_MIN)),
-            redox_target=float(self._cfg(CONF_REDOX_TARGET, DEFAULT_REDOX_TARGET)),
+            redox_target=self._read_target(CONF_ENT_REDOX_TARGET, DEFAULT_REDOX_TARGET),
             redox_max=float(self._cfg(CONF_REDOX_MAX, DEFAULT_REDOX_MAX)),
-            redox_critical_low=float(self._cfg(CONF_REDOX_CRITICAL_LOW, DEFAULT_REDOX_CRITICAL_LOW)),
-            redox_critical_high=float(self._cfg(CONF_REDOX_CRITICAL_HIGH, DEFAULT_REDOX_CRITICAL_HIGH)),
+            redox_critical_low=self._read_target(CONF_ENT_REDOX_ALERT_MIN, DEFAULT_REDOX_CRITICAL_LOW),
+            redox_critical_high=self._read_target(CONF_ENT_REDOX_ALERT_MAX, DEFAULT_REDOX_CRITICAL_HIGH),
             stale=stale_map,
             measured_at=measured_at_map,
             stale_days=stale_days_map,
@@ -463,11 +499,11 @@ class PoolAdvisorData:
         ph_dosing_plus = ph_dosing in (PH_DOSING_PLUS, PH_DOSING_BOTH)
         ph_rec = recommend_ph(
             current=ph_for_dosing,
-            target=float(self._cfg(CONF_PH_TARGET)),
+            target=self._read_target(CONF_ENT_PH_TARGET, DEFAULT_PH_TARGET),
             ph_min=float(self._cfg(CONF_PH_MIN)),
             ph_max=float(self._cfg(CONF_PH_MAX)),
-            ph_critical_low=float(self._cfg(CONF_PH_CRITICAL_LOW, DEFAULT_PH_CRITICAL_LOW)),
-            ph_critical_high=float(self._cfg(CONF_PH_CRITICAL_HIGH, DEFAULT_PH_CRITICAL_HIGH)),
+            ph_critical_low=self._read_target(CONF_ENT_PH_ALERT_MIN, DEFAULT_PH_CRITICAL_LOW),
+            ph_critical_high=self._read_target(CONF_ENT_PH_ALERT_MAX, DEFAULT_PH_CRITICAL_HIGH),
             volume_m3=volume,
             ph_minus_type=self._cfg(CONF_PH_MINUS_TYPE),
             ph_minus_strength_pct=float(self._cfg(CONF_PH_MINUS_STRENGTH)),
