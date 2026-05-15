@@ -28,7 +28,43 @@ async def async_setup_entry(
     # macht HA-Statistics + Charts ohne weitere Setup-Schritte verfügbar.
     for chem_key, chem_label, _, _ in MANUAL_DOSE_CHEMISTRIES:
         entities.append(CumulativeDoseSensor(data, entry, chem_key, chem_label))
+    # Threshold-Sensoren — Werte werden via WorkflowContext gelesen (FC dynamic
+    # aus CYA-Verhältnis wenn frisch). Für Detail-Charts mit Target-/Min-/Max-
+    # Linien ohne YAML-Hartkodierung. pH/Redox sind nicht hier — die kommen
+    # via Bayrol-Bridge direkt als writable numbers.
+    for suffix, ctx_attr, name, unit, icon in THRESHOLDS:
+        entities.append(
+            ThresholdSensor(data, entry, suffix, ctx_attr, name, unit, icon)
+        )
     async_add_entities(entities)
+
+
+# Mapping: (entity-suffix, WorkflowContext-Attribut, Friendly-Name, Unit, Icon)
+# Werte werden live aus WorkflowContext gezogen — FC respektiert dadurch
+# automatisch das dynamische CYA-Verhältnis (TFP-Faustregel).
+THRESHOLDS: list[tuple[str, str, str, str, str]] = [
+    # TA
+    ("ta_target", "ta_target", "TA Ziel", "mg/l", "mdi:target"),
+    ("ta_min", "ta_min", "TA Min", "mg/l", "mdi:arrow-collapse-down"),
+    ("ta_max", "ta_max", "TA Max", "mg/l", "mdi:arrow-collapse-up"),
+    ("ta_critical_low", "ta_critical_low", "TA Kritisch Niedrig", "mg/l", "mdi:alert-outline"),
+    ("ta_critical_high", "ta_critical_high", "TA Kritisch Hoch", "mg/l", "mdi:alert-outline"),
+    # FC (dynamic from CYA when fresh)
+    ("fc_target", "fc_target", "FC Ziel", "mg/l", "mdi:target"),
+    ("fc_min", "fc_min_val", "FC Min", "mg/l", "mdi:arrow-collapse-down"),
+    ("fc_max", "fc_max", "FC Max", "mg/l", "mdi:arrow-collapse-up"),
+    ("fc_critical_low", "fc_critical_low", "FC Kritisch Niedrig", "mg/l", "mdi:alert-outline"),
+    ("fc_critical_high", "fc_critical_high", "FC Kritisch Hoch", "mg/l", "mdi:alert-outline"),
+    # CC
+    ("cc_max", "cc_max", "CC Max", "mg/l", "mdi:arrow-collapse-up"),
+    ("cc_critical_high", "cc_critical_high", "CC Kritisch Hoch", "mg/l", "mdi:alert-outline"),
+    # CYA
+    ("cya_target", "cya_target", "CYA Ziel", "mg/l", "mdi:target"),
+    ("cya_min", "cya_min", "CYA Min", "mg/l", "mdi:arrow-collapse-down"),
+    ("cya_max", "cya_max", "CYA Max", "mg/l", "mdi:arrow-collapse-up"),
+    ("cya_critical_low", "cya_critical_low", "CYA Kritisch Niedrig", "mg/l", "mdi:alert-outline"),
+    ("cya_critical_high", "cya_critical_high", "CYA Kritisch Hoch", "mg/l", "mdi:alert-outline"),
+]
 
 
 class _BaseSensor(SensorEntity):
@@ -161,6 +197,51 @@ class MarkdownSummarySensor(_BaseSensor):
     def extra_state_attributes(self) -> dict[str, Any]:
         ctx = self._data.build_workflow_context()
         return {"markdown": _workflow_render(ctx, self._data.recommendations)}
+
+
+class ThresholdSensor(_BaseSensor):
+    """Konfig-Schwellwert als read-only Sensor (Soll/Min/Max/Critical).
+
+    Für ApexCharts/Mini-Graph: y-axis-Annotation kann direkt state(...) der
+    Schwellwert-Entity referenzieren — keine YAML-Hartkodierung, ändert sich
+    der User-Wert in der Config, folgen alle Charts ohne Anpassung.
+
+    FC-Schwellen sind dynamisch (skalieren mit CYA-Verhältnis wenn frisch
+    gemessen) — kommt automatisch aus WorkflowContext._effective_fc_bounds().
+    """
+
+    _attr_state_class = "measurement"
+
+    def __init__(
+        self,
+        data: PoolAdvisorData,
+        entry: ConfigEntry,
+        suffix: str,
+        ctx_attr: str,
+        name: str,
+        unit: str,
+        icon: str,
+    ) -> None:
+        super().__init__(data, entry)
+        self._ctx_attr = ctx_attr
+        self._attr_unique_id = f"{entry.entry_id}_threshold_{suffix}"
+        self._attr_name = name
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+
+    @property
+    def native_value(self) -> float | None:
+        try:
+            ctx = self._data.build_workflow_context()
+        except Exception:  # noqa: BLE001
+            return None
+        val = getattr(ctx, self._ctx_attr, None)
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
 
 
 class CumulativeDoseSensor(_BaseSensor):
