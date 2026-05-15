@@ -82,6 +82,7 @@ from .const import (
     CONF_CYA_MAX,
     CONF_CYA_MIN,
     CONF_CYA_NAME,
+    CONF_CYA_FORM,
     CONF_CYA_STRENGTH,
     CONF_CYA_TARGET,
     CONF_CYA_TYPE,
@@ -115,6 +116,7 @@ from .const import (
     DEFAULT_CYA_MAX,
     DEFAULT_CYA_MIN,
     DEFAULT_CYA_STRENGTH,
+    DEFAULT_CYA_FORM,
     DEFAULT_CYA_TARGET,
     DEFAULT_TA_CRITICAL_HIGH,
     DEFAULT_TA_CRITICAL_LOW,
@@ -409,6 +411,7 @@ class PoolAdvisorData:
             shock_strength_pct=float(self._cfg(CONF_SHOCK_STRENGTH, 56)),
             cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
             cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
+            cya_form=self._cfg(CONF_CYA_FORM, DEFAULT_CYA_FORM),
             ph_auto=self._read_live(CONF_ENT_PH_AUTO),
             ph_manual=self._manual_value(CONF_ENT_PH_MANUAL),
             ta=self._manual_value(CONF_ENT_ALKALINITY),
@@ -580,6 +583,7 @@ class PoolAdvisorData:
             volume_m3=volume,
             cya_display=self._display(CONF_CYA_NAME, CONF_CYA_TYPE),
             cya_strength_pct=float(self._cfg(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH)),
+            cya_form=self._cfg(CONF_CYA_FORM, DEFAULT_CYA_FORM),
         )
         drift_redox_rec = recommend_drift_redox(
             redox_live=self._read_live(CONF_ENT_REDOX),

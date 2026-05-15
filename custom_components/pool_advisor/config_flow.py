@@ -71,6 +71,7 @@ from .const import (
     CONF_CYA_CRITICAL_LOW,
     CONF_CYA_MAX,
     CONF_CYA_MIN,
+    CONF_CYA_FORM,
     CONF_CYA_NAME,
     CONF_CYA_STRENGTH,
     CONF_CYA_TARGET,
@@ -106,7 +107,9 @@ from .const import (
     DEFAULT_STALE_TA_DAYS,
     DEFAULT_STRENGTH,
     CYA_CHOICES,
+    CYA_FORM_CHOICES,
     CYA_PURE,
+    DEFAULT_CYA_FORM,
     DEFAULT_REDOX_DRIFT_THRESHOLD,
     DEFAULT_CYA_CRITICAL_HIGH,
     DEFAULT_CYA_CRITICAL_LOW,
@@ -454,6 +457,10 @@ def _schema_chemicals_manual(defaults: dict[str, Any]) -> vol.Schema:
                     CONF_CYA_STRENGTH,
                     default=defaults.get(CONF_CYA_STRENGTH, DEFAULT_CYA_STRENGTH),
                 ): _pct_number(),
+                vol.Optional(
+                    CONF_CYA_FORM,
+                    default=defaults.get(CONF_CYA_FORM, DEFAULT_CYA_FORM),
+                ): _select(CYA_FORM_CHOICES, "cya_form"),
             }
         ),
         {"collapsed": True},

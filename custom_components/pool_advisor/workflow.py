@@ -115,6 +115,7 @@ class WorkflowContext:
     shock_strength_pct: float
     cya_display: str
     cya_strength_pct: float
+    cya_form: str = "granulate_sock"
 
     # Messwerte
     ph_auto: float | None
@@ -934,12 +935,25 @@ def _note_ph_dose(rec: Recommendation, ctx: WorkflowContext) -> str:
 
 
 def _note_cya_raise(rec: Recommendation, ctx: WorkflowContext) -> str:
-    """Format A (Socke-Variante) — CYA anheben."""
+    """CYA anheben — Anweisungen je nach Anwendungsform."""
     lines = [rec.why or "CYA zu niedrig."]
     lines.append(_bullet("Dosierung", format_steps_short(rec.steps)))
-    lines.append(_bullet("Einfüllung", "in Skimmer- oder Filter-Socke aufhängen"))
-    lines.append(_bullet("Pumpe", "24–48 h durchgehend"))
-    lines.append(_bullet("Messung", "nach 3–5 Tagen (Granulat löst sich langsam)"))
+
+    # Anwendungsform-spezifische Anleitung (Real-World-Erfahrung 2026:
+    # Granulat im Skimmer-Sock löst sich in 12 h, nicht 4-7 Tage)
+    if ctx.cya_form == "tablet":
+        lines.append(_bullet("Einfüllung", "Tabletten/Pucks in Skimmer-Korb oder Dispenser"))
+        lines.append(_bullet("Pumpe", "normal nach Filterprogramm"))
+        lines.append(_bullet("Messung", "nach 4–7 Tagen (Tabletten lösen sehr langsam)"))
+    elif ctx.cya_form == "liquid":
+        lines.append(_bullet("Einfüllung", "Flüssig-CYA bei laufender Pumpe gleichmäßig ins Becken"))
+        lines.append(_bullet("Pumpe", "1–2 h zur Verteilung"))
+        lines.append(_bullet("Messung", "nach 2–4 h"))
+    else:  # granulate_sock (default)
+        lines.append(_bullet("Einfüllung", "in Skimmer- oder Filter-Socke aufhängen"))
+        lines.append(_bullet("Pumpe", "8–12 h durchgehend"))
+        lines.append(_bullet("Messung", "nach 12–24 h (Granulat löst sich im Sock bei aktiver Pumpe)"))
+
     lines.append(
         "Menge enthält 80 % Sicherheitspuffer — CYA baut nicht ab und ist nur durch "
         "Wasserwechsel senkbar, daher lieber zu wenig als zu viel. Bei Bedarf nach der "

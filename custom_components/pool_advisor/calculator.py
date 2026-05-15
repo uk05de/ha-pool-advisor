@@ -644,6 +644,7 @@ def recommend_cya(
     volume_m3: float,
     cya_display: str,
     cya_strength_pct: float,
+    cya_form: str = "granulate_sock",
 ) -> Recommendation:
     """Evaluate CYA level. Mirrors the pH/TA semantic but without auto-correction
     (no CYA dosing system exists): inside [min, max] is ok, outside but not
@@ -667,15 +668,18 @@ def recommend_cya(
 
     # Too low — immer aktiv dosieren. Rot (critical) unter critical_low, gelb sonst.
     if current < cya_min:
+        from .const import CYA_WAIT_HOURS_PER_FORM
         delta = target - current
         is_critical = critical_low > 0 and current < critical_low
         pure_g = delta * volume_m3
         product_g = pure_g * (100.0 / max(1.0, cya_strength_pct)) * 0.8
+        # Wartezeit je nach Anwendungsform (Granulat-Sock 12h, Tablet 96h, Liquid 2h)
+        wait_h = CYA_WAIT_HOURS_PER_FORM.get(cya_form, 12)
         step = DoseStep(
             amount=round(product_g, 0),
             unit="g",
             product=cya_display,
-            wait_hours=48,
+            wait_hours=wait_h,
         )
         if is_critical:
             why = (

@@ -182,11 +182,12 @@
           },
           "cya": {
             "name": "Cyanursäure",
-            "description": "Stabilisator-Granulat",
+            "description": "Stabilisator-Granulat. Anwendungsform bestimmt Wartezeit bis Nachmessung sinnvoll (Granulat im Skimmer-Sock ~12h, Tabletten ~4-7 Tage, Flüssig ~2h).",
             "data": {
               "cya_name": "Produktname",
               "cya_type": "Wirkstoff",
-              "cya_strength": "Stärke (%)"
+              "cya_strength": "Stärke (%)",
+              "cya_form": "Anwendungsform"
             }
           }
         }
@@ -457,6 +458,13 @@
     "cya": {
       "options": {
         "cyanuric_acid": "Cyanursäure (Stabilisator)"
+      }
+    },
+    "cya_form": {
+      "options": {
+        "granulate_sock": "Granulat im Skimmer-/Filter-Sock",
+        "tablet": "Tabletten / Pucks (Dispenser)",
+        "liquid": "Flüssig-CYA"
       }
     },
     "ph_dosing": {

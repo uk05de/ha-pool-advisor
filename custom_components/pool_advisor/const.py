@@ -138,6 +138,27 @@ CYA_PURE: Final = "cyanuric_acid"
 CYA_CHOICES: Final = [CYA_PURE]
 DEFAULT_CYA_STRENGTH: Final = 99.0
 
+# CYA Anwendungsform — bestimmt Wartezeit bis Nachmessung sinnvoll ist
+# (Real-World 2026-05: Granulat im Skimmer-Sock + aktive Pumpe löst sich in
+# 12 h, NICHT 4-7 Tage wie für Tabletten/Pucks)
+CONF_CYA_FORM: Final = "cya_form"
+CYA_FORM_GRANULATE_SOCK: Final = "granulate_sock"
+CYA_FORM_TABLET: Final = "tablet"
+CYA_FORM_LIQUID: Final = "liquid"
+CYA_FORM_CHOICES: Final = [
+    CYA_FORM_GRANULATE_SOCK,
+    CYA_FORM_TABLET,
+    CYA_FORM_LIQUID,
+]
+DEFAULT_CYA_FORM: Final = CYA_FORM_GRANULATE_SOCK
+
+# Wartezeit bis CYA messbar (Stunden), je nach Anwendungsform
+CYA_WAIT_HOURS_PER_FORM: Final = {
+    CYA_FORM_GRANULATE_SOCK: 12,
+    CYA_FORM_TABLET: 96,
+    CYA_FORM_LIQUID: 2,
+}
+
 # CYA targets & warning thresholds
 CONF_CYA_MIN: Final = "cya_min"
 CONF_CYA_TARGET: Final = "cya_target"

@@ -182,11 +182,12 @@
           },
           "cya": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer granulate",
+            "description": "Stabilizer product. Application form determines wait time before re-measurement makes sense (granulate in sock ~12h, tablets ~4-7 days, liquid ~2h).",
             "data": {
               "cya_name": "Product name",
               "cya_type": "Active compound",
-              "cya_strength": "Strength (%)"
+              "cya_strength": "Strength (%)",
+              "cya_form": "Application form"
             }
           }
         }
@@ -399,11 +400,12 @@
           },
           "cya": {
             "name": "Cyanuric acid",
-            "description": "Stabilizer product",
+            "description": "Stabilizer product. Application form determines wait time before re-measurement makes sense.",
             "data": {
               "cya_name": "Product name",
               "cya_type": "Active compound",
-              "cya_strength": "Strength (%)"
+              "cya_strength": "Strength (%)",
+              "cya_form": "Application form"
             }
           }
         }
@@ -457,6 +459,13 @@
     "cya": {
       "options": {
         "cyanuric_acid": "Cyanuric acid (stabilizer)"
+      }
+    },
+    "cya_form": {
+      "options": {
+        "granulate_sock": "Granulate in skimmer/filter sock",
+        "tablet": "Tablets / pucks (dispenser)",
+        "liquid": "Liquid CYA"
       }
     },
     "ph_dosing": {
